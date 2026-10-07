@@ -50,6 +50,44 @@ Outside both: G-111's comments follow G-112; G-097 comes after G-108, whose char
 
 **The shortest road to selling**, if that becomes the aim: G-103, G-107, G-113, G-109, G-106. Saved charts, the gallery, the guide and the editor goals can all follow it; tiers would then differ by features and limits only, and G-106's "what happens to saved charts" has nothing to decide until G-108.
 
+### G-116 · Selection modes (replace, add, subtract), Invert selection, and a Magic wand — DRAFT (2026-10-07, plan awaiting the Owner's acceptance)
+- **What:** asked by the Owner, 2026-10-07.
+  1. The selection bar loses its information: the "Selection" label, the size and place of the piece, and the hint text.
+  2. In their place, three radio icons: **Select** (as now: a new area replaces the selection), **Select +** (the new area is added to the selection), **Select −** (the new area is taken out of it). They work the same for Select, Lasso and the Magic wand, and one choice is shared by all three.
+  3. An **Invert selection** button: everything not selected becomes the selection.
+  4. A **Magic wand** tool with the same bar as Select. A click selects the touching region of the clicked stitch's colour. Fill's two switches apply: Diagonal neighbours, and Color and type versus Color only. A click on a backstitch line selects every backstitch line of that colour. The Owner noted this rule is provisional and will be reworked.
+  5. **No duplicated code** (Owner): Fill and the wand find a region with one function, and Select, Lasso and the wand combine areas with one function.
+- **Why:** today a selection can only be one rectangle or one lassoed shape, and choosing "all of this colour here" means drawing around it by hand.
+- **Acceptance criteria:**
+  - In each of the three modes, with each of the three tools, the selection is the expected union, difference or replacement. Unit tests on the combining function and region finding; browser cases for each tool and mode.
+  - Invert selects the complement on the chart, backstitch included, and inverting twice gives back the same selection.
+  - The wand's switches change the region as Fill's do. A test runs Fill and the wand from the same click with the same switches and gets the same cells.
+  - A wand click on a backstitch line selects exactly the lines of its colour.
+  - Fill's charts are unchanged (existing Fill tests unedited and passing).
+  - The mode and the wand's switches are kept across a reload, like other tool options.
+  - Every new control is a feature in the feature list, and the chooser and the command list show it.
+  - Admin pages are never exercised live (Owner).
+- **Decisions to settle in planning (proposed, the Owner may change them):**
+  - **(a)** A piece that has been moved, turned or flipped is applied where it sits before + or − changes it. The combining happens on the chart, never on a moved piece's old position.
+  - **(b)** The wand ignores symmetry, as Select and Lasso do.
+  - **(c)** A wand click on an empty cell selects the touching empty area.
+  - **(d)** The wand gets the key W. Invert gets no key: Ctrl+Shift+I opens the browser's developer tools, and the page cannot keep it. Invert is in the bar and the command list.
+  - **(e)** The wand's two switches are stored separately from Fill's, but declared by the same code.
+- **Constraints:** no duplicated region or combining code (Owner instruction). Admin pages never exercised live (Owner).
+- **Architecture fit:**
+  - The region search now inside `fillSymmetric` (`lib/editor/symmetry.ts`) moves to one function that returns a region; Fill paints that region.
+  - A selection becomes an area on the chart (a cell mask plus a set of backstitch lines). Rectangle, lasso and wand each produce such an area, and one function combines them. `liftSelection` (`lib/editor/pattern-edit.ts`) lifts the result.
+  - The wand is a tool module in `app/tools/` beside `select.tsx`, sharing its runtime.
+
+**Milestones** (proposed; the deploy goes to the existing target, cross-stitch.craftodejnice.cz):
+- [ ] M1 -- **The selection as an area, and one region finder.** Region finding moves out of `fillSymmetric` with Fill's charts unchanged. Areas combine as replace, add, subtract and invert. A piece can carry backstitch lines chosen by colour. All unit-tested; no visible change; decision file.
+- [ ] M2 -- **The bar: three modes and Invert.** The information leaves the bar. The radio icons and Invert are added for Select and Lasso, as features and in the command list. Browser cases for every mode.
+- [ ] M3 -- **The Magic wand.** The rail tool with its icon, key, switches and bar. Backstitch clicks select by colour. Browser cases, including the same-cells check against Fill.
+- [ ] M4 -- **Docs, QA pass, full suite, release and deploy.**
+
+**Progress log** (newest first; The Company appends at every stopping point):
+- 2026-10-07 — goal created from the Owner's request; plan drafted with decisions (a) to (e) proposed, awaiting acceptance.
+
 ### G-106 · Subscriptions: Stripe, tiers that are sold, and the admin's controls — DRAFT (2026-10-06)
 - **What:** asked by the Owner, 2026-10-06. A person can subscribe to a tier, pay through Stripe (Checkout and the Customer Portal), and gets the tier's feature set (G-102) while the subscription is live; Stripe's webhooks keep `Subscription` current (renewal, failed payment, cancellation, end of period). The admin can make and price tiers, see each person's subscription and its history, give or take a tier by hand (a free month, a refund, a comp), and see revenue and counts.
 - **Why:** `Tier` and `Subscription` (with `stripePriceId`, `stripeCustomerId`) have waited since G-075; G-102 built what a tier unlocks.

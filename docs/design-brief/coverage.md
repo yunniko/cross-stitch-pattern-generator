@@ -433,6 +433,7 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | G-112 | not shipped (draft) | a user guide |
 | G-113 | out of scope | draft: email for accounts |
 | G-114 | internal | draft: backups |
+| G-116 | 04-editing | draft: selection modes, Invert, the Magic wand |
 | D308 | 01-overview | the version shown |
 | D309 | internal | |
 | D310 | 01-overview | "What's new" |
