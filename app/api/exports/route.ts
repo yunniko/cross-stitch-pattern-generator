@@ -41,7 +41,8 @@ export async function POST(req: Request): Promise<Response> {
   const userId = (await auth())?.user?.id ?? null;
   // The workspace first (G-103, D314): with Export off no kind is served.
   const states = await featureStatesFor(userId);
-  const refusal = workspaceRefusal("/api/exports", states) ?? exportRefusal(parseBody(body), states);
+  const parsed = parseBody(body);
+  const refusal = workspaceRefusal("/api/exports", states) ?? exportRefusal(parsed, states);
   if (refusal) return NextResponse.json({ error: refusal }, { status: 403 });
 
   try {
@@ -50,7 +51,8 @@ export async function POST(req: Request): Promise<Response> {
       headers: { "content-type": "application/json" },
       body,
     });
-    if (upstream.ok) recordUsage("EXPORT", userId);
+    // The processor accepts only kinds it knows, so an accepted request names one (G-107 M2).
+    if (upstream.ok) recordUsage("EXPORT", userId, typeof parsed.kind === "string" ? parsed.kind : null);
     const headers: Record<string, string> = { "content-type": "application/json" };
     const retryAfter = upstream.headers.get("retry-after");
     if (retryAfter) headers["retry-after"] = retryAfter;

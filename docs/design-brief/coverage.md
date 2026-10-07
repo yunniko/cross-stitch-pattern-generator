@@ -480,3 +480,4 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | D344 | out of scope (accounts and admin) | |
 | D345 | out of scope (accounts and admin) | |
 | D346 | out of scope (accounts and admin) | |
+| D347 | out of scope (accounts and admin) | |

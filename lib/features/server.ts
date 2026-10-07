@@ -1,5 +1,6 @@
 import type { FeatureSwitch } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
+import { subscriptionLive } from "@/lib/account/plan";
 import { EVERYTHING_ON, type FeatureState, type FeatureStates } from "./features";
 import { resolveFeatures } from "./resolve";
 
@@ -36,8 +37,8 @@ export async function featureStatesFor(userId: string | null): Promise<FeatureSt
           })
         : null,
     ]);
-    // A tier's set counts while the subscription is live; what "live" means is Stripe's own word, written through unchanged.
-    const live = person?.subscription && ["active", "trialing", "past_due"].includes(person.subscription.status);
+    // A tier's set counts while the subscription is live (`subscriptionLive`, the test the Plan section shows by).
+    const live = person?.subscription && subscriptionLive(person.subscription.status);
     return resolveFeatures(
       {
         site: toStates(site),

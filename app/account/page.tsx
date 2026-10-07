@@ -5,12 +5,9 @@ import { signInMethods } from "@/lib/account/sign-in-methods";
 import { NameForm } from "@/app/components/account/name-form";
 import { PasswordForm } from "@/app/components/account/password-form";
 import { DeleteAccount } from "@/app/components/account/delete-account";
+import { PageHead, SectionTitle } from "@/app/components/panel/panel-parts";
 
 const MEMBER_SINCE = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
-
-function SectionTitle({ children }: { children: string }) {
-  return <h2 className="m-0 text-[13px] font-medium uppercase tracking-[0.08em] text-muted">{children}</h2>;
-}
 
 /**
  * Profile & sign-in (G-075 M2, redrawn in G-107): the name, the ways to sign in, the password, and deleting the account.
@@ -32,7 +29,7 @@ export default async function AccountProfilePage() {
 
   return (
     <div className="flex max-w-[520px] flex-col gap-8">
-      <h1 className="m-0 text-lg font-semibold text-ink">Profile &amp; sign-in</h1>
+      <PageHead title="Profile & sign-in" />
 
       <section className="flex flex-col gap-3">
         <SectionTitle>Profile</SectionTitle>

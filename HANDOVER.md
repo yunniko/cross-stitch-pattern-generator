@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-10-07 at 88158ed plus G-107 M1 (production v0.11.1, sending off; 1,410 unit; e2e 31 account and admin specs locally; the full suite last run 633 and 23 on f356864)
+Last verified: 2026-10-07 at 88158ed plus G-107 M1-M2 (production v0.11.1, sending off; 1,417 unit; e2e 25 account and admin specs and 17 export specs locally; the full suite last run 633 and 23 on f356864)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab), live at
@@ -11,7 +11,7 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 **Production** runs 5ff70e1, v0.11.0 (2026-10-07, per the deploy log below): the 1b shell, and generation and every export but the editable save running in the `processor` container. The work itself is in the Rust sidecar and **nothing stands behind it** — the TypeScript pipeline is deleted, not disabled (D221). Every signed-off goal, with what it produced and how it was verified, is in `docs/goals-archive.md` — G-028 onwards, from the OXS format to the Atelier redesign (D157–D167), the move to the server (D149–D155) and the Rust port.
 
-**G-107, the account and admin areas redesigned — ACTIVE, M1 done (2026-10-07).** Both areas draw their sidebar from a declared list (`lib/account/sections.ts`, `lib/admin/sections.ts`; `sectionAt` in `lib/panel/sections.ts` marks the open one, D346) through one header (`app/components/panel/panel-header.tsx`) and one `SectionNav` (`app/components/panel/section-nav.tsx`). `app/account/layout.tsx` guards and frames every account page; Profile & sign-in stays at `/account`. Only built sections are listed; the mock-ups' other sections are G-108, G-106 and G-119 to G-123 (`docs/design/mockups/README.md`). M2 adds Usage, Plan and Preferences; M3 the admin sections; M4 the release.
+**G-107, the account and admin areas redesigned — ACTIVE, M1-M2 done (2026-10-07).** Both areas draw their sidebar from a declared list (`lib/account/sections.ts`, `lib/admin/sections.ts`; `sectionAt` in `lib/panel/sections.ts` marks the open one, D346) through one header (`app/components/panel/panel-header.tsx`) and one `SectionNav` (`app/components/panel/section-nav.tsx`). `app/account/layout.tsx` guards and frames every account page; Profile & sign-in stays at `/account`. Only built sections are listed; the mock-ups' other sections are G-108, G-106 and G-119 to G-123 (`docs/design/mockups/README.md`). Account sections: Plan (`lib/account/plan.ts`: a live subscription's tier, else Free), Usage (`lib/account/usage.ts` pure, `lib/account/usage-data.ts` reads; each export event records its kind, D347, older ones read "Kind not recorded") and Preferences (`app/components/preference-fields.tsx`, the same fields as the editor's dialog, kept in this browser). M3 the admin sections; M4 the release.
 
 **G-118, the quick bar fits every tool at every desktop width — DONE (Owner sign-off 2026-10-07).** When the options do not fit, `fitBar` (`lib/editor/bar-fit.ts`, D340) decides which group is whole, compact or in More; `app/components/fit-track.tsx` measures and draws, `app/components/bar-menu.tsx` is the menu a compact group opens (D341). The bar shows controls, not names: no tool name (screen-reader only), no group headings, no thread names (each colour square's title), Region switches as pictures (D339). What commits a tool's work renders through `PinnedEnd` (`app/components/pinned-end.tsx`) into the slot after the scrolling track, never over it. `tests/e2e/quick-bar-fit.spec.ts` walks every tool at 1024–1920 px and reports what is still out of view (`docs/reviews/2026-10-07-quick-bar-fit.md`): at 1440 px only the BS-edit bar. M1b–M3 add the fitting rule, compact forms and More.
 
@@ -356,7 +356,7 @@ which the Pattern Keeper PDF shares and calls with backstitch switched off.)
 
 ## Next steps and open questions
 
-- **G-107 is ACTIVE**: M2 (account Usage, Plan, Preferences), M3 (admin Overview, Users panel, Features tabs, Change log), M4 (release and deploy, live GET checks on account pages only).
+- **G-107 is ACTIVE**: M3 (admin Overview, Users panel, Features tabs, Change log), M4 (release and deploy, live GET checks on account pages only).
 - **Email is built but off (G-113).** PENDING APPROVAL: switching sending on in production needs the site's name and domain, a sender address on it, and whether to reuse listing-studio's Resend account; then `.env` sets `MAIL_TRANSPORT`, `MAIL_FROM` and `RESEND_API_KEY`, and the app is restarted.
 - **G-095 (the redesign) and G-102 (feature switches) are signed off and archived** (2026-10-06). Left on the triage list from its QA pass: a Generate pressed before the colour recommendation arrives uses the previous count, and a late recommendation overwrites a typed one (since G-087). G-101 (phone layout: the 390 px window scrolls sideways, and 55 desktop controls are under 24 px) is drafted for later.
 - G-076 (stitch textures) was signed off 2026-09-30 and is archived.

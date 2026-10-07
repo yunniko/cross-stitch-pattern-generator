@@ -5,4 +5,9 @@ import type { PanelSection } from "../panel/sections";
  * confirmation and the editor's name badge all land on (D346). Charts, palettes and stamps join here with the goals
  * that keep them on the server.
  */
-export const ACCOUNT_SECTIONS: readonly PanelSection[] = [{ id: "profile", label: "Profile & sign-in", href: "/account" }];
+export const ACCOUNT_SECTIONS: readonly PanelSection[] = [
+  { id: "plan", label: "Plan", href: "/account/plan" },
+  { id: "usage", label: "Usage", href: "/account/usage" },
+  { id: "preferences", label: "Preferences", href: "/account/preferences" },
+  { id: "profile", label: "Profile & sign-in", href: "/account" },
+];

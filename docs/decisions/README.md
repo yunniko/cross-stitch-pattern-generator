@@ -382,3 +382,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D344 — An address must be confirmed only while sending is on — active
 - D345 — A password reset ends every session signed in before it — active
 - D346 — The account and admin areas draw their sidebars from declared section lists — active
+- D347 — Each export's usage event records the kind that was exported — active

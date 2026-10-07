@@ -184,12 +184,16 @@ model Subscription {
 /// best-effort from the Route Handlers that already front the processor. No photo bytes, no export
 /// content — a count is all the admin page needs.
 model UsageEvent {
-  id        String    @id @default(cuid())
-  kind      UsageKind
-  userId    String?
-  createdAt DateTime  @default(now())
+  id         String    @id @default(cuid())
+  kind       UsageKind
+  userId     String?
+  /// What an export was (`ExportJobKind`: "a4-color", "all", ...); null for a generation, and for an export recorded
+  /// before G-107 M2 began keeping it.
+  exportKind String?
+  createdAt  DateTime  @default(now())
 
   @@index([kind, createdAt])
+  @@index([userId, createdAt])
 }
 
 enum UsageKind {
