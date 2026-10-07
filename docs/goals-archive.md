@@ -9,6 +9,9 @@ their last state in `GOALS.md`; decision references (Dnn) now resolve to
 (STANDARDS.md → Documentation). This page is the index: every completed goal, newest first, and the file
 holding it.
 
+- **G-100** · Dithering is extensible: a pattern is one module, written once — DONE (2026-10-07, deployed 2026-10-07, Owner sign-off 2026-10-07) — [`G-091-to-G-100.md`](goals-archive/G-091-to-G-100.md)
+- **G-115** · Fill knows stitch types; the brush changes a stitch's type; thinner half stitches; the Zoom tool's direction — DONE (2026-10-06, deployed 2026-10-06, Owner sign-off 2026-10-07) — [`G-111-to-G-120.md`](goals-archive/G-111-to-G-120.md)
+- **G-110** · The view as switches: pattern mode, symbols, photo, and the pattern's transparency — DONE (2026-10-06, deployed 2026-10-06, Owner sign-off 2026-10-07) — [`G-101-to-G-110.md`](goals-archive/G-101-to-G-110.md)
 - **G-104** · A colour picker, held on a key without changing tools — DONE (2026-10-06, deployed 2026-10-06, Owner sign-off 2026-10-06) — [`G-101-to-G-110.md`](goals-archive/G-101-to-G-110.md)
 - **G-069** · The workspace stops being the only thing that knows how everything connects — CLOSED (2026-10-06, absorbed into G-091; closed by the Owner) — [`G-061-to-G-070.md`](goals-archive/G-061-to-G-070.md)
 - **G-102** · Feature switches: On, Locked or Hidden for the site, for a person, or as a set for a tier — DONE (2026-10-06, deployed 2026-10-06, Owner sign-off 2026-10-06) — [`G-101-to-G-110.md`](goals-archive/G-101-to-G-110.md)
