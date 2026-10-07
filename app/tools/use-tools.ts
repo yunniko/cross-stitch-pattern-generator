@@ -41,6 +41,8 @@ export interface Tools {
   onPointerMove: (e: PointerEvent<HTMLDivElement>) => void;
   onPointerUp: (e: PointerEvent<HTMLDivElement>) => void;
   onDoubleClick: (e: MouseEvent<HTMLDivElement>) => void;
+  /** A press on the photo in Photo, at one of its pixels (G-124): handed to the tool in hand. */
+  photoPress: (pixel: { x: number; y: number }) => void;
   /** The commands the tool modules declare, with what each does now (G-093). Escape, Enter and Delete reach the tools as these. */
   commands: readonly Command[];
   /** Another chart has arrived. */
@@ -156,6 +158,9 @@ export function useTools(inputs: ToolsInputs): Tools {
     onDoubleClick: (e) => {
       const frame = inputs.frameRef.current;
       if (frame) current.onDoubleClick?.(e, frame);
+    },
+    photoPress: (pixel) => {
+      if (inputs.photo.shown) current.onPhotoPress?.(pixel);
     },
     commands,
     documentReplaced: () => runtimes.forEach((runtime) => runtime.onDocumentReplaced?.()),

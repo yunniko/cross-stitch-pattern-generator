@@ -42,6 +42,25 @@ function Control({ option, value, onChange }: { option: ToolOption; value: Optio
       </select>
     );
   }
+  if (option.control === "range") {
+    const numbers = option.values as readonly number[];
+    return (
+      // A number over a long run, as the photo sliders are: dragged, with the value it stands at written beside it.
+      <label className="flex items-center gap-1.5 text-xs" title={option.title}>
+        <input
+          type="range"
+          aria-label={option.label}
+          min={Math.min(...numbers)}
+          max={Math.max(...numbers)}
+          step={1}
+          value={Number(value)}
+          onChange={(e) => onChange(Number(e.target.value))}
+          className="w-24 accent-[var(--at-accent)]"
+        />
+        <span className="w-6 text-right tabular-nums text-ink">{String(value)}</span>
+      </label>
+    );
+  }
   if (option.control === "segments") {
     return (
       // The row of buttons carries the option's name, as the list it may replace did.
@@ -89,7 +108,8 @@ export const OWN_OPTIONS = 3;
 
 /** One option as a button showing its current choice, opening the whole row under it (G-118). */
 function CompactControl({ option, value, onChange }: { option: ToolOption; value: OptionValue; onChange: (value: OptionValue) => void }) {
-  if (option.control === "select") return <Control option={option} value={value} onChange={onChange} />;
+  // A list and a slider are as small as they get.
+  if (option.control === "select" || option.control === "range") return <Control option={option} value={value} onChange={onChange} />;
   const current = option.choices?.find((choice) => choice.value === value);
   const currentName = current?.name ?? (typeof current?.label === "string" ? current.label : String(value));
   return (
@@ -128,7 +148,8 @@ export function toolOptionItems(
     if (group) group.options.push(option);
     else groups.push({ name: option.group, separated: option.separated === true, options: [option] });
   }
-  const compactable = (group: (typeof groups)[number]) => group.options.some((option) => option.control !== "select");
+  const compactable = (group: (typeof groups)[number]) =>
+    group.options.some((option) => option.control === "segments" || option.control === "icons");
   return groups.map((group, index) => ({
     id: `option-group-${group.name}`,
     importance: OWN_OPTIONS,

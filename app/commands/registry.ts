@@ -275,8 +275,8 @@ const TOOL_COMMANDS: CommandDefinition[] = TOOL_DEFINITIONS.map((tool) => ({
   id: toolCommandId(tool.id),
   name: `${tool.label} tool`,
   group: "Tools",
-  // A tool that only moves the view is offered in every workspace; the others in their own, which is Edit.
-  when: tool.navigation ? "A chart" : "A chart, in Edit",
+  // A tool that only moves the view is offered in every workspace; the others in their own: Edit, or Photo for the photo's.
+  when: tool.navigation ? "A chart" : toolWorkspaceOf(tool) === "photo" ? "A photo, in Photo" : "A chart, in Edit",
   ...(tool.key ? { keys: [tool.key.toUpperCase()] } : {}),
   // Under the tool's feature switch (G-102): the key and the command go with the tool.
   feature: toolFeatureOf(tool),

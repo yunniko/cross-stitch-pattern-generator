@@ -61,6 +61,7 @@ import { useChartLifecycle } from "./hooks/use-chart-lifecycle";
 import { useRecommendedCount } from "./hooks/use-recommended-count";
 import { FileInputs } from "./components/file-inputs";
 import { useSourceImage } from "./hooks/use-source-image";
+import { usePhotoEdits } from "./hooks/use-photo-edits";
 import { useWorkspaceOptions } from "./hooks/use-workspace-options";
 import { skinStyle } from "@/lib/skin/skin";
 import { ATELIER, SkinProvider } from "./skin/skin";
@@ -113,8 +114,11 @@ export default function Workspace({ account }: WorkspaceProps) {
   const features = useFeatures();
   const options = useMemo(() => optionsInForce(storedOptions, features), [storedOptions, features]);
   const source = useSourceImage();
-  // The four sliders (G-074), drawn in the browser from the decoded photo -- no request to the server.
-  const adjustPreview = usePhotoAdjustPreview(source.pixelBuffer, options.photoAdjust, pattern === null);
+  // The photo's own edits in Photo (G-124): the Photo wand's selection, Delete and Apply, each a step of the photo's history.
+  // A failed edit is reported where a failed generation is; that hook comes later, so the report goes through a ref.
+  const photoErrorRef = useRef<(message: string | null) => void>(() => {});
+  const photoEdits = usePhotoEdits(source, (message) => photoErrorRef.current(message));
+  const photoFree = isPhotoFree(pattern);
 
   // What is being looked at: the view, the settings beside it, and the rule that unused photo sliders are given up.
   const view = useEditorView({
@@ -135,6 +139,8 @@ export default function Workspace({ account }: WorkspaceProps) {
   const photoOn = featureUsable(features, workspaceFeature("photo"));
   const editing = workspaceEdits(workspace);
   const lookingOnly = !viewEditable(view.shown) || !editing;
+  // The photo can be worked on (G-124): in Photo, with a photo in hand that the chart, if any, was made from.
+  const photoEditable = workspace === "photo" && source.hasPhoto && !startingNew && !photoFree;
   // Two colours since G-064: the squares never move, so the pair is two slots and a flag saying which is in
   // front. `activeColorIndex` stays the name for the foreground, which is what a left press paints with.
   const colours = useDrawingColours(pattern?.palette.length ?? 0);
@@ -210,8 +216,29 @@ export default function Workspace({ account }: WorkspaceProps) {
       canvasColor: options.canvasColor,
       change: (key, value) => updateOption(key, value),
     },
+    photo: {
+      shown: photoEditable,
+      hasSelection: photoEdits.selection !== null,
+      busy: photoEdits.busy,
+      wand: photoEdits.wand,
+      deleteSelected: photoEdits.deleteSelected,
+      deselect: photoEdits.deselect,
+      invert: photoEdits.invert,
+    },
   });
   const { activeTool, switchTool, hoverOutline } = tools;
+  // The photo itself is up in place of the chart (G-124): before the first chart, and in Photo while the Photo wand is in
+  // hand or the sliders are off centre, since both act on the photo and not on the chart.
+  const photoStageShown = photoEditable && (pattern === null || activeTool === "photo-wand" || !isNeutralAdjust(options.photoAdjust));
+  // The photo's history, while an edit is being worked nothing can be stepped (G-124).
+  const photoHistory = {
+    canUndo: source.edits.canUndo && !photoEdits.busy,
+    canRedo: source.edits.canRedo && !photoEdits.busy,
+    undo: source.edits.undo,
+    redo: source.edits.redo,
+  };
+  // The four sliders (G-074), drawn in the browser from the decoded photo -- no request to the server.
+  const adjustPreview = usePhotoAdjustPreview(source.pixelBuffer, options.photoAdjust, photoStageShown);
   const displayedPattern = colorPreview && colorPreview.base === pattern ? colorPreview.next : pattern;
   const renderer = useChartRenderer({
     canvasRef,
@@ -335,6 +362,10 @@ export default function Workspace({ account }: WorkspaceProps) {
     },
   });
 
+  useEffect(() => {
+    photoErrorRef.current = generation.setError;
+  }, [generation.setError]);
+
   /**
    * Going back to a try: its chart becomes the chart, as one undoable step like a Regenerate, and the settings that made
    * it are put back, so what the Photo panel shows is what made the chart on screen. Nothing is asked of the server.
@@ -415,8 +446,6 @@ export default function Workspace({ account }: WorkspaceProps) {
     tools.piece.release();
   }
 
-  const photoFree = isPhotoFree(pattern);
-
   // The command table for this render (G-093): what is true of the editor now, and what can be done. Which command each is,
   // and when it can run, is `app/commands/shell-commands.ts`; the keys and the command list read the result.
   const heldTool = useHeldTool(activeTool, switchTool, tools.restoreTool);
@@ -435,8 +464,9 @@ export default function Workspace({ account }: WorkspaceProps) {
       photoLoading: source.isLoading,
       generating: generation.isProcessing,
       exporting: exports.isExporting || exports.isExportingAll,
-      canUndo: history.canUndo,
-      canRedo: history.canRedo,
+      // With the photo itself up, Undo and Redo step through the photo's edits, not the chart's (G-124).
+      canUndo: photoStageShown ? photoHistory.canUndo : history.canUndo,
+      canRedo: photoStageShown ? photoHistory.canRedo : history.canRedo,
       slidersNeutral: isNeutralAdjust(options.photoAdjust),
       picksOnAlt: !lookingOnly && toolDefinition(activeTool).heldPicker === true,
     },
@@ -451,8 +481,8 @@ export default function Workspace({ account }: WorkspaceProps) {
       generate: generation.generate,
       cancelGeneration: generation.cancel,
       resetSliders: () => updateOption("photoAdjust", NEUTRAL_ADJUST),
-      undo: history.undo,
-      redo: history.redo,
+      undo: photoStageShown ? photoHistory.undo : history.undo,
+      redo: photoStageShown ? photoHistory.redo : history.redo,
       swapColours: colours.swap,
       toggleIsolate: lit.toggleIsolate,
       mirror: applyMirror,
@@ -533,15 +563,17 @@ export default function Workspace({ account }: WorkspaceProps) {
                 onWorkspaceChange={chooseWorkspace}
                 workspaceOpen={(candidate) => workspaceOpen(candidate, workspaceConditions)}
                 history={
-                  chartShown
-                    ? {
-                        canUndo: history.canUndo,
-                        canRedo: history.canRedo,
-                        undo: history.undo,
-                        redo: history.redo,
-                        pieceInHand: tools.piece.selection !== null,
-                      }
-                    : null
+                  photoStageShown
+                    ? { ...photoHistory, pieceInHand: false }
+                    : chartShown
+                      ? {
+                          canUndo: history.canUndo,
+                          canRedo: history.canRedo,
+                          undo: history.undo,
+                          redo: history.redo,
+                          pieceInHand: tools.piece.selection !== null,
+                        }
+                      : null
                 }
                 onNewChart={() => setStartingNew(true)}
                 newChartDisabled={startScreenVisible}
@@ -556,7 +588,8 @@ export default function Workspace({ account }: WorkspaceProps) {
               <ToolRail
                 workspace={workspace}
                 activeTool={activeTool}
-                disabled={!chartShown}
+                // In Photo the photo's own tools work on the photo alone, before any chart (G-124).
+                disabled={!chartShown && !photoEditable}
                 onSelect={switchTool}
                 squareCanvas={pattern !== null && pattern.width === pattern.height}
                 onMirror={applyMirror}
@@ -578,7 +611,11 @@ export default function Workspace({ account }: WorkspaceProps) {
                   quick: tools.quick,
                   quickCompact: tools.quickCompact,
                 }}
-                photo={{ isLoading: source.isLoading, hasSource: source.hasPhoto }}
+                photo={{
+                  isLoading: source.isLoading,
+                  hasSource: source.hasPhoto,
+                  toolUp: photoEditable && toolDefinition(activeTool).workspace === "photo",
+                }}
                 colours={{ slots: colours.slots, onActivate: colours.setActiveSlot, onSwap: colours.swap }}
                 symmetry={{
                   axes: liveSymmetry,
@@ -630,6 +667,15 @@ export default function Workspace({ account }: WorkspaceProps) {
                 }}
                 preview={renderer}
                 adjust={adjustPreview}
+                photoStage={
+                  photoStageShown && source.pixelBuffer
+                    ? {
+                        pixelSize: { width: source.pixelBuffer.width, height: source.pixelBuffer.height },
+                        selection: photoEdits.selection,
+                        onPress: activeTool === "photo-wand" ? tools.photoPress : null,
+                      }
+                    : null
+                }
                 pointer={{
                   onDown: handleCanvasPointerDown,
                   onMove: handleCanvasPointerMove,

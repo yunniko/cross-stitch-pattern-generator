@@ -29,16 +29,20 @@ describe("the workspaces", () => {
     expect(WORKSPACES.filter((workspace) => workspaceEdits(workspace.id)).map((workspace) => workspace.id)).toEqual(["edit"]);
   });
 
-  it("Photo and Export offer the tools that move the view, and no tool that could change the chart", () => {
-    expect(offeredIn("photo")).toEqual(["pan", "zoom"]);
+  it("Photo and Export offer the tools that move the view and no tool that could change the chart; Photo adds the photo's own", () => {
+    // G-124: the Photo wand works on the photo, never on the chart.
+    expect(offeredIn("photo")).toEqual(["pan", "zoom", "photo-wand"]);
     expect(offeredIn("export")).toEqual(["pan", "zoom"]);
     for (const workspace of ["photo", "export"] as const) {
-      for (const id of offeredIn(workspace)) expect(TOOL_DEFINITIONS.find((tool) => tool.id === id)?.navigation, id).toBe(true);
+      for (const id of offeredIn(workspace)) {
+        const tool = TOOL_DEFINITIONS.find((candidate) => candidate.id === id);
+        expect(tool?.navigation === true || tool?.workspace === "photo", id).toBe(true);
+      }
     }
   });
 
-  it("Edit offers every tool registered today", () => {
-    expect(offeredIn("edit")).toEqual(TOOL_DEFINITIONS.map((tool) => tool.id));
+  it("Edit offers every tool registered today but the photo's", () => {
+    expect(offeredIn("edit")).toEqual(TOOL_DEFINITIONS.filter((tool) => tool.workspace !== "photo").map((tool) => tool.id));
   });
 
   it("a tool that names a workspace is offered there and not in Edit", () => {

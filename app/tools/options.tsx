@@ -6,6 +6,7 @@ import type { ShapeFill } from "@/lib/editor/shape-raster";
 import { STITCH_KIND_LABELS, type StitchKind } from "@/lib/editor/stitch-kind";
 import type { OptionValue, ToolOptionSpec } from "@/lib/editor/tool-options";
 import { halfStitchPolygon } from "@/lib/export/half-stitch-shape";
+import { DEFAULT_PHOTO_WAND } from "@/lib/photo/photo-mask";
 
 /**
  * A tool's options as data (G-093, D285): what the option is (`ToolOptionSpec`, in `lib/`) and how it is offered. A tool lists
@@ -17,8 +18,8 @@ export interface ToolOption<V extends OptionValue = OptionValue> extends ToolOpt
   /** The control's accessible name. */
   label: string;
   title?: string;
-  /** A list to pick from, a row of labelled segments, or a row of pictured choices. */
-  control: "select" | "segments" | "icons";
+  /** A list to pick from, a row of labelled segments, a row of pictured choices, or a slider over numbers in order. */
+  control: "select" | "segments" | "icons" | "range";
   /**
    * How each value is shown; a value with none is shown as itself. `name` is a pictured choice's short accessible name,
    * where its title is a sentence.
@@ -232,3 +233,48 @@ export const WAND_OPTIONS = [SELECTION_MODE, WAND_REGION.diagonal, WAND_REGION.c
 export const LAYING_OPTIONS = [...BRUSH_OPTIONS, STITCH_KIND] as const;
 /** For the shapes that enclose something, whose outline is as thick as the brush. */
 export const ENCLOSING_OPTIONS = [...LAYING_OPTIONS, SHAPE_FILL] as const;
+
+/**
+ * The Photo wand's (G-124): how far a colour may be from the one pressed, whether only the touching area is taken or every
+ * pixel of a similar colour, and whether pixels meeting at a corner touch. The selection mode is Select's own, one choice
+ * for every tool that selects (Owner, 2026-10-07: "the same modes as select in edit mode").
+ */
+export const PHOTO_WAND_SENSITIVITY: ToolOption<number> = {
+  id: "photoWandSensitivity",
+  group: "Sensitivity",
+  label: "Wand sensitivity",
+  title: "How different a colour may be from the one pressed and still be selected: 0 takes only that colour",
+  control: "range",
+  values: Array.from({ length: 101 }, (_, step) => step),
+  defaultValue: DEFAULT_PHOTO_WAND.tolerance,
+};
+
+export const PHOTO_WAND_CONTIGUOUS: ToolOption<"on" | "off"> = {
+  id: "photoWandContiguous",
+  group: "Region",
+  label: "Wand reach",
+  control: "segments",
+  values: ["on", "off"],
+  defaultValue: DEFAULT_PHOTO_WAND.contiguous ? "on" : "off",
+  separated: true,
+  choices: [
+    { value: "on", label: "Touching", title: "Only the area of similar colour that touches the pixel pressed" },
+    { value: "off", label: "All", title: "Every pixel of a similar colour, anywhere in the photo" },
+  ],
+};
+
+export const PHOTO_WAND_DIAGONAL: ToolOption<"on" | "off"> = {
+  id: "photoWandDiagonal",
+  group: "Region",
+  label: "Diagonal neighbours",
+  title: "On: pixels touching only at a corner join the area. Off: only pixels above, below, left and right",
+  control: "icons",
+  values: ["on", "off"],
+  defaultValue: DEFAULT_PHOTO_WAND.diagonal ? "on" : "off",
+  choices: [
+    { value: "on", label: <SkinIcon name="region-diagonal" />, name: "Diagonal", title: "Pixels touching at a corner join the area" },
+    { value: "off", label: <SkinIcon name="region-edges" />, name: "Edges only", title: "Only pixels above, below, left and right join" },
+  ],
+};
+
+export const PHOTO_WAND_OPTIONS = [SELECTION_MODE, PHOTO_WAND_SENSITIVITY, PHOTO_WAND_CONTIGUOUS, PHOTO_WAND_DIAGONAL] as const;

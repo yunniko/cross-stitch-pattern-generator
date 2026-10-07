@@ -5,6 +5,8 @@ import type { CommandDefinition, CommandState } from "@/lib/editor/commands";
 import type { ShapeFill } from "@/lib/editor/shape-raster";
 import type { OptionValue, ToolOptionSpec } from "@/lib/editor/tool-options";
 import type { SymmetryAxes } from "@/lib/editor/symmetry";
+import type { SelectionMode } from "@/lib/editor/selection-area";
+import type { PhotoWandRule } from "@/lib/photo/photo-mask";
 import type { SizeUnit } from "@/lib/export/finished-size";
 import type { BackstitchLine, FloatingSelection, StitchPattern } from "@/lib/types";
 import type { ChartRenderer } from "../hooks/use-chart-renderer";
@@ -122,6 +124,22 @@ export interface EditorApi {
   };
   /** The lettering's settings, and the canvas colour its preview is drawn on. */
   text: TextSettings & { canvasColor: string; change: ChangeTextSetting };
+  /** The photo in hand, for the tools of the Photo workspace (G-124). */
+  photo: PhotoApi;
+}
+
+/** What a Photo tool may read and do to the photo in hand: its selection and the edits made of it (G-124). */
+export interface PhotoApi {
+  /** The photo itself is on screen, in Photo, to be pressed on. */
+  shown: boolean;
+  /** Part of the photo is selected. */
+  hasSelection: boolean;
+  /** An edit is being worked; presses wait for it. */
+  busy: boolean;
+  wand: (x: number, y: number, rule: PhotoWandRule, mode: SelectionMode) => void;
+  deleteSelected: () => void;
+  deselect: () => void;
+  invert: () => void;
 }
 
 /**
@@ -156,6 +174,8 @@ export interface ToolRuntime {
   onPointerMove?(e: PointerEvent<HTMLDivElement>): boolean;
   onPointerUp?(e: PointerEvent<HTMLDivElement>): boolean;
   onDoubleClick?(e: MouseEvent<HTMLDivElement>, frame: HTMLDivElement): void;
+  /** A press on the photo in Photo, at one of its pixels (G-124), with one of this module's tools in hand. */
+  onPhotoPress?(pixel: { x: number; y: number }): void;
   /** What each command the module declares does now, by the command's id (G-093). Escape, Enter and Delete reach a tool this way. */
   commands?: Readonly<Record<string, CommandState>>;
   /** The tool in hand is changing; every module is told, whichever tool it owns. */

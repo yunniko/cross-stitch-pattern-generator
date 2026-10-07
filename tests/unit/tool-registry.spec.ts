@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { readdirSync, readFileSync } from "node:fs";
+import { toolOffered } from "@/lib/editor/workspaces";
 import path from "node:path";
 import { isKeyboardCursorTool, isSelectTool, usesStitchKind } from "../../app/editor-types";
-import { DEFAULT_TOOL, moduleIndexOf, TOOL_DEFINITIONS, TOOL_KEYS, TOOL_MODULES, toolDefinition } from "../../app/tools/registry";
+import { DEFAULT_TOOL, moduleIndexOf, TOOL_DEFINITIONS, TOOL_MODULES, toolDefinition, toolKeys } from "../../app/tools/registry";
 
 /**
  * G-092: the tool registry. A tool exists by being registered; these hold the registry to what the rest of the editor reads
@@ -10,7 +11,7 @@ import { DEFAULT_TOOL, moduleIndexOf, TOOL_DEFINITIONS, TOOL_KEYS, TOOL_MODULES,
  */
 
 describe("the registry", () => {
-  it("holds the seventeen tools in the order of the tool list", () => {
+  it("holds the eighteen tools in the order of the tool list", () => {
     expect(TOOL_DEFINITIONS.map((tool) => tool.id)).toEqual([
       "brush",
       "fill",
@@ -29,8 +30,9 @@ describe("the registry", () => {
       "move",
       "pan",
       "zoom",
+      "photo-wand",
     ]);
-    expect(TOOL_DEFINITIONS.map((tool) => tool.group)).toEqual([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2]);
+    expect(TOOL_DEFINITIONS.map((tool) => tool.group)).toEqual([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 1]);
     expect(DEFAULT_TOOL).toBe("brush");
   });
 
@@ -46,10 +48,16 @@ describe("the registry", () => {
     }
   });
 
-  it("has no two tools on one key, no key the editor already uses, and names its key in its title", () => {
+  it("has no two tools of one workspace on one key, no key the editor already uses, and names its key in its title", () => {
     const keyed = TOOL_DEFINITIONS.filter((tool) => tool.key);
-    expect(TOOL_KEYS.size).toBe(keyed.length);
-    expect(Object.fromEntries(TOOL_KEYS)).toEqual({
+    for (const workspace of ["photo", "edit", "export"] as const) {
+      const keys = keyed.filter((tool) => toolOffered(tool, workspace)).map((tool) => tool.key);
+      expect(new Set(keys).size, workspace).toBe(keys.length);
+      expect(toolKeys(workspace).size, workspace).toBe(keys.length);
+    }
+    // W is the wand in each workspace that has one (G-124).
+    expect(Object.fromEntries(toolKeys("photo"))).toEqual({ h: "pan", z: "zoom", w: "photo-wand" });
+    expect(Object.fromEntries(toolKeys("edit"))).toEqual({
       b: "brush",
       f: "fill",
       l: "line",
@@ -126,6 +134,7 @@ describe("what the editor reads from a tool's definition", () => {
       wand: "cross",
       pan: "grab",
       zoom: "zoom",
+      "photo-wand": "cross",
     });
   });
 });
@@ -176,6 +185,7 @@ describe("the options each tool declares (G-093)", () => {
       move: "",
       pan: "",
       zoom: "zoomDirection",
+      "photo-wand": "selectionMode photoWandSensitivity photoWandContiguous photoWandDiagonal",
     });
   });
 
@@ -190,7 +200,7 @@ describe("the options each tool declares (G-093)", () => {
         expect(option.values, option.id).toContain(option.defaultValue);
         expect(option.values.length, option.id).toBeGreaterThan(1);
         for (const choice of option.choices ?? []) expect(option.values, option.id).toContain(choice.value);
-        if (option.control !== "select") expect(option.choices?.length, option.id).toBe(option.values.length);
+        if (option.control !== "select" && option.control !== "range") expect(option.choices?.length, option.id).toBe(option.values.length);
         if (byId.has(option.id)) expect(byId.get(option.id), option.id).toBe(option);
         byId.set(option.id, option);
       }

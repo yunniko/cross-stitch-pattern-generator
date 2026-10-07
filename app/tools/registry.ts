@@ -5,11 +5,13 @@ import { cropModule } from "./crop";
 import { lassoFillModule } from "./lasso-fill";
 import { moveModule } from "./move";
 import { panModule, zoomModule } from "./navigate";
+import { photoWandModule } from "./photo-wand";
 import { pickerModule } from "./picker";
 import { selectModule } from "./select";
 import { shapeModule } from "./shape";
 import { textModule } from "./text";
 import type { ToolDefinition } from "./types";
+import { toolOffered, type Workspace } from "@/lib/editor/workspaces";
 
 /**
  * The tool registry (G-092, D284): **adding a tool is one module and one line here.** The order is the order of the tool
@@ -31,6 +33,8 @@ export const TOOL_MODULES = [
   moveModule,
   panModule,
   zoomModule,
+  // After Pan: the first tool Photo offers is the one in hand when it opens, and that is Pan (G-124).
+  photoWandModule,
 ] as const;
 
 /** Every tool's id, as a type: a misspelt tool is a compile error. */
@@ -54,8 +58,13 @@ export function moduleIndexOf(id: string): number {
   return index;
 }
 
-/** The key that chooses each tool. Two tools claiming one key is a registration mistake, caught by the registry's test. */
-export const TOOL_KEYS: ReadonlyMap<string, Tool> = new Map(TOOL_DEFINITIONS.flatMap((d) => (d.key ? [[d.key, d.id] as const] : [])));
+/**
+ * The key that chooses each tool a workspace offers. One key may choose a tool in each workspace (W is the wand in Edit and
+ * in Photo, G-124); two tools of one workspace claiming one key is a registration mistake, caught by the registry's test.
+ */
+export function toolKeys(workspace: Workspace): ReadonlyMap<string, Tool> {
+  return new Map(TOOL_DEFINITIONS.filter((d) => toolOffered(d, workspace)).flatMap((d) => (d.key ? [[d.key, d.id] as const] : [])));
+}
 
 /** The tool Brush is in hand when a chart opens: the first tool registered. */
 export const DEFAULT_TOOL: Tool = TOOL_DEFINITIONS[0].id;

@@ -14,6 +14,7 @@ export const COMMAND_GROUPS = [
   "Generate",
   "Edit",
   "Tools",
+  "Photo",
   "Selection",
   "Backstitch",
   "Crop",
@@ -185,7 +186,7 @@ export function searchCommands<C extends CommandDefinition>(commands: readonly C
 
 /**
  * What is wrong with a table, in words; empty when nothing is. One id is one command, every key parses, and a letter, digit
- * or `Mod` key belongs to one command, unless every command on it acts on what is in hand (`onHeld`: copy, paste and
+ * or `Mod` key belongs to one command in a workspace, unless every command on it acts on what is in hand (`onHeld`: copy, paste and
  * duplicate, for a piece and for backstitch). Escape, Enter, Delete and Backspace are shared on purpose: each means "whatever is in
  * hand", only one thing can be in hand at a time, and the first command that takes the press ends it.
  */
@@ -211,7 +212,10 @@ export function commandTableProblems(commands: readonly CommandDefinition[]): st
       if (chord.named && !chord.mod && !chord.modifier) continue;
       const canonical = `${chord.mod ? "mod+" : ""}${chord.shift ? "shift+" : ""}${chord.key}`;
       const owner = owners.get(canonical);
-      if (owner && !(owner.onHeld && command.onHeld)) problems.push(`"${key}" runs both "${owner.id}" and "${command.id}".`);
+      // Two workspaces may give one key to two commands: only one workspace is shown at a time (G-124: W is the wand in each).
+      const otherWorkspace = owner?.workspace !== undefined && command.workspace !== undefined && owner.workspace !== command.workspace;
+      if (owner && !(owner.onHeld && command.onHeld) && !otherWorkspace)
+        problems.push(`"${key}" runs both "${owner.id}" and "${command.id}".`);
       owners.set(canonical, command);
     }
   }

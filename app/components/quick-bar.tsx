@@ -51,8 +51,11 @@ export interface QuickBarProps {
     /** The same controls in less room, when the tool has a compact form of them. */
     quickCompact?: ReactNode;
   };
-  /** The loaded photo, shown before a chart exists. */
-  photo: { isLoading: boolean; hasSource: boolean };
+  /**
+   * The loaded photo, shown before a chart exists. `toolUp`: a tool of the photo's own is in hand over it (G-124), so the
+   * bar offers that tool's options and controls in Photo as it does in Edit.
+   */
+  photo: { isLoading: boolean; hasSource: boolean; toolUp: boolean };
   /** The two drawing colours, and which of them is in front (G-064). */
   colours: {
     slots: { a: number | null; b: number | null; active: "a" | "b" };
@@ -203,7 +206,7 @@ export function QuickBar({ pattern, workspace, tool, photo, colours, symmetry, l
         </>
       )}
 
-      {!startingNew && !pattern && photo.hasSource && (
+      {!startingNew && !pattern && photo.hasSource && !photo.toolUp && (
         <>
           <span className={HEADING}>Photo</span>
           {photo.isLoading && <span className="text-xs text-muted">Reading image…</span>}
@@ -211,7 +214,7 @@ export function QuickBar({ pattern, workspace, tool, photo, colours, symmetry, l
         </>
       )}
 
-      {!startingNew && pattern && (
+      {!startingNew && (pattern || photo.toolUp) && (
         // One track that scrolls inside itself when the window is too narrow for it, which keeps the bar from widening the
         // page and letting a focused control scroll the chart sideways (D213). What commits the tool's work is drawn in
         // the slot after it, never over it (G-118, `PinnedEnd`).
@@ -222,12 +225,12 @@ export function QuickBar({ pattern, workspace, tool, photo, colours, symmetry, l
             <span className="sr-only" data-testid="tool-in-hand">
               {tool.label}
             </span>
-            {workspace === "photo" && (
+            {workspace === "photo" && !photo.toolUp && (
               <span className="shrink-0 text-xs text-muted">Try the settings on the right. Edit takes the chart from here.</span>
             )}
             {workspace === "export" && <span className="shrink-0 text-xs text-muted">Choose what to make on the right.</span>}
 
-            {workspace === "edit" && <>{items.length > 0 && <FitTrack items={items} />}</>}
+            {(workspace === "edit" || photo.toolUp) && <>{items.length > 0 && <FitTrack items={items} />}</>}
           </div>
           <div ref={setPinnedSlot} className="flex shrink-0 items-center gap-1.5 empty:hidden" data-testid="quick-bar-end" />
         </PinnedSlotProvider>

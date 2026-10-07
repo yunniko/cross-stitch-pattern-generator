@@ -7,6 +7,7 @@ import { ToolRail } from "../../app/components/tool-rail";
 import { INTERFACE_ICONS } from "../../app/skin/icons";
 import { ATELIER, OFFICIAL_SKINS, SkinIcon, SkinProvider, type Skin } from "../../app/skin/skin";
 import { TOOL_DEFINITIONS } from "../../app/tools/registry";
+import { toolOffered } from "../../lib/editor/workspaces";
 import { arrangeTools, SKIN_COLOURS, skinColourProblems, skinStyle } from "../../lib/skin/skin";
 import { PAPER } from "./fixtures/paper-skin";
 
@@ -96,18 +97,20 @@ describe("a skin, drawn", () => {
         })
       )
     );
+  // The rail is drawn for Edit, which offers every tool but the photo's (G-124).
+  const editTools = TOOL_DEFINITIONS.filter((tool) => toolOffered(tool, "edit"));
   const toolLabels = (markup: string) => [...markup.matchAll(/aria-label="([^"]+)" aria-pressed/g)].map((match) => match[1]);
 
   it("ships one skin, which changes nothing", () => {
     expect(OFFICIAL_SKINS).toEqual([ATELIER]);
     expect(ATELIER.colours).toBeUndefined();
-    expect(toolLabels(rail(ATELIER))).toEqual(TOOL_DEFINITIONS.map((tool) => tool.label));
+    expect(toolLabels(rail(ATELIER))).toEqual(editTools.map((tool) => tool.label));
   });
 
   it("orders the tools as the skin says, with no component edited", () => {
     const labels = toolLabels(rail(PAPER));
     expect(labels.slice(0, 2)).toEqual(["Pan", "Zoom"]);
-    expect([...labels].sort()).toEqual(TOOL_DEFINITIONS.map((tool) => tool.label).sort());
+    expect([...labels].sort()).toEqual(editTools.map((tool) => tool.label).sort());
   });
 
   it("draws the skin's icon for a tool and for the interface, and the supplied one otherwise", () => {

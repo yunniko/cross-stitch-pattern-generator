@@ -64,6 +64,10 @@ describe("the command table", () => {
       "tool.move [V]",
       "tool.pan [H]",
       "tool.zoom [Z]",
+      "tool.photo-wand [W]",
+      "photo.delete [Delete, Backspace]",
+      "photo.deselect [Escape]",
+      "photo.invert",
       "selection.invert",
       "selection.copy [Ctrl+C]",
       "selection.paste [Ctrl+V]",
@@ -149,8 +153,10 @@ describe("a key press", () => {
     expect(idsFor("z", { metaKey: true })).toEqual(["edit.undo"]);
     expect(idsFor("y", { ctrlKey: true })).toEqual(["edit.redo"]);
     expect(idsFor(" ")).toEqual(["view.pan-held"]);
-    expect(idsFor("Delete")).toEqual(["backstitch.delete"]);
-    expect(idsFor("Backspace")).toEqual(["backstitch.delete"]);
+    expect(idsFor("Delete")).toEqual(["photo.delete", "backstitch.delete"]);
+    expect(idsFor("Backspace")).toEqual(["photo.delete", "backstitch.delete"]);
+    // W is the wand of whichever workspace is shown (G-124): the one not offered there is passed over.
+    expect(idsFor("w")).toEqual(["tool.wand", "tool.photo-wand"]);
   });
 
   it("with Shift takes the key that names Shift over the one that does not", () => {
@@ -163,6 +169,7 @@ describe("a key press", () => {
     expect(idsFor("Escape")).toEqual([
       "edit.cancel-shape",
       "edit.cancel-lasso-fill",
+      "photo.deselect",
       "selection.cancel",
       "backstitch.end-run",
       "backstitch.deselect",

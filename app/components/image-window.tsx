@@ -1,4 +1,4 @@
-import { useState, type DragEvent, type MouseEvent, type PointerEvent, type ReactNode, type RefObject } from "react";
+import { type DragEvent, type MouseEvent, type PointerEvent, type ReactNode, type RefObject } from "react";
 import type { StitchPattern } from "@/lib/types";
 import type { Tool } from "../editor-types";
 import { describeView, viewEditable, type ChartView } from "@/lib/editor/view";
@@ -10,7 +10,9 @@ import { FirstRun } from "./first-run";
 import type { GatedAction } from "./feature-gate";
 import { RULER_THICKNESS, Rulers } from "./rulers";
 import { useAutoDismiss } from "../hooks/use-auto-dismiss";
-import { DismissButton, PillButton } from "./ui";
+import { DismissButton } from "./ui";
+import { PhotoStage } from "./photo-stage";
+import type { PhotoMask } from "@/lib/photo/photo-mask";
 
 /** The height kept free under the chart for the floating view controls, in CSS pixels. */
 export const VIEW_CONTROLS_ROOM = 64;
@@ -68,6 +70,15 @@ export interface ImageWindowProps {
     size: { width: number; height: number } | null;
     attach: (canvas: HTMLCanvasElement | null) => void;
   };
+  /**
+   * The photo itself in place of the chart (G-124): before the first chart, or in Photo while the Photo wand or the
+   * sliders are at work on it. Null while the chart is what is up.
+   */
+  photoStage: {
+    pixelSize: { width: number; height: number };
+    selection: PhotoMask | null;
+    onPress: ((pixel: { x: number; y: number }) => void) | null;
+  } | null;
   /** What the pointer does on the chart. */
   pointer: {
     onDown: (e: PointerEvent<HTMLDivElement>) => void;
@@ -125,7 +136,18 @@ function cursorFor(
  * renderer measures, and the frame is the chart-sized box it measures against (D135). The `overflow-auto` class is
  * part of that contract too: the suite selects the scroller by it.
  */
-export function ImageWindow({ refs, chart, start, preview, adjust, pointer, options, cropOverlay = null, marks = null }: ImageWindowProps) {
+export function ImageWindow({
+  refs,
+  chart,
+  start,
+  preview,
+  adjust,
+  photoStage,
+  pointer,
+  options,
+  cropOverlay = null,
+  marks = null,
+}: ImageWindowProps) {
   const { scroller: scrollerRef, frame: frameRef, canvas: canvasRef, hoverCanvas: hoverCanvasRef } = refs;
   const { pattern, cellSize, sourceMeta, view, activeTool, activeColorIndex, cursorHidden, lookingOnly, zoomsOut } = chart;
   const {
@@ -151,19 +173,17 @@ export function ImageWindow({ refs, chart, start, preview, adjust, pointer, opti
     if (photo && startScreen && dropPhoto && !isLoadingImage) dropPhoto(photo);
   };
   const { previewError, retryPreview: onRetryPreview, dismissPreviewError: onDismissPreviewError } = preview;
-  const { active: adjustActive, ready: adjustReady, size: adjustSize, attach: adjustCanvasRef } = adjust;
+
   const { onDown: onPointerDown, onMove: onPointerMove, onUp: onPointerUp, onLeave: onPointerLeave, onDoubleClick, onDrop } = pointer;
-  const [showOriginal, setShowOriginal] = useState(false);
-  // The sliders draw here; until the first frame is painted the photo itself is still what is up, so the well
-  // never goes blank while a preview is being prepared.
-  const showAdjusted = adjustActive && adjustReady && adjustSize !== null && !showOriginal;
-  const comparable = adjustActive && (adjustReady || showOriginal);
+
+  // The chart is up: not covered by the start screen, and not given way to the photo itself (G-124).
+  const chartUp = pattern !== null && !startingNew && photoStage === null;
   // The cloth is the Stitched view's alone, and covers the whole well rather than only the chart (G-077).
-  const clothShown = pattern !== null && !startingNew && view.pattern === "realistic" && options.canvasTexture !== "off";
+  const clothShown = chartUp && view.pattern === "realistic" && options.canvasTexture !== "off";
   useCanvasCloth(scrollerRef, frameRef, { active: clothShown, texture: options.canvasTexture, color: options.canvasColor, cellSize });
 
   // Rulers take room only while a chart is up (G-078).
-  const rulersShown = pattern !== null && !startingNew;
+  const rulersShown = chartUp;
   const ruler = rulersShown ? RULER_THICKNESS : 0;
 
   return (
@@ -197,34 +217,14 @@ export function ImageWindow({ refs, chart, start, preview, adjust, pointer, opti
         // once zoomed content outgrows the container.
         className="at-well grid min-h-0 min-w-0 place-items-center overflow-auto p-6"
       >
-        {!startingNew && !pattern && sourceMeta && (
-          <figure className="flex max-h-full max-w-full flex-col items-center gap-2">
-            {showAdjusted ? (
-              <canvas
-                ref={adjustCanvasRef}
-                data-testid="adjusted-photo"
-                width={adjustSize!.width}
-                height={adjustSize!.height}
-                role="img"
-                aria-label="Adjusted photo"
-                className="max-h-full max-w-full rounded border border-line shadow-[0_20px_50px_color-mix(in_srgb,var(--at-shadow)_50%,transparent)]"
-              />
-            ) : (
-              /* eslint-disable-next-line @next/next/no-img-element -- data URL, not a static asset next/image can optimize */
-              <img
-                src={sourceMeta.dataUrl}
-                alt="Uploaded photo"
-                className="max-h-full max-w-full rounded border border-line shadow-[0_20px_50px_color-mix(in_srgb,var(--at-shadow)_50%,transparent)]"
-              />
-            )}
-            {comparable && (
-              <figcaption className="flex items-center gap-2 text-xs text-muted">
-                <PillButton size="xs" aria-pressed={showOriginal} onClick={() => setShowOriginal((shown) => !shown)}>
-                  Compare with original
-                </PillButton>
-              </figcaption>
-            )}
-          </figure>
+        {photoStage && sourceMeta && (
+          <PhotoStage
+            meta={sourceMeta}
+            pixelSize={photoStage.pixelSize}
+            adjust={adjust}
+            selection={photoStage.selection}
+            onPress={photoStage.onPress}
+          />
         )}
         {startScreen && (
           <FirstRun
@@ -245,7 +245,7 @@ export function ImageWindow({ refs, chart, start, preview, adjust, pointer, opti
           <div className="relative">
             <div
               ref={frameRef}
-              hidden={startingNew}
+              hidden={!chartUp}
               role="img"
               aria-label={`Pattern, ${describeView(view)}`}
               data-testid="chart-frame"

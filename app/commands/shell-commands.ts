@@ -158,8 +158,11 @@ export function useShellCommands(state: ShellState, actions: ShellActions, fromT
   const features = useFeatures();
   return useCommandTable(
     shellCommandStates(state, actions),
-    // A tool can be picked up where the workspace shown offers it.
-    (tool) => act(state.hasChart && toolOffered(toolDefinition(tool), state.workspace), () => actions.chooseTool(tool)),
+    // A tool can be picked up where the workspace shown offers it, over a chart, or in Photo over the photo alone (G-124).
+    (tool) =>
+      act((state.hasChart || (state.workspace === "photo" && state.photoShown)) && toolOffered(toolDefinition(tool), state.workspace), () =>
+        actions.chooseTool(tool)
+      ),
     fromTools,
     features
   );
