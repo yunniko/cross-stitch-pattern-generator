@@ -435,6 +435,7 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | G-114 | internal | draft: backups |
 | G-116 | 04-editing | selection modes, Invert, the Magic wand |
 | G-117 | internal | security fixes; the sign-in message is accounts (out of scope) |
+| G-118 | this goal | draft: the quick bar fits every tool at every desktop width |
 | D308 | 01-overview | the version shown |
 | D309 | internal | |
 | D310 | 01-overview | "What's new" |
