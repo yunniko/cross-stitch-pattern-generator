@@ -1,29 +1,34 @@
-import { NEUTRAL_ADJUST, samePhotoAdjust, type PhotoAdjust } from "../pipeline/photo-adjust";
+import { isNeutralAdjust, NEUTRAL_ADJUST, type PhotoAdjust } from "../pipeline/photo-adjust";
 
 /**
- * What becomes of the sliders when the reader walks away from them (G-074 M6).
+ * What becomes of the sliders when the reader walks away from them (G-074 M6, changed in G-124).
  *
- * The four sliders are provisional until a Generate acts on them: while the Photo tab is up with a photo view,
- * those views follow the sliders live, but the chart on screen was made with whatever it was made with. So
- * leaving the tab, or the view, puts the sliders back to the chart's own — otherwise the app would show a chart
- * beside sliders that did not make it (Owner, 2026-09-27).
+ * Since G-124 the four sliders are a preview over the photo until Apply writes them into it (Owner, 2026-10-07). Cancel,
+ * leaving the Picture tab or leaving Photo gives the preview up: the sliders go back to the middle and the photo is left
+ * as it was applied.
  */
 
+/** The sliders to put back, or `null` when they are already in the middle and there is nothing to give up. */
+export function slidersToRestore(current: PhotoAdjust): PhotoAdjust | null {
+  return isNeutralAdjust(current) ? null : NEUTRAL_ADJUST;
+}
+
+/** What a chart says of the photo it was made from. */
 export interface AdjustedChart {
-  /** Absent for a chart started from an empty canvas, which has no photo settings at all. */
-  sourceImage?: unknown;
+  /** Absent for a chart started from an empty canvas. */
+  sourceImage?: { dataUrl: string };
   photoAdjust?: PhotoAdjust;
 }
 
 /**
- * The sliders to put back, or `null` to leave them alone.
- *
- * Null for a chart that has no photo: its Photo tab offers no sliders, so the ones the reader holds are for
- * the *next* photo they load and are not this chart's to reset. Null also before the first chart, when the
- * sliders are all there is, and when nothing has changed.
+ * The adjustment a Generate applies on the server (D352). The photo as applied is what is generated from, never the sliders
+ * (Owner, 2026-10-07), so this is neutral, but for one case: a chart made from this very photo, untouched, with the
+ * sliders of before G-124 keeps the adjustment it was made with, so regenerating it makes it again.
  */
-export function slidersToRestore(current: PhotoAdjust, chart: AdjustedChart | null): PhotoAdjust | null {
-  if (!chart?.sourceImage) return null;
-  const made = chart.photoAdjust ?? NEUTRAL_ADJUST;
-  return samePhotoAdjust(current, made) ? null : made;
+export function generationPhotoAdjust(
+  chart: AdjustedChart | null,
+  photo: { originalDataUrl: string | null; isOriginal: boolean }
+): PhotoAdjust {
+  const madeFromThisPhoto = chart?.sourceImage !== undefined && chart.sourceImage.dataUrl === photo.originalDataUrl;
+  return photo.isOriginal && madeFromThisPhoto ? (chart.photoAdjust ?? NEUTRAL_ADJUST) : NEUTRAL_ADJUST;
 }

@@ -485,3 +485,5 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | D348 | out of scope (accounts and admin) | |
 | D349 | 02-photo-and-generation | |
 | D350 | 02-photo-and-generation | |
+| D351 | 02-photo-and-generation | |
+| D352 | 02-photo-and-generation | |

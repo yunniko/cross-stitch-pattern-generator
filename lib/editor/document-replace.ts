@@ -46,8 +46,8 @@ export interface ReplacePlan {
   symmetry: "off" | "from-file" | "keep";
   /** The colours chosen for generating (G-087). */
   paletteSet: "reset" | "from-file" | "keep";
-  /** The four photo sliders (G-074). */
-  photoAdjust: "neutral" | "from-file" | "keep";
+  /** The four photo sliders (G-074): a preview until applied since G-124, so no chart brings its own. */
+  photoAdjust: "neutral" | "keep";
   /**
    * The workspace shown afterwards (G-095, D297). A photo and every Generate stay in Photo, where generations are tried;
    * a chart that arrives ready (opened, restored, blank, imported) is shown in Edit.
@@ -86,7 +86,7 @@ export const REPLACE_PLANS: Record<ReplaceReason, ReplacePlan> = {
     chartView: "reset",
     symmetry: "from-file",
     paletteSet: "from-file",
-    photoAdjust: "from-file",
+    photoAdjust: "neutral",
     workspace: "edit",
     clearMessages: true,
     leaveStart: true,
@@ -100,7 +100,7 @@ export const REPLACE_PLANS: Record<ReplaceReason, ReplacePlan> = {
     chartView: "keep",
     symmetry: "from-file",
     paletteSet: "from-file",
-    photoAdjust: "from-file",
+    photoAdjust: "neutral",
     workspace: "edit",
     clearMessages: true,
     leaveStart: true,

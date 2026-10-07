@@ -39,6 +39,7 @@ import { useKeyboardShortcuts } from "./hooks/use-keyboard-shortcuts";
 import { usePanZoom, ZOOM_STEP } from "./hooks/use-pan-zoom";
 import { EMPTY_SET } from "@/lib/editor/palette-set";
 import { isNeutralAdjust, NEUTRAL_ADJUST } from "@/lib/pipeline/photo-adjust";
+import { generationPhotoAdjust } from "@/lib/editor/photo-adjust-session";
 import { usePhotoAdjustPreview } from "./hooks/use-photo-adjust-preview";
 import { useColorPrediction } from "./hooks/use-color-prediction";
 import { readToolOption, writeToolOption } from "@/lib/editor/tool-options";
@@ -227,9 +228,11 @@ export default function Workspace({ account }: WorkspaceProps) {
     },
   });
   const { activeTool, switchTool, hoverOutline } = tools;
-  // The photo itself is up in place of the chart (G-124): before the first chart, and in Photo while the Photo wand is in
-  // hand or the sliders are off centre, since both act on the photo and not on the chart.
-  const photoStageShown = photoEditable && (pattern === null || activeTool === "photo-wand" || !isNeutralAdjust(options.photoAdjust));
+  // The photo itself is up in place of the chart (G-124): before the first chart; while the photo has been edited since the
+  // chart was made, so what is shown is what the next Generate reads; and while the Photo wand is in hand or the sliders are
+  // off centre, since both act on the photo and not on the chart.
+  const chartFromPhotoShown = pattern?.sourceImage !== undefined && pattern.sourceImage.dataUrl === source.meta?.dataUrl;
+  const photoStageShown = photoEditable && (!chartFromPhotoShown || activeTool === "photo-wand" || !isNeutralAdjust(options.photoAdjust));
   // The photo's history, while an edit is being worked nothing can be stepped (G-124).
   const photoHistory = {
     canUndo: source.edits.canUndo && !photoEdits.busy,
@@ -333,23 +336,37 @@ export default function Workspace({ account }: WorkspaceProps) {
   const dropPhoto = photoChoice && photoChoice.locked === undefined ? lifecycle.dropPhoto : null;
   // With no workspace to show, the start choices are what is offered, even over a photo the browser kept (G-103).
   const startScreenVisible = lifecycle.startScreenVisible || workspace === null;
+  // A Generate reads the photo as applied, never the sliders, which are a preview until Apply (D352).
+  const generationAdjust = generationPhotoAdjust(pattern, {
+    originalDataUrl: source.original?.meta.dataUrl ?? null,
+    isOriginal: source.edits.isOriginal,
+  });
+  const generationOptions = useMemo(() => ({ ...options, photoAdjust: generationAdjust }), [options, generationAdjust]);
   // How many colours the picture reasonably needs, which, and how well the set being set up covers it (G-087).
   const colorPrediction = useColorPrediction({
     // Nothing is asked of the server for a workspace that is off (G-103).
     photoDataUrl: photoOn ? (source.meta?.dataUrl ?? null) : null,
     longerSideStitches: longerSideFor(options),
     paletteMode: options.paletteSetup ? options.paletteSet.mode : options.paletteMode,
-    photoAdjust: options.photoAdjust,
+    photoAdjust: generationAdjust,
     setColors: options.paletteSetup && options.paletteSet.colors.length ? options.paletteSet.colors.map((c) => c.rgb) : null,
   });
   const recommendedCount = useRecommendedCount(colorPrediction.prediction, (count) => updateOption("colorCount", count));
   // Every chart a Generate makes is kept as a try of the photo in hand (G-095 M4, D298).
-  const tries = useTries(source.meta?.dataUrl ?? null);
+  // They belong to the photo as loaded, so its edits do not hide them (G-124).
+  const tries = useTries(source.original?.meta.dataUrl ?? null);
   // The most recent of them, where two tries are the same chart.
   const currentTryId = useMemo(() => tries.tries.findLast((entry) => isTry(pattern, entry.pattern))?.id ?? null, [pattern, tries.tries]);
+  /**
+   * A new chart is what the person asked to see, so a Photo tool still in hand (which keeps the photo up over the chart)
+   * is put down for Pan once a generation or a try lands (G-124).
+   */
+  function putPhotoToolDown() {
+    if (toolDefinition(tools.activeTool).workspace === "photo") tools.switchTool("pan");
+  }
   const generation = useGeneration({
     colorCeiling: options.paletteSetup ? null : (colorPrediction.prediction?.ceiling ?? null),
-    options,
+    options: generationOptions,
     pixelBuffer: source.pixelBuffer,
     sourceMeta: source.meta,
     sourceFileName: source.fileName,
@@ -357,8 +374,9 @@ export default function Workspace({ account }: WorkspaceProps) {
     currentPattern: pattern,
     onGenerated: (next, isFirst) => {
       lifecycle.generated(next, isFirst);
+      putPhotoToolDown();
       // With the settings as they stood when Generate was pressed, which are the ones that made it.
-      tries.add(next, trySettingsOf(options));
+      tries.add(next, trySettingsOf(generationOptions));
     },
   });
 
@@ -373,7 +391,10 @@ export default function Workspace({ account }: WorkspaceProps) {
   function showTry(entry: Try) {
     if (entry.id === currentTryId) return;
     lifecycle.generated(entry.pattern, false);
-    for (const [key, value] of Object.entries(entry.settings)) updateOption(key as keyof WorkspaceOptions, value as never);
+    putPhotoToolDown();
+    // The sliders are a preview of the next Apply, not a setting of the chart, so a try leaves them as they are (G-124).
+    for (const [key, value] of Object.entries(entry.settings))
+      if (key !== "photoAdjust") updateOption(key as keyof WorkspaceOptions, value as never);
   }
 
   // The arrow keys move the highlighted stitch and Enter is the pen, for the tools that paint or draw (G-080).
@@ -772,6 +793,15 @@ export default function Workspace({ account }: WorkspaceProps) {
                 generation={generation}
                 prediction={colorPrediction}
                 adjustPreview={adjustPreview}
+                photoEdit={{
+                  hasSelection: photoEdits.selection !== null,
+                  busy: photoEdits.busy,
+                  apply: () => photoEdits.apply(options.photoAdjust, () => updateOption("photoAdjust", NEUTRAL_ADJUST)),
+                  cancel: () => updateOption("photoAdjust", NEUTRAL_ADJUST),
+                  ...photoHistory,
+                  edited: !source.edits.isOriginal,
+                  restore: source.edits.restore,
+                }}
                 exports={exports}
               />
             }

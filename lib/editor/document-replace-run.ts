@@ -52,9 +52,8 @@ export async function replaceDocument(
 
   if (plan.forgetAutosave) effects.forgetAutosave();
 
-  // The sliders come back with a chart that has a photo; one without a photo has no photo settings to bring (G-074 M5).
+  // The sliders are a preview of the photo in hand (G-124), so a chart arriving puts them in the middle or leaves them.
   if (plan.photoAdjust === "neutral") effects.setPhotoAdjust(NEUTRAL_ADJUST);
-  else if (plan.photoAdjust === "from-file" && next?.sourceImage) effects.setPhotoAdjust(next.photoAdjust ?? NEUTRAL_ADJUST);
 
   if (plan.recommendColorCount) effects.awaitRecommendedCount();
 

@@ -28,7 +28,9 @@ async function pressChart(page: Page) {
   await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
 }
 
-test("an opened chart arrives in Edit; Photo and Export offer only the tools that move the view", async ({ page }) => {
+test("an opened chart arrives in Edit; Photo offers its own Photo wand and the view tools, Export only the view tools", async ({
+  page,
+}) => {
   await openSmallChart(page);
   await expect(workspace(page, "Edit")).toHaveAttribute("aria-selected", "true");
   expect(await toolNames(page)).toContain("Brush");
@@ -37,7 +39,8 @@ test("an opened chart arrives in Edit; Photo and Export offer only the tools tha
   for (const name of ["Photo", "Export"]) {
     await showWorkspace(page, name as "Photo" | "Export");
     await expect(workspace(page, name)).toHaveAttribute("aria-selected", "true");
-    expect(await toolNames(page), name).toEqual(["Pan", "Zoom"]);
+    // The chart carries its photo, so Photo offers the wand that edits it (G-124).
+    expect(await toolNames(page), name).toEqual(name === "Photo" ? ["Photo wand", "Pan", "Zoom"] : ["Pan", "Zoom"]);
     await expect(tool(page, "Mirror left half"), `${name} offers the quick mirrors`).toHaveCount(0);
     await expect(page.getByRole("tab", { name: "Threads" }), `${name} shows Edit's tabs`).toHaveCount(0);
   }

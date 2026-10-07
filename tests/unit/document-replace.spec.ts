@@ -65,7 +65,7 @@ describe("what each way of replacing the chart resets", () => {
     ]);
   });
 
-  it("an opened file with a photo, a recorded set and axes brings all three back", async () => {
+  it("an opened file with a photo brings its set and axes back, and puts the sliders in the middle (G-124)", async () => {
     const { calls, effects } = recorder();
     const opened = chart({
       sourceImage: { dataUrl: "data:," } as StitchPattern["sourceImage"],
@@ -73,8 +73,9 @@ describe("what each way of replacing the chart resets", () => {
       generationPalette: { mode: "full", colors: [{ rgb: [1, 2, 3] }], active: true },
     });
     await replaceDocument("open", opened, effects, { symmetry: AXES, fallbackName: "file" });
+    // The chart keeps the adjustment it was made with; the sliders are a preview of the next Apply, not that adjustment.
     expect(calls).toEqual([
-      "photoAdjust:file",
+      "photoAdjust:neutral",
       "restorePaletteSet",
       "clearMessages",
       "resetHistory",
@@ -96,11 +97,11 @@ describe("what each way of replacing the chart resets", () => {
     expect(asOpened.calls).toContain("resetChartView");
   });
 
-  it("an opened file with no photo leaves the sliders alone, and one with no set resets the set", async () => {
+  it("an opened file with no photo puts the sliders in the middle too, and one with no set resets the set", async () => {
     const { calls, effects } = recorder();
     await replaceDocument("open", chart(), effects, { fallbackName: "file" });
     expect(calls).not.toContain("photoAdjust:file");
-    expect(calls).not.toContain("photoAdjust:neutral");
+    expect(calls).toContain("photoAdjust:neutral");
     expect(calls).toContain("resetPaletteSet");
     expect(calls).toContain("setSymmetry:off");
   });

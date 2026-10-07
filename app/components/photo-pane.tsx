@@ -6,7 +6,7 @@ import { useState, type ReactNode } from "react";
 import type { WorkspaceOptions } from "@/lib/editor/workspace-storage";
 import { formatFinishedDimension } from "@/lib/export/finished-size";
 import { ditherOwnSettings, ditherVariants, isDithered, type DitherMode, type DitherPatternDeclaration } from "@/lib/pipeline/dither";
-import { isNeutralAdjust, NEUTRAL_ADJUST, type PhotoAdjust } from "@/lib/pipeline/photo-adjust";
+import { isNeutralAdjust, type PhotoAdjust } from "@/lib/pipeline/photo-adjust";
 import type { ColorPrediction } from "@/lib/pipeline/prediction";
 import { THREAD_BRANDS, THREAD_BRAND_IDS } from "@/lib/threads/thread-brands";
 import { MAX_COLORS, MAX_STITCHES, MIN_COLORS, MIN_STITCHES, SIZE_PRESETS, SIZE_PRESET_LABELS } from "@/lib/types";
@@ -123,6 +123,26 @@ export const PHOTO_SECTIONS = [
 ] as const;
 export type PhotoSection = (typeof PHOTO_SECTIONS)[number]["id"];
 
+/** What the Picture tab does to the photo itself (G-124): Apply and Cancel for the sliders, and the photo's own history. */
+export interface PhotoEditControls {
+  /** The Photo wand has a selection: Apply changes only that part (Owner, 2026-10-07). */
+  hasSelection: boolean;
+  /** An edit is being worked. */
+  busy: boolean;
+  /** The sliders written into the photo as one step; they go back to the middle once it is in. */
+  apply: () => void;
+  /** The sliders back to the middle, nothing applied. */
+  cancel: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
+  undo: () => void;
+  redo: () => void;
+  /** The photo differs from the one loaded. */
+  edited: boolean;
+  /** Back to the photo as loaded, as a step that can itself be undone. */
+  restore: () => void;
+}
+
 export interface PhotoPaneProps {
   /** Which of the three tabs is shown. */
   section: PhotoSection;
@@ -142,6 +162,7 @@ export interface PhotoPaneProps {
   onCancel: () => void;
   /** A slider has been let go, so the preview can stop drawing coarse and draw the photo properly. */
   onAdjustSettled: () => void;
+  photoEdit: PhotoEditControls;
   error: string | null;
   onDismissError: () => void;
   /** What the processor predicts the picture needs (G-087); null before it has answered or when it cannot. */
@@ -209,6 +230,7 @@ export function PhotoPane({
   isLoadingImage,
   onCancel,
   onAdjustSettled,
+  photoEdit,
   error,
   onDismissError,
   prediction,
@@ -216,6 +238,7 @@ export function PhotoPane({
 }: PhotoPaneProps) {
   // What is being typed into the custom size, until the field is left. Before the early returns: hooks keep their order.
   const [sizeDraft, setSizeDraft] = useState<string | null>(null);
+  const neutral = isNeutralAdjust(options.photoAdjust);
   // The palette mode asked for while colours are chosen in another, until the reader confirms that they go.
   const [pendingMode, setPendingMode] = useState<WorkspaceOptions["paletteMode"] | null>(null);
   // Under the feature switches (G-102): the set-up palette and each brand are features.
@@ -670,19 +693,7 @@ export function PhotoPane({
       {section === "picture" && hasPhoto && (
         <FeatureGate id="generation.photoAdjust">
           <section className="flex flex-col gap-2">
-            <div className="flex items-baseline justify-between">
-              <span className={GROUP_LABEL}>Photo</span>
-              <button
-                type="button"
-                disabled={isNeutralAdjust(options.photoAdjust)}
-                onClick={() => onChange("photoAdjust", NEUTRAL_ADJUST)}
-                aria-label="Put the photo sliders back to neutral"
-                title="Put all four sliders back in the middle"
-                className="text-[11px] text-muted enabled:hover:text-ink disabled:cursor-not-allowed disabled:text-faint"
-              >
-                Reset
-              </button>
-            </div>
+            <span className={GROUP_LABEL}>Photo</span>
             <div className="flex flex-col gap-2">
               {ADJUST_SLIDERS.map(({ key, label, hint }) => (
                 <Slider
@@ -697,6 +708,42 @@ export function PhotoPane({
                   onSettled={onAdjustSettled}
                 />
               ))}
+            </div>
+            {/* The sliders are a preview until Apply writes them into the photo (Owner, 2026-10-07). */}
+            <div className="flex gap-1.5">
+              <PillButton
+                size="xs"
+                variant="primary"
+                disabled={neutral || photoEdit.busy}
+                onClick={photoEdit.apply}
+                title={photoEdit.hasSelection ? "Change only the selected part of the photo" : "Change the whole photo"}
+              >
+                {photoEdit.busy ? "Working…" : photoEdit.hasSelection ? "Apply to selection" : "Apply"}
+              </PillButton>
+              <PillButton
+                size="xs"
+                disabled={neutral}
+                onClick={photoEdit.cancel}
+                title="Put the sliders back in the middle, nothing applied"
+              >
+                Cancel
+              </PillButton>
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5 border-t border-line pt-2" data-testid="photo-history">
+              <PillButton size="xs" disabled={!photoEdit.canUndo} onClick={photoEdit.undo} title="Undo the last change to the photo">
+                Undo
+              </PillButton>
+              <PillButton size="xs" disabled={!photoEdit.canRedo} onClick={photoEdit.redo} title="Redo the change to the photo">
+                Redo
+              </PillButton>
+              <PillButton
+                size="xs"
+                disabled={!photoEdit.edited || photoEdit.busy}
+                onClick={photoEdit.restore}
+                title="Go back to the photo as it was loaded; this can be undone"
+              >
+                Restore original
+              </PillButton>
             </div>
           </section>
         </FeatureGate>

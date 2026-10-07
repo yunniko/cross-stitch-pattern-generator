@@ -79,7 +79,8 @@ const SHELL_COMMANDS = [
     id: "generate.reset-adjustment",
     workspace: "photo",
     feature: null,
-    name: "Reset the photo adjustment",
+    // The id is kept so a saved key or a spec still finds it; since G-124 it is the Picture tab's Cancel.
+    name: "Cancel the photo adjustment",
     group: "Generate",
     when: "A photo; a value off neutral",
   },

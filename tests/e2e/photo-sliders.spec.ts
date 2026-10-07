@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import path from "node:path";
 import { expectPhotoLoaded, showPhotoTab } from "./helpers/app";
+import { photoControls } from "./helpers/photo";
 
 /**
  * G-074 M2: the four sliders, applied to the photo in the browser.
@@ -89,11 +90,10 @@ test("moving a slider changes the photo on screen, without asking the server", a
   const darker = await paintedDigest(page);
   expect(Number(darker.split(":")[0])).toBeLessThan(Number(brighter.split(":")[0]));
 
-  // The picture is adjusted in the page, which is what M2 is (criterion 2): nothing is asked of the server for it. What
-  // may go out, a moment after a slider rests, is the colour recommendation for the adjusted picture (G-087); the case
-  // used to end before that request and so claimed there was none.
+  // The picture is adjusted in the page, which is what M2 is (criterion 2): nothing is asked of the server for it. Since
+  // G-124 not even the colour recommendation is: it follows the photo as applied, not the sliders.
   const asked = requests.slice(before).filter((url) => !url.startsWith("data:") && !url.includes("_next"));
-  expect(asked.filter((url) => !url.includes("/api/predictions"))).toEqual([]);
+  expect(asked).toEqual([]);
   expect(errors).toEqual([]);
 });
 
@@ -127,7 +127,7 @@ test("each slider moves the thing it names", async ({ page }) => {
   expect(grey).toBeLessThanOrEqual(2);
 });
 
-test("Compare with original shows the photo again, and centring the sliders puts it back for good", async ({ page }) => {
+test("Compare with original shows the photo again, and Cancel puts it back for good", async ({ page }) => {
   await uploadPhoto(page);
   await set(page, "Contrast", 60);
   await expect(page.getByTestId("adjusted-photo")).toBeVisible();
@@ -139,7 +139,8 @@ test("Compare with original shows the photo again, and centring the sliders puts
   await compare.click();
   await expect(page.getByTestId("adjusted-photo")).toBeVisible();
 
-  await page.getByRole("button", { name: "Put the photo sliders back to neutral" }).click();
+  // Since G-124 the sliders are a preview until Apply; Cancel gives it up.
+  await photoControls(page).cancel.click();
   for (const name of ["Brightness", "Contrast", "Saturation", "Warm / cool"]) {
     await expect(slider(page, name)).toHaveValue("0");
   }

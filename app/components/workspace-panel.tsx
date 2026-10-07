@@ -17,7 +17,8 @@ import { ChartPane } from "./chart-pane";
 import { ColorsDock } from "./colors-dock";
 import { ExportFooter, ExportPane, type ExportControls } from "./export-pane";
 import { EDIT_TABS, Inspector, type InspectorTab } from "./inspector";
-import { PHOTO_SECTIONS, PhotoPane, type PhotoSection } from "./photo-pane";
+import { isNeutralAdjust, NEUTRAL_ADJUST } from "@/lib/pipeline/photo-adjust";
+import { PHOTO_SECTIONS, PhotoPane, type PhotoEditControls, type PhotoSection } from "./photo-pane";
 import { PillButton } from "./ui";
 
 /**
@@ -61,6 +62,8 @@ export interface WorkspacePanelProps {
   generation: ReturnType<typeof useGeneration>;
   prediction: ReturnType<typeof useColorPrediction>;
   adjustPreview: PhotoAdjustPreview;
+  /** Apply, Cancel and the photo's own history, for the Picture tab (G-124). */
+  photoEdit: PhotoEditControls;
   exports: ReturnType<typeof useExports>;
 }
 
@@ -81,6 +84,7 @@ export function WorkspacePanel({
   generation,
   prediction,
   adjustPreview,
+  photoEdit,
   exports,
 }: WorkspacePanelProps) {
   // The tab of the Photo panel: the chart's settings first, since they are what is tried most.
@@ -172,7 +176,16 @@ export function WorkspacePanel({
       title="Photo settings"
       tabs={
         photoSettingsShown
-          ? { list: PHOTO_SECTIONS, chosen: photoSection, onChoose: (tab) => setPhotoSection(tab as PhotoSection), disabled: false }
+          ? {
+              list: PHOTO_SECTIONS,
+              chosen: photoSection,
+              onChoose: (tab) => {
+                // Leaving the Picture tab gives unapplied sliders up, as leaving Photo does (Owner, 2026-10-07).
+                if (tab !== "picture" && !isNeutralAdjust(options.photoAdjust)) onOptionChange("photoAdjust", NEUTRAL_ADJUST);
+                setPhotoSection(tab as PhotoSection);
+              },
+              disabled: false,
+            }
           : null
       }
       pane={
@@ -193,6 +206,7 @@ export function WorkspacePanel({
             isLoadingImage={!startingNew && source.isLoading}
             onCancel={generation.cancel}
             onAdjustSettled={adjustPreview.settle}
+            photoEdit={photoEdit}
             error={generation.error}
             prediction={prediction.prediction}
             predictionLoading={prediction.loading}
@@ -202,15 +216,23 @@ export function WorkspacePanel({
       footer={
         // 1b draws Generate only once a photo is loaded ("B . Before generate"); the first run has no footer.
         !startingNew && !photoFree && source.hasPhoto ? (
-          <PillButton
-            variant="primary"
-            size="lg"
-            className="w-full"
-            onClick={() => void generation.generate()}
-            disabled={!source.hasPhoto || generation.isProcessing || source.isLoading}
-          >
-            {pattern ? "Regenerate" : "Generate pattern"}
-          </PillButton>
+          <div className="flex flex-col gap-2">
+            {/* A Generate reads the photo as applied (Owner, 2026-10-07), so moved sliders are said not to count yet. */}
+            {!isNeutralAdjust(options.photoAdjust) && (
+              <p data-testid="sliders-not-applied" className="text-[11px] leading-4 text-warning">
+                The slider changes are not applied: Generate uses the photo without them. Apply them first to use them.
+              </p>
+            )}
+            <PillButton
+              variant="primary"
+              size="lg"
+              className="w-full"
+              onClick={() => void generation.generate()}
+              disabled={!source.hasPhoto || generation.isProcessing || source.isLoading || photoEdit.busy}
+            >
+              {pattern ? "Regenerate" : "Generate pattern"}
+            </PillButton>
+          </div>
         ) : null
       }
     />

@@ -1,38 +1,38 @@
 import { describe, expect, it } from "vitest";
-import { slidersToRestore } from "@/lib/editor/photo-adjust-session";
+import { generationPhotoAdjust, slidersToRestore } from "@/lib/editor/photo-adjust-session";
 import { NEUTRAL_ADJUST, type PhotoAdjust } from "@/lib/pipeline/photo-adjust";
 
-/** G-074 M6: the sliders are provisional until a Generate, and this is what happens when the reader leaves. */
+/** G-124: the sliders are a preview until Apply, and this is what happens when the reader leaves them. */
 
 const moved: PhotoAdjust = { brightness: 40, contrast: 0, saturation: -100, temperature: 0 };
-const made: PhotoAdjust = { brightness: -20, contrast: 10, saturation: 0, temperature: 5 };
-const photo = { sourceImage: { dataUrl: "data:," } };
 
 describe("walking away from the sliders", () => {
-  it("puts back what the chart was made with", () => {
-    expect(slidersToRestore(moved, { ...photo, photoAdjust: made })).toEqual(made);
+  it("gives the preview up: they go back to the middle, unapplied", () => {
+    expect(slidersToRestore(moved)).toEqual(NEUTRAL_ADJUST);
   });
 
-  it("puts them back to neutral for a chart made without them", () => {
-    expect(slidersToRestore(moved, photo)).toEqual(NEUTRAL_ADJUST);
-  });
-
-  it("leaves them alone when they are already the chart's", () => {
+  it("leaves them alone when they are already in the middle", () => {
     // Nothing to restore is not the same as restoring the same value: the caller skips the update entirely,
     // and a needless one would re-render the pane under the reader's hand.
-    expect(slidersToRestore(made, { ...photo, photoAdjust: made })).toBeNull();
-    expect(slidersToRestore(NEUTRAL_ADJUST, photo)).toBeNull();
+    expect(slidersToRestore(NEUTRAL_ADJUST)).toBeNull();
+  });
+});
+
+describe("the adjustment a Generate applies (D352)", () => {
+  const made: PhotoAdjust = { brightness: -20, contrast: 10, saturation: 0, temperature: 5 };
+  const chart = { sourceImage: { dataUrl: "data:a" }, photoAdjust: made };
+
+  it("is the chart's own for its photo untouched, so regenerating makes the chart again", () => {
+    expect(generationPhotoAdjust(chart, { originalDataUrl: "data:a", isOriginal: true })).toBe(made);
   });
 
-  it("leaves them alone before there is a chart at all", () => {
-    // Before the first Generate the sliders are the only thing there is, and the well is showing them.
-    expect(slidersToRestore(moved, null)).toBeNull();
+  it("is neutral once the photo is edited: the edits already hold what was applied", () => {
+    expect(generationPhotoAdjust(chart, { originalDataUrl: "data:a", isOriginal: false })).toEqual(NEUTRAL_ADJUST);
   });
 
-  it("leaves them alone for a chart that has no photo", () => {
-    // An empty-canvas chart offers no photo settings, so the sliders the reader holds belong to the next
-    // photo they load. Resetting them here would quietly throw that away.
-    expect(slidersToRestore(moved, { photoAdjust: made })).toBeNull();
-    expect(slidersToRestore(moved, {})).toBeNull();
+  it("is neutral for another photo, or with no chart", () => {
+    expect(generationPhotoAdjust(chart, { originalDataUrl: "data:b", isOriginal: true })).toEqual(NEUTRAL_ADJUST);
+    expect(generationPhotoAdjust(null, { originalDataUrl: "data:a", isOriginal: true })).toEqual(NEUTRAL_ADJUST);
+    expect(generationPhotoAdjust({ photoAdjust: made }, { originalDataUrl: null, isOriginal: true })).toEqual(NEUTRAL_ADJUST);
   });
 });

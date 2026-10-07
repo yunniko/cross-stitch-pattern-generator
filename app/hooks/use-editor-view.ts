@@ -4,7 +4,7 @@ import { NEUTRAL_ADJUST, type PhotoAdjust } from "@/lib/pipeline/photo-adjust";
 import type { StitchPattern } from "@/lib/types";
 import type { Workspace } from "@/lib/editor/workspaces";
 import type { InspectorTab } from "../components/inspector";
-import { DEFAULT_VIEW, photoShown, viewInForce, type ChartView } from "@/lib/editor/view";
+import { DEFAULT_VIEW, viewInForce, type ChartView } from "@/lib/editor/view";
 import type { FeatureStates } from "@/lib/features/features";
 
 /**
@@ -12,10 +12,8 @@ import type { FeatureStates } from "@/lib/features/features";
  * G-098), with the one rule that ties the first two to the photo sliders. The view is kept with the browser's settings, so
  * it survives a reload (Owner, 2026-10-06); this hook only reads and sets it (D315).
  *
- * The sliders are provisional until a Generate acts on them (D243). In the Photo workspace with the photo shown, the view
- * follows the sliders as they move; anywhere else it shows the chart's own, because that is what the chart was made from
- * (D241). Leaving either without regenerating gives the change up: the chart on screen was not made with those sliders, so
- * it must not look as though it was (Owner, 2026-09-27).
+ * The sliders are a preview over the photo until Apply writes them in (G-124, Owner 2026-10-07). The chart's photo views
+ * show the adjustment the chart was made with (D241); leaving Photo without applying gives the sliders up.
  */
 export function useEditorView({
   pattern,
@@ -39,7 +37,7 @@ export function useEditorView({
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>("threads");
 
   function abandonUnusedSliders() {
-    const restore = slidersToRestore(sliders, pattern);
+    const restore = slidersToRestore(sliders);
     if (restore) restoreSliders(restore);
   }
 
@@ -53,11 +51,8 @@ export function useEditorView({
     /** The workspace chosen; the one shown may differ while there is no chart to edit (`workspaceShown`). */
     workspace,
     inspectorTab,
-    /** The view, chosen by the person: one that no longer shows the photo gives unused slider changes up. */
-    chooseView(next: ChartView) {
-      if (!photoShown(viewInForce(next, conditions))) abandonUnusedSliders();
-      setChosenView(next);
-    },
+    /** The view, chosen by the person. */
+    chooseView: setChosenView,
     /** The workspace, chosen by the person. */
     chooseWorkspace(next: Workspace) {
       if (next !== "photo") abandonUnusedSliders();
@@ -72,7 +67,7 @@ export function useEditorView({
       setWorkspace(next);
       if (next === "edit") setInspectorTab("threads");
     },
-    /** The adjustment the photo is drawn with. */
-    shownPhotoAdjust: workspace === "photo" && photoShown(shown) ? sliders : (pattern?.photoAdjust ?? NEUTRAL_ADJUST),
+    /** The adjustment the chart's photo views are drawn with: the one the chart was made with. */
+    shownPhotoAdjust: pattern?.photoAdjust ?? NEUTRAL_ADJUST,
   };
 }

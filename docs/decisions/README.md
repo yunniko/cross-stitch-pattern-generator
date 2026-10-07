@@ -386,3 +386,5 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D348 — Every admin change goes into one change log, and last seen is kept at the account recheck — active
 - D349 — An edited photo is sent as a lossless PNG of the browser's pixels; the sliders are applied, not sent — active
 - D350 — The photo's history is bounded by bytes, and the Wand and Apply run off the main thread — active
+- D351 — An edited photo is kept as a PNG of at most 16 MB — active
+- D352 — Generate reads the photo as applied; the sliders are a preview until Apply — active
