@@ -43,6 +43,7 @@ model User {
   subscription Subscription?
   features     UserFeature[]
   limits       UserLimit[]
+  charts       SavedChart[]
 
   @@index([role])
 }
@@ -265,4 +266,28 @@ model UserLimit {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([userId, limitId])
+}
+
+/// A chart saved to an account (G-108 part 1, D354): the editable file, photo included, kept whole. The id is the
+/// server's; the name is only shown, so a renamed chart saved again is the same chart. Private to its owner
+/// (`lib/charts/access.ts`), and deleted with the account.
+model SavedChart {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  /// The editable JSON as the editor writes it (`serializePattern`).
+  document  String
+  /// The document's size in UTF-8, counted against the owner's space (`storage.charts`).
+  bytes     Int
+  width     Int
+  height    Int
+  colors    Int
+  /// 1 when made, one more at every overwrite or rename: a save names the version it last saw (Owner, 2026-10-06).
+  version   Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, updatedAt])
 }

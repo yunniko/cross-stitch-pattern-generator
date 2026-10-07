@@ -389,3 +389,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D351 — An edited photo is kept as a PNG of at most 16 MB — active
 - D352 — Generate reads the photo as applied; the sliders are a preview until Apply — active
 - D353 — Limits are set per layer, not inside feature sets, and resolve as feature states do — active
+- D354 — A saved chart is its editable file, kept whole by an id of the server's, private to its owner — active

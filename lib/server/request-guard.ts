@@ -21,7 +21,7 @@ import { NextResponse } from "next/server";
  * minutes at a much smaller capacity: brute-forcing a password is the threat, not a reader who mistypes it
  * twice, and a fast-refilling bucket does nothing against a script patient enough to stay under it.
  */
-export type RateKind = "job" | "auth" | "authAccount" | "mail" | "prediction" | "ditherPreview";
+export type RateKind = "job" | "auth" | "authAccount" | "mail" | "prediction" | "ditherPreview" | "chartSave";
 const CONFIG: Record<RateKind, { capacity: number; windowMs: number; env: string }> = {
   job: { capacity: 6, windowMs: 60_000, env: "RATE_LIMIT_JOBS_PER_MINUTE" },
   auth: { capacity: 8, windowMs: 15 * 60_000, env: "RATE_LIMIT_AUTH_PER_15MIN" },
@@ -37,6 +37,9 @@ const CONFIG: Record<RateKind, { capacity: number; windowMs: number; env: string
   // A drawn pattern's preview (G-100) is asked for the same way, after each pause on a texture slider, and is as short;
   // a bucket of its own, so a reader shaping marks does not use up the colour recommendation.
   ditherPreview: { capacity: 90, windowMs: 60_000, env: "RATE_LIMIT_DITHER_PREVIEWS_PER_MINUTE" },
+  // Saving to an account, renaming or deleting a saved chart (G-108): each is a database write of up to a whole chart, and
+  // a person presses Save far less often than this; a bucket of its own, so saving does not use up Generate.
+  chartSave: { capacity: 30, windowMs: 60_000, env: "RATE_LIMIT_CHART_SAVES_PER_MINUTE" },
 };
 
 /**
