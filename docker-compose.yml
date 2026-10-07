@@ -68,6 +68,10 @@ services:
       ADMIN_BOOTSTRAP_ENABLED: ${ADMIN_BOOTSTRAP_ENABLED:-true}
       # How long a browser keeps its feature states before asking again (G-102); 300 when unset.
       FEATURES_REFRESH_SECONDS: ${FEATURES_REFRESH_SECONDS:-300}
+      # Email (G-113, D342): off while MAIL_TRANSPORT is empty, so switching it on is only a change to .env.
+      MAIL_TRANSPORT: ${MAIL_TRANSPORT:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
     depends_on:
       processor:
         condition: service_started
