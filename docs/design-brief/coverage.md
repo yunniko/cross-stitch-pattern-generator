@@ -470,3 +470,5 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | D339 | 04-editing | the two colours, the Region switches (where: docs/interface-placement.md) |
 | D340 | 04-editing | which group gives way first (where: docs/interface-placement.md) |
 | D341 | 04-editing | the compact forms and More (where: docs/interface-placement.md) |
+| D342 | out of scope (accounts and admin) | |
+| D343 | out of scope (accounts and admin) | |

@@ -106,7 +106,7 @@ Outside both: G-111's comments follow G-112; G-097 comes after G-108, whose char
 - **Answered (Owner, 2026-10-06):** the guide is in English for now (more languages perhaps later, so its text is kept translatable). Users can comment on guide pages rather than edit them, as the simpler to build; the comments themselves are G-111.
 - **Architecture fit (review, 2026-10-06):** (1) The coverage check reads the feature list (`app/features/registry.ts`), as `docs/design-brief/coverage.md` is checked for the brief. The tables a page shows (keys, tools, export kinds, the range of a setting) are generated from the registries and never typed into a page, since a typed table is a second copy that goes stale. (2) Screenshots are made by a script beside `scripts/look.mjs`, from a list declared with the pages. (3) Pages are content files drawn by G-105's renderer, each naming the feature ids it covers; text kept in files per language is all "translatable" needs now.
 
-### G-113 · Email from the app: confirming an address, resetting a password — DRAFT, plan presented (2026-10-07)
+### G-113 · Email from the app: confirming an address, resetting a password — ACTIVE (accepted 2026-10-07)
 - **What:** drafted at the Owner's word (2026-10-06, "draft prerequisites as goals") from the review's finding. The app can send email, and uses it for two things: a person confirms the address they registered with, and a person who has forgotten their password sets a new one through a link sent to that address.
 - **Why:** accounts are an email and a password (`auth.ts`, credentials only), and the app sends no email: an address is never checked, and a forgotten password cannot be recovered by the person, only by an admin's hand. G-106 takes money against an account and G-108 keeps a person's charts in it; both need the address to be real and the account recoverable.
 - **Acceptance criteria (draft):** register, receive the message, confirm; ask for a reset, receive the link, set a new password and sign in with it; a link works once and expires; asking for a reset answers the same whether or not the address has an account; the routes are limited as sign-in is; the browser suite proves both roads against a recording stand-in, with no message leaving the machine.
@@ -119,12 +119,14 @@ Outside both: G-111's comments follow G-112; G-097 comes after G-108, whose char
 - **While sending is off** (no sender configured): the confirm-before-use rule is not applied, so the site stays usable; the reset page says reset by email is not available yet, and nothing claims a message was sent. Switching on is a setting plus the sender's DNS, a fast-lane change (D280) once the Owner has the domain.
 
 **Milestones:**
-- [ ] M1 — **The mail contract and the token rule.** `lib/mail/`: one contract, file (recording) and SMTP/Resend transports, the messages a declared list; taken from `listing-studio`'s mailer (`src/lib/mail/`, same stack, nodemailer), recorded as a decision. Tokens hashed, used once, expiring, one pure rule in `lib/auth/`. Unit tests.
+- [x] M1 — **The mail contract and the token rule.** `lib/mail/`: one contract, file (recording) and SMTP/Resend transports, the messages a declared list; taken from `listing-studio`'s mailer (`src/lib/mail/`, same stack, nodemailer), recorded as a decision. Tokens hashed, used once, expiring, one pure rule in `lib/auth/`. Unit tests.
 - [ ] M2 — **Confirming an address.** Registering sends the confirmation; the link confirms once; an unconfirmed account that signs in sees only the request to confirm and a resend; one rule says "confirmed" for G-106 and G-108 to read; applied only while sending is on. Limited under the `auth` kind. Unit and e2e against the stand-in.
 - [ ] M3 — **Resetting a password.** Ask (same answer whether or not the address has an account), receive the link, set a new password, sign in; the reset ends sessions open elsewhere through a marker checked where sessions are read. Unit and e2e against the stand-in; the full suite.
 - [ ] M4 — **Release and deploy** to cross-stitch.craftodejnice.cz (its existing target), sending off; checked live with single harmless requests (no message sent, the site usable as before).
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-10-07 — **M1 done.** `lib/mail/` (D342: file and Resend transports, no SMTP since `listing-studio` sends through Resend in production) and the link-token rule (D343). Verified: 16 new unit cases, tsc and eslint clean, docs-lint and the brief check pass. Next: M2.
+- 2026-10-07 — **Plan accepted** (Owner: "go ahead"), M1–M4 as above, no milestone marked for review.
 - 2026-10-07 — Plan presented to the Owner (M1–M4 above), awaiting acceptance.
 
 ### G-114 · The database backed up on a schedule, with a restore that is proven — DRAFT (2026-10-06)

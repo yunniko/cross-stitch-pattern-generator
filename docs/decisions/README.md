@@ -377,3 +377,5 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D339 — The quick bar shows controls, not names; committing controls sit in a slot after its track — active
 - D340 — The quick bar fits by compacting the least important group first, then moving groups to More — active
 - D341 — A compact group is one button opening its whole form; More holds what still does not fit — active
+- D342 — Mail goes through one send function, declared messages, and a file or Resend transport; off unless configured — active
+- D343 — A link's token is random, stored as its SHA-256, bound to a purpose and an account, used once, and expires — active
