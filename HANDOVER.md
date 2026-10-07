@@ -347,7 +347,7 @@ which the Pattern Keeper PDF shares and calls with backstitch switched off.)
 
 ## Next steps and open questions
 
-- **The quick bar's tool track overflows at desktop widths** (found in G-116 M3): at 1400 px with the Magic wand in hand, the selection actions (Invert among them) sit past the track's right edge, reached only by scrolling a track whose scrollbar is hidden (D213). Select's bar was already partly cut off before G-116. Needs a layout decision, not a patch.
+- **BLOCKED (G-116): the quick bar's track overflows at desktop widths.** With the Magic wand in hand, every selection action is out of sight at 1440 px and below: the bar needs 1574 px, and the track is 924 px wide with its scrollbar hidden (D213). Select's middle actions and the Brush's lock are cut off at 1440 too. Wrapping the track moved the chart on every tool change, so it was withdrawn. The bar's layout is the Owner's decision (`docs/qa-review/qa-review-2026-10-07-g116.md`).
 - **G-095 (the redesign) and G-102 (feature switches) are signed off and archived** (2026-10-06). Left on the triage list from its QA pass: a Generate pressed before the colour recommendation arrives uses the previous count, and a late recommendation overwrites a typed one (since G-087). G-101 (phone layout: the 390 px window scrolls sideways, and 55 desktop controls are under 24 px) is drafted for later.
 - G-076 (stitch textures) was signed off 2026-09-30 and is archived.
 - G-075 (accounts) was signed off 2026-09-30 and is archived. G-074 (the four photo sliders) was signed
