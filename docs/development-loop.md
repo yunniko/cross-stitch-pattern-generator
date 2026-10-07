@@ -13,7 +13,7 @@ measurements in G-096 (2026-10-05, at commit 2c30b26 and after, on the Owner's m
 ## Fast lane, step by step
 
 1. Make the change. Logic goes in `lib/` with a unit test; see `docs/architecture.md` for where.
-2. `npm run check:fast`: type-check, the unit tests related to the changed files, lint with its cache, and the release
+2. `npm run check:fast`: type-check, the unit tests related to the changed files, lint and the formatter with their caches, and the release
    note: a change under `app/` (but `app/admin/`), `lib/`, `rust/` or `public/` carries a file in `release-notes/next/`,
    of kind `new`, `changed` or `fixed`, or `internal` when nothing a user sees changes (D309; how to write one:
    `release-notes/README.md`). CI checks the same over every push.

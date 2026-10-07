@@ -1,6 +1,31 @@
 import { describe, expect, it } from "vitest";
-import { addBrandColor, addColor, compactUnusedColors, editColorRgb, editColorToBrandColor, fillCluster, fillClusterDiagonal, mergeColors, paintStitch, renameColor, renamePattern, resizeCanvas, setColorSymbol, shiftPattern } from "@/lib/editor/pattern-edit";
-import { compositeSelectionPreview, flipSelectionHorizontal, flipSelectionVertical, liftSelection, mergeSelection, moveSelection, rotateSelectionClockwise, rotateSelectionAnticlockwise, cropToSelection } from "@/lib/editor/floating-selection";
+import {
+  addBrandColor,
+  addColor,
+  compactUnusedColors,
+  editColorRgb,
+  editColorToBrandColor,
+  fillCluster,
+  fillClusterDiagonal,
+  mergeColors,
+  paintStitch,
+  renameColor,
+  renamePattern,
+  resizeCanvas,
+  setColorSymbol,
+  shiftPattern,
+} from "@/lib/editor/pattern-edit";
+import {
+  compositeSelectionPreview,
+  flipSelectionHorizontal,
+  flipSelectionVertical,
+  liftSelection,
+  mergeSelection,
+  moveSelection,
+  rotateSelectionClockwise,
+  rotateSelectionAnticlockwise,
+  cropToSelection,
+} from "@/lib/editor/floating-selection";
 import { EMPTY_CELL, MAX_COLORS, MAX_STITCHES, type FloatingSelection, type PaletteColor, type RGB, type StitchPattern } from "@/lib/types";
 
 function makePattern(width: number, height: number, cellPalette: number[], colors: RGB[]): StitchPattern {

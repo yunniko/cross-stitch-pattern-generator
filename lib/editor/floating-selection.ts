@@ -87,7 +87,6 @@ export function moveSelection(selection: FloatingSelection, dx: number, dy: numb
   return { ...selection, x: selection.x + dx, y: selection.y + dy };
 }
 
-
 /**
  * Paints every cell of a floating selection in one colour (G-063). The piece stays floating, so it can still be
  * moved, applied or cancelled, and a cell that was empty becomes a stitch like any other -- the Owner asked for the

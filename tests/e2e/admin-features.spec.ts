@@ -43,7 +43,8 @@ test("an admin sets a whole group and one feature for the site, a visitor sees i
     await expect(row(page, "tool.text")).toHaveAttribute("data-state", "locked");
     // The group with one locked tool reads as mixed.
     await expect(group(page, "Drawing tools").getByText("Mixed")).toBeVisible();
-    // Kept: the page reloaded shows the same.
+    // Kept: the page reloaded shows the same, once the save has landed.
+    await expect(page.getByTestId("site-features")).not.toHaveAttribute("data-pending", /.*/);
     await page.reload();
     await expect(row(page, "tool.text")).toHaveAttribute("data-state", "locked");
     await expect(row(page, "brand.cosmo")).toHaveAttribute("data-state", "hidden");
@@ -107,6 +108,8 @@ test("a set is made, filled and attached to a tier; a person on the tier gets it
     await edges.getByRole("group").getByRole("button", { name: "Locked", exact: true }).click();
     await expect(edges).toHaveAttribute("data-state", "locked");
     await expect(page.getByText("That is not a feature id.")).toHaveCount(0);
+    // The row shows the new state at once; reloading before the save lands would read the old one.
+    await expect(set).not.toHaveAttribute("data-pending", /.*/);
     await page.reload();
     await page.getByRole("tab", { name: /^Feature sets/ }).click();
     await page.getByRole("tab", { name, exact: true }).click();

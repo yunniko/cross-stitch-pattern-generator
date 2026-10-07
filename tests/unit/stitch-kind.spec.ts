@@ -1,7 +1,25 @@
 import { describe, expect, it } from "vitest";
 import { createBlankPattern } from "@/lib/editor/blank-pattern";
-import { addColor, fillCluster, fillClusterDiagonal, mergeColors, paintStitch, resizeCanvas, shiftPattern, withCellPalette } from "@/lib/editor/pattern-edit";
-import { duplicateSelection, fillSelection, flipSelectionHorizontal, flipSelectionVertical, liftSelection, mergeSelection, rotateSelectionAnticlockwise, rotateSelectionClockwise } from "@/lib/editor/floating-selection";
+import {
+  addColor,
+  fillCluster,
+  fillClusterDiagonal,
+  mergeColors,
+  paintStitch,
+  resizeCanvas,
+  shiftPattern,
+  withCellPalette,
+} from "@/lib/editor/pattern-edit";
+import {
+  duplicateSelection,
+  fillSelection,
+  flipSelectionHorizontal,
+  flipSelectionVertical,
+  liftSelection,
+  mergeSelection,
+  rotateSelectionAnticlockwise,
+  rotateSelectionClockwise,
+} from "@/lib/editor/floating-selection";
 import { deserializePattern, serializePattern } from "@/lib/editor/pattern-serialize";
 import {
   hasHalfStitches,

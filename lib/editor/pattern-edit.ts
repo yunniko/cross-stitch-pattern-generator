@@ -1,22 +1,10 @@
 import { nameNewColor } from "../color/color-names";
-import {
-  clipLines,
-  shiftLines,
-  withColorRemovedFromLines,
-} from "./backstitch";
+import { clipLines, shiftLines, withColorRemovedFromLines } from "./backstitch";
 import { floodFillDiagonal, labelRegions } from "../pipeline/regions";
 import { SYMBOL_SET } from "../color/symbols";
 import { kindBuffer, kindsAfterWholePainting, STITCH_WHOLE, tidyKinds } from "./stitch-kind";
 import { formatThreadName, THREAD_BRANDS, type ThreadBrand } from "../threads/thread-brands";
-import {
-  type ChartFabric,
-  EMPTY_CELL,
-  MAX_COLORS,
-  MAX_STITCHES,
-  type PaletteColor,
-  type RGB,
-  type StitchPattern,
-} from "../types";
+import { type ChartFabric, EMPTY_CELL, MAX_COLORS, MAX_STITCHES, type PaletteColor, type RGB, type StitchPattern } from "../types";
 
 // `EMPTY_CELL` (255) is never counted against any real palette color and
 // must never be run through a palette-index remap (an out-of-bounds typed-
