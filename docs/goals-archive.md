@@ -9,6 +9,7 @@ their last state in `GOALS.md`; decision references (Dnn) now resolve to
 (STANDARDS.md → Documentation). This page is the index: every completed goal, newest first, and the file
 holding it.
 
+- **G-107** · The admin area and the account pages redesigned — DONE (2026-10-07, deployed 2026-10-07, Owner sign-off 2026-10-07) — [`G-101-to-G-110.md`](goals-archive/G-101-to-G-110.md)
 - **G-113** · Email from the app: confirming an address, resetting a password — DONE (2026-10-07, deployed with sending off, Owner sign-off 2026-10-07) — [`G-111-to-G-120.md`](goals-archive/G-111-to-G-120.md)
 - **G-118** · The quick bar fits every tool at every desktop width — DONE (2026-10-07, deployed 2026-10-07, Owner sign-off 2026-10-07) — [`G-111-to-G-120.md`](goals-archive/G-111-to-G-120.md)
 - **G-117** · Security fixes from the 2026-10-07 review — DONE (2026-10-07, deployed 2026-10-07, Owner sign-off 2026-10-07) — [`G-111-to-G-120.md`](goals-archive/G-111-to-G-120.md)
