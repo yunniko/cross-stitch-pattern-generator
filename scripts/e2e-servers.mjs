@@ -30,6 +30,8 @@ const env = {
   RATE_LIMIT_AUTH_ACCOUNT_PER_15MIN: "1000",
   RATE_LIMIT_DITHER_PREVIEWS_PER_MINUTE: "1000",
   RATE_LIMIT_MAIL_PER_HOUR: "1000",
+  // Every request re-reads the account, so a reset ends other sessions at once in the test that checks it (D345).
+  ACCOUNT_RECHECK_SECONDS: "0",
   MAIL_TRANSPORT: "file",
   MAIL_FROM: "Cross-Stitch Pattern Generator <no-reply@example.com>",
   MAIL_OUTBOX_DIR: path.join(root, "e2e-mail-outbox"),

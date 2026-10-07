@@ -69,6 +69,8 @@ export function appWithProcessor({
         RATE_LIMIT_AUTH_ACCOUNT_PER_15MIN: "1000",
         RATE_LIMIT_DITHER_PREVIEWS_PER_MINUTE: "1000",
         RATE_LIMIT_MAIL_PER_HOUR: "1000",
+        // Every request re-reads the account, so a reset ends other sessions at once in the test that checks it (D345).
+        ACCOUNT_RECHECK_SECONDS: "0",
         // Sending on, through the file transport (G-113, D342): each message lands in e2e-mail-outbox, which
         // tests/e2e/helpers/mail.ts reads; nothing leaves the machine. The links name this server.
         MAIL_TRANSPORT: "file",

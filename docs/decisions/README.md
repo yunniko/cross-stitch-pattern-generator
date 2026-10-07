@@ -380,3 +380,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D342 — Mail goes through one send function, declared messages, and a file or Resend transport; off unless configured — active
 - D343 — A link's token is random, stored as its SHA-256, bound to a purpose and an account, used once, and expires — active
 - D344 — An address must be confirmed only while sending is on — active
+- D345 — A password reset ends every session signed in before it — active

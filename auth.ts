@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { normalizeEmail } from "@/lib/auth/validation";
 import { clientIp, signInRateLimited } from "@/lib/server/request-guard";
 import { mustConfirmAddress } from "@/lib/auth/confirmation";
+import { accountRecheckMs, sessionEnded } from "@/lib/auth/session-rule";
 import { mailOn } from "@/lib/mail/send";
 
 /** Refused before the password is looked at: too many attempts from this address or at this account (D334). */
@@ -23,9 +24,6 @@ export class AddressNotConfirmed extends CredentialsSignin {
  * taken does not say which accounts exist (G-117). A bcrypt hash of a random string, cost 10 like every real one.
  */
 const NO_ACCOUNT_HASH = "$2b$10$/zxnWfHqyXy9rSBY6Se4eekTBUDejGS/CTopeVSWJJ7iAsnOLcgvu";
-
-/** How often a signed-in session re-reads its account, so a disabled or demoted account loses access within this (D335). */
-const ACCOUNT_RECHECK_MS = 5 * 60_000;
 
 /**
  * Accounts (G-075). Stack, session strategy and the admin-bootstrap mechanic are copied from
@@ -77,22 +75,24 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   callbacks: {
     // The token carries the role, so the account is re-read every few minutes: a disabled or deleted account is
-    // signed out, and a changed role takes effect, without waiting for the token to expire (G-117, D335).
+    // signed out, a changed role takes effect, and a password reset ends older sessions (G-117, D335; G-113, D345).
     async jwt({ token, user }) {
       const now = Date.now();
       if (user) {
         token.id = user.id;
         token.role = user.role;
         token.checkedAt = now;
+        token.signedInAt = now;
         return token;
       }
       if (typeof token.id !== "string") return null;
-      if (typeof token.checkedAt === "number" && now - token.checkedAt < ACCOUNT_RECHECK_MS) return token;
+      if (typeof token.checkedAt === "number" && now - token.checkedAt < accountRecheckMs()) return token;
       const account = await prisma.user.findUnique({
         where: { id: token.id },
-        select: { role: true, disabled: true, emailVerified: true },
+        select: { role: true, disabled: true, emailVerified: true, sessionsValidFrom: true },
       });
-      if (!account || account.disabled || mustConfirmAddress(account, mailOn())) return null;
+      const signedInAt = typeof token.signedInAt === "number" ? token.signedInAt : undefined;
+      if (!account || sessionEnded(account, signedInAt, mailOn())) return null;
       token.role = account.role;
       token.checkedAt = now;
       return token;

@@ -17,20 +17,23 @@ enum Role {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  emailVerified DateTime?
-  name          String?
-  image         String?
+  id                String    @id @default(cuid())
+  email             String    @unique
+  emailVerified     DateTime?
+  name              String?
+  image             String?
   /// Null for an account with no password set (there is no OAuth provider yet, but the adapter shape
   /// allows for one later without a migration).
-  passwordHash  String?
-  role          Role      @default(USER)
+  passwordHash      String?
+  role              Role      @default(USER)
   /// A plain "can this account log in" switch (G-075 constraint: no ban reasons/expiry here, matching
   /// "simple personal cabinet" in the ask). An admin flips it; `authorize()` refuses sign-in while set.
-  disabled      Boolean   @default(false)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  disabled          Boolean   @default(false)
+  /// Sessions signed in before this moment are ended at their next account recheck (G-113, D345): set when the
+  /// password is reset through a mailed link. Null means no session has been ended this way.
+  sessionsValidFrom DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   accounts     Account[]
   sessions     Session[]
@@ -108,9 +111,9 @@ enum FeatureSwitch {
 
 /// The state of a feature for the whole site.
 model FeatureState {
-  featureId String       @id
+  featureId String        @id
   state     FeatureSwitch
-  updatedAt DateTime     @updatedAt
+  updatedAt DateTime      @updatedAt
   /// Who set it, for the admin's record.
   updatedBy String?
 }
@@ -120,7 +123,7 @@ model UserFeature {
   userId    String
   featureId String
   state     FeatureSwitch
-  updatedAt DateTime     @updatedAt
+  updatedAt DateTime      @updatedAt
   updatedBy String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -130,10 +133,10 @@ model UserFeature {
 
 /// A named set of states, for a tier to point at. A feature not in the set follows the site.
 model FeatureSet {
-  id        String            @id @default(cuid())
-  name      String            @unique
-  createdAt DateTime          @default(now())
-  updatedAt DateTime          @updatedAt
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   entries   FeatureSetEntry[]
   tiers     Tier[]
@@ -143,9 +146,9 @@ model FeatureSet {
 /// The feature set every guest, or every signed-in account, gets (G-102, D307): `audience` is "guests" or "accounts".
 /// It sits between the site and a tier: person > tier's set > this > site.
 model AudienceSet {
-  audience     String     @id
+  audience     String   @id
   featureSetId String
-  updatedAt    DateTime   @updatedAt
+  updatedAt    DateTime @updatedAt
 
   set FeatureSet @relation(fields: [featureSetId], references: [id])
 }
@@ -181,10 +184,10 @@ model Subscription {
 /// best-effort from the Route Handlers that already front the processor. No photo bytes, no export
 /// content — a count is all the admin page needs.
 model UsageEvent {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   kind      UsageKind
   userId    String?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   @@index([kind, createdAt])
 }
