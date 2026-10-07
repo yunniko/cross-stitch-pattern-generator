@@ -1,5 +1,5 @@
 # D239 · The sliders are the photo, not a colour stage
-Date: 2026-09-26 · Goal: G-074 M3 · Status: active (superseded by: —)
+Date: 2026-09-26 · Goal: G-074 M3 · Status: active, narrowed by D349
 Context: enhancement feeds the colour stages only — importance, edges and pair evidence read the untouched photo (D112). The sliders had to be placed in the same pipeline.
 Decision: `adjust_image` runs first in `build_pattern_reporting` and its result replaces `image` for every later stage, so structure is read from the adjusted photo too. Neutral returns `None` and the photo travels on untouched.
 Force: requirement — criterion 3 says the chart matches the preview it was made from, and the preview is the whole photo adjusted. Under D112's placement a chart would be of a photo nobody ever saw: colours from one, edges from another.

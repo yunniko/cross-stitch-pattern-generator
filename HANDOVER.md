@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-10-07 at 38baa4c (production v0.13.0, sending off; 1,429 unit; CI on 38baa4c: e2e 641 and 23, processor 20/20)
+Last verified: 2026-10-07 at the G-124 M1 commit, on 51978f8 (production v0.13.0; 1,448 unit; CI on 38baa4c: e2e 641 and 23, processor 20/20)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab), live at
@@ -356,6 +356,7 @@ which the Pattern Keeper PDF shares and calls with backstitch switched off.)
 
 ## Next steps and open questions
 
+- **G-124 (editing the photo in Photo) is ACTIVE, M1 done**: the pure logic is in `lib/photo/` (Wand mask, Delete, Apply through a mask, the photo history; D349, D350). Next is M2, the Wand on a photo stage in the well.
 - **G-107 (the account and admin redesign) is signed off and archived** (2026-10-07). The mock-ups' sections not built yet are G-106, G-108 and G-119 to G-123.
 - **Email is built but off (G-113).** PENDING APPROVAL: switching sending on in production needs the site's name and domain, a sender address on it, and whether to reuse listing-studio's Resend account; then `.env` sets `MAIL_TRANSPORT`, `MAIL_FROM` and `RESEND_API_KEY`, and the app is restarted.
 - **G-095 (the redesign) and G-102 (feature switches) are signed off and archived** (2026-10-06). Left on the triage list from its QA pass: a Generate pressed before the colour recommendation arrives uses the previous count, and a late recommendation overwrites a typed one (since G-087). G-101 (phone layout: the 390 px window scrolls sideways, and 55 desktop controls are under 24 px) is drafted for later.

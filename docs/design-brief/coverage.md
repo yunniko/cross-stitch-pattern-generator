@@ -435,6 +435,7 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | G-114 | internal | draft: backups |
 | G-116 | 04-editing | selection modes, Invert, the Magic wand |
 | G-117 | internal | security fixes; the sign-in message is accounts (out of scope) |
+| G-124 | 02-photo-and-generation | the photo Wand, Delete, adjustments applied, the photo history |
 | G-118 | 04-editing | the two colours, the Region switches (where the bar shows them: docs/interface-placement.md); the quick bar fits every tool at every desktop width; M1 takes the names off it |
 | G-119 | not shipped (draft) | stamps |
 | G-120 | out of scope | draft: preferences kept with the account |
@@ -482,3 +483,5 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | D346 | out of scope (accounts and admin) | |
 | D347 | out of scope (accounts and admin) | |
 | D348 | out of scope (accounts and admin) | |
+| D349 | 02-photo-and-generation | |
+| D350 | 02-photo-and-generation | |
