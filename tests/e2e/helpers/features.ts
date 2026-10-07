@@ -129,3 +129,26 @@ export async function clearAudienceSets(names: readonly string[]): Promise<void>
   await db().query(`DELETE FROM "AudienceSet"`);
   await db().query(`DELETE FROM "FeatureSet" WHERE "name" = ANY($1::text[])`, [[...names]]);
 }
+
+/** Removes every limit row of the site and of guests and accounts, and a person's, so the suite leaves the defaults (G-108). */
+export async function clearLimits(email?: string): Promise<void> {
+  await db().query(`DELETE FROM "SiteLimit"`);
+  await db().query(`DELETE FROM "AudienceLimit"`);
+  if (email) await db().query(`DELETE FROM "UserLimit" WHERE "userId" IN (SELECT "id" FROM "User" WHERE "email" = $1)`, [email]);
+}
+
+/** A tier of this name, made if it is missing, with no set; returns its id. */
+export async function ensureTier(name: string): Promise<string> {
+  const { rows } = await db().query<{ id: string }>(
+    `INSERT INTO "Tier" ("id", "name", "createdAt", "updatedAt") VALUES ($1, $2, now(), now())
+     ON CONFLICT ("name") DO UPDATE SET "updatedAt" = now() RETURNING "id"`,
+    [id(), name]
+  );
+  return rows[0].id;
+}
+
+/** A layer's stored value for a limit: undefined for no row, null for unlimited. */
+export async function storedLimit(table: "SiteLimit" | "AudienceLimit" | "TierLimit" | "UserLimit", where: string, params: unknown[]) {
+  const { rows } = await db().query<{ value: number | null }>(`SELECT "value" FROM "${table}" WHERE ${where}`, params);
+  return rows.length === 0 ? undefined : rows[0].value;
+}

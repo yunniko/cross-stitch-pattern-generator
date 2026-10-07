@@ -2,10 +2,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import type { FeatureState } from "@/lib/features/features";
+import { subscriptionLive } from "@/lib/account/plan";
+import { layerOver, limitDefaults, limitValuesOf } from "@/lib/limits/limits";
+import { LimitsEditor } from "@/app/admin/features/limits-editor";
 import { UserFeatures } from "./user-features";
 
 /**
- * `/admin/users/<id>/features` (G-102 M3): one person's own feature states, beside what the site and their tier say.
+ * `/admin/users/<id>/features` (G-102 M3): one person's own feature states, beside what the site and their tier say; and
+ * their own limits, beside what they get without them (G-108 M1).
  */
 export const dynamic = "force-dynamic";
 
@@ -13,7 +17,7 @@ const STATE: Record<"ON" | "LOCKED" | "HIDDEN", FeatureState> = { ON: "on", LOCK
 
 export default async function AdminUserFeaturesPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [user, siteRows] = await Promise.all([
+  const [user, siteRows, siteLimits, accountLimits] = await Promise.all([
     prisma.user.findUnique({
       where: { id },
       select: {
@@ -21,13 +25,20 @@ export default async function AdminUserFeaturesPage({ params }: { params: Promis
         email: true,
         name: true,
         features: true,
-        subscription: { select: { status: true, tier: { select: { name: true, featureSet: { select: { name: true, entries: true } } } } } },
+        limits: true,
+        subscription: {
+          select: { status: true, tier: { select: { name: true, limits: true, featureSet: { select: { name: true, entries: true } } } } },
+        },
       },
     }),
     prisma.featureState.findMany(),
+    prisma.siteLimit.findMany(),
+    prisma.audienceLimit.findMany({ where: { audience: "accounts" } }),
   ]);
   if (!user) notFound();
   const tier = user.subscription?.tier ?? null;
+  const accounts = layerOver(layerOver(limitDefaults(), limitValuesOf(siteLimits)), limitValuesOf(accountLimits));
+  const withoutOwn = tier && subscriptionLive(user.subscription!.status) ? layerOver(accounts, limitValuesOf(tier.limits)) : accounts;
   return (
     <div className="flex flex-col gap-4">
       <p className="m-0 text-[13px]">
@@ -49,6 +60,20 @@ export default async function AdminUserFeaturesPage({ params }: { params: Promis
         userId={user.id}
         states={Object.fromEntries(user.features.map((row) => [row.featureId, STATE[row.state]]))}
         site={Object.fromEntries(siteRows.map((row) => [row.featureId, STATE[row.state]]))}
+      />
+      <h2 className="m-0 mt-4 text-base font-semibold text-ink">Limits</h2>
+      <LimitsEditor
+        testId="user-limits"
+        rows={[
+          {
+            key: "user",
+            label: user.name?.trim() || user.email,
+            note: "Their own value wins over their tier, accounts and the site.",
+            layer: { kind: "user", userId: user.id },
+            own: limitValuesOf(user.limits),
+            follows: withoutOwn,
+          },
+        ]}
       />
     </div>
   );

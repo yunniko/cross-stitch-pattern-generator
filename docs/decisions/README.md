@@ -388,3 +388,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D350 — The photo's history is bounded by bytes, and the Wand and Apply run off the main thread — active
 - D351 — An edited photo is kept as a PNG of at most 16 MB — active
 - D352 — Generate reads the photo as applied; the sliders are a preview until Apply — active
+- D353 — Limits are set per layer, not inside feature sets, and resolve as feature states do — active

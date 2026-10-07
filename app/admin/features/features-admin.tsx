@@ -15,6 +15,7 @@ import {
 import type { ActionResult } from "@/lib/admin/feature-actions";
 import type { FeatureState } from "@/lib/features/features";
 import { FeatureStatesEditor } from "./feature-states-editor";
+import { LimitsEditor, type LimitLayerRow } from "./limits-editor";
 
 export interface FeaturesAdminProps {
   site: Record<string, FeatureState>;
@@ -23,14 +24,16 @@ export interface FeaturesAdminProps {
   audiences: Record<string, string>;
   tiers: Array<{ id: string; name: string; featureSetId: string | null; people: number }>;
   changes: Array<{ id: string; scope: string; change: string; by: string; at: string }>;
+  /** The limits each layer gives (G-108 M1): the site, guests, accounts and each tier. */
+  limits: LimitLayerRow[];
 }
 
 const FIELD = "rounded-md border border-control-line bg-control px-3 py-1.5 text-sm text-ink outline-none focus:border-accent";
 const H1 = "m-0 text-lg font-semibold text-ink";
 const H2 = "m-0 text-base font-medium text-ink";
 
-export function FeaturesAdmin({ site, sets, tiers, changes, audiences }: FeaturesAdminProps) {
-  const [section, setSection] = useState<"site" | "audiences" | "sets" | "tiers" | "changes">("site");
+export function FeaturesAdmin({ site, sets, tiers, changes, audiences, limits }: FeaturesAdminProps) {
+  const [section, setSection] = useState<"site" | "audiences" | "sets" | "tiers" | "limits" | "changes">("site");
   const [chosenSet, setChosenSet] = useState<string | null>(sets[0]?.id ?? null);
   const [problem, setProblem] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -72,6 +75,7 @@ export function FeaturesAdmin({ site, sets, tiers, changes, audiences }: Feature
         {tab("audiences", "Guests and accounts")}
         {tab("sets", `Feature sets (${sets.length})`)}
         {tab("tiers", `Tiers (${tiers.length})`)}
+        {tab("limits", "Limits")}
         {tab("changes", "Changes")}
       </div>
       <ol
@@ -277,6 +281,16 @@ export function FeaturesAdmin({ site, sets, tiers, changes, audiences }: Feature
               </tbody>
             </table>
           )}
+        </div>
+      )}
+
+      {section === "limits" && (
+        <div className="flex flex-col gap-3">
+          <p className="m-0 text-[13px] text-muted">
+            How much the server lets a person have. A person&apos;s own value wins over their tier&apos;s, which wins over the value for
+            signed-in accounts, which wins over the site&apos;s; a person&apos;s own is set on their page under Users.
+          </p>
+          <LimitsEditor testId="limits" rows={limits} />
         </div>
       )}
 

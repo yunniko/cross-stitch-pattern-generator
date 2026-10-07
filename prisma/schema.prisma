@@ -42,6 +42,7 @@ model User {
   sessions     Session[]
   subscription Subscription?
   features     UserFeature[]
+  limits       UserLimit[]
 
   @@index([role])
 }
@@ -93,8 +94,6 @@ model Tier {
   id            String   @id @default(cuid())
   name          String   @unique
   stripePriceId String?
-  /// Whatever a tier unlocks, shaped once the product decision is made.
-  limits        Json?
   /// The feature set a person on this tier gets (G-102); null means the site's states alone.
   featureSetId  String?
   createdAt     DateTime @default(now())
@@ -102,6 +101,7 @@ model Tier {
 
   subscriptions Subscription[]
   featureSet    FeatureSet?    @relation(fields: [featureSetId], references: [id])
+  limits        TierLimit[]
 }
 
 /// Feature switches (G-102, D303). A feature's id is the feature list's (`app/features/registry.ts`); a row naming a
@@ -220,4 +220,49 @@ model FeatureChange {
 
   @@index([createdAt])
   @@index([scope, createdAt])
+}
+
+/// A limit's value for one layer (G-108 M1, D353): the limit is an entry of `ACCOUNT_LIMITS` in `lib/limits/limits.ts`, and
+/// `value` is a whole number in its unit, null for unlimited. No row means the layer sets nothing and the one below wins:
+/// person > tier > guests or accounts > site > the list's default.
+model SiteLimit {
+  limitId   String   @id
+  value     Int?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+}
+
+/// "guests" or "accounts", as `AudienceSet.audience`.
+model AudienceLimit {
+  audience  String
+  limitId   String
+  value     Int?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  @@id([audience, limitId])
+}
+
+model TierLimit {
+  tierId    String
+  limitId   String
+  value     Int?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  tier Tier @relation(fields: [tierId], references: [id], onDelete: Cascade)
+
+  @@id([tierId, limitId])
+}
+
+model UserLimit {
+  userId    String
+  limitId   String
+  value     Int?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, limitId])
 }
