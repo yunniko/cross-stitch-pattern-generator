@@ -9,6 +9,8 @@ their last state in `GOALS.md`; decision references (Dnn) now resolve to
 (STANDARDS.md → Documentation). This page is the index: every completed goal, newest first, and the file
 holding it.
 
+- **G-117** · Security fixes from the 2026-10-07 review — DONE (2026-10-07, deployed 2026-10-07, Owner sign-off 2026-10-07) — [`G-111-to-G-120.md`](goals-archive/G-111-to-G-120.md)
+- **G-116** · Selection modes (replace, add, subtract), Invert selection, and a Magic wand — DONE (2026-10-07, deployed 2026-10-07, Owner sign-off 2026-10-07) — [`G-111-to-G-120.md`](goals-archive/G-111-to-G-120.md)
 - **G-103** · The three workspaces are features: Generation, Edit and Export each switched with its tab — DONE (2026-10-06, deployed 2026-10-06, Owner sign-off 2026-10-07) — [`G-101-to-G-110.md`](goals-archive/G-101-to-G-110.md)
 - **G-105** · Release versions, release notes, and a process that keeps them current — DONE (2026-10-06, deployed 2026-10-06, Owner sign-off 2026-10-07) — [`G-101-to-G-110.md`](goals-archive/G-101-to-G-110.md)
 - **G-100** · Dithering is extensible: a pattern is one module, written once — DONE (2026-10-07, deployed 2026-10-07, Owner sign-off 2026-10-07) — [`G-091-to-G-100.md`](goals-archive/G-091-to-G-100.md)
