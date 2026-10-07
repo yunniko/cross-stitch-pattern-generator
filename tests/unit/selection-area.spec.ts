@@ -12,6 +12,7 @@ import {
   liftArea,
   linesOfColour,
   pieceArea,
+  wandArea,
 } from "@/lib/editor/selection-area";
 import { NO_SYMMETRY, fillSymmetric } from "@/lib/editor/symmetry";
 import { EMPTY_CELL, type BackstitchLine, type PaletteColor, type StitchPattern } from "@/lib/types";
@@ -186,5 +187,32 @@ describe("the wand's region is Fill's region (D329)", () => {
     const area = areaFromCells(p, regionMask(p, 0, { connectivity: 4 }));
     expect(on(area)).toEqual([0, 1]);
     expect(keys(area.lines)).toEqual(keys([RED]));
+  });
+});
+
+describe("a wand click (G-116 M3)", () => {
+  it("on a backstitch line takes every line of its colour and no stitches", () => {
+    // On RED's body, a tenth of a cell below it: inside the hit band the backstitch tools use.
+    const area = wandArea(chart(), 1, { x: 1, y: 0.1 }, { connectivity: 8, sameKind: true });
+    expect(on(area)).toEqual([]);
+    expect(keys(area.lines)).toEqual(keys([RED, RED_EDGE]));
+  });
+
+  it("off the lines takes the stitch's region, exactly the one Fill finds", () => {
+    const p = chart();
+    p.cellPalette[16] = 2;
+    p.cellPalette[17] = 2;
+    p.cellPalette[23] = 2;
+    const rule = { connectivity: 4 as const, sameKind: true };
+    const area = wandArea(p, 17, { x: 5.5, y: 2.5 }, rule);
+    expect(on(area)).toEqual(on({ cells: regionMask(p, 17, rule) }));
+    expect(on(area)).toEqual([16, 17, 23]);
+  });
+
+  it("on an empty stitch takes the touching empty area (decision (c))", () => {
+    const p = chart();
+    p.backstitch = [];
+    for (const i of [8, 9, 14]) p.cellPalette[i] = EMPTY_CELL;
+    expect(on(wandArea(p, 8, { x: 2.5, y: 1.5 }, { connectivity: 4 }))).toEqual([8, 9, 14]);
   });
 });

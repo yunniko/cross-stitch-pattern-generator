@@ -91,40 +91,95 @@ export const SHAPE_FILL: ToolOption<ShapeFill> = {
   ],
 };
 
-/** Whether stitches touching only at a corner are one region for Fill (G-115, D322): on, as Fill always was; off, only edges. */
-export const FILL_DIAGONAL: ToolOption<"on" | "off"> = {
-  id: "fillDiagonal",
-  group: "Region",
-  label: "Diagonal neighbours",
-  title: "On: stitches touching at a corner are filled too. Off: only stitches above, below, left and right",
-  control: "segments",
-  values: ["on", "off"],
-  defaultValue: "on",
-  separated: true,
-  choices: [
-    { value: "on", label: "Diagonal", title: "Stitches touching at a corner are filled too" },
-    { value: "off", label: "Edges only", title: "Only stitches above, below, left and right are filled" },
-  ],
-};
+/**
+ * How a click finds its region (G-115, D322; G-116, D332): whether stitches touching only at a corner count, and whether the
+ * region is one colour of one stitch type or one colour of any type. Fill and the Magic wand each keep their own pair, so
+ * the switches are declared once here and each tool names its ids and words.
+ */
+export interface RegionSwitches {
+  diagonal: ToolOption<"on" | "off">;
+  colorOnly: ToolOption<"on" | "off">;
+}
 
-/** Whether Fill changes the colour only, keeping each stitch's type and filling across types (G-115, D322). */
-export const FILL_COLOR_ONLY: ToolOption<"on" | "off"> = {
-  id: "fillColorOnly",
-  group: "Region",
-  label: "Color only",
-  title: "On: only the colour changes, each stitch keeps its type, and the region is every touching stitch of that colour",
-  control: "segments",
-  values: ["off", "on"],
-  defaultValue: "off",
-  choices: [
-    {
-      value: "off",
-      label: "Color and type",
-      title: "The region is one colour and one stitch type; it gets the colour and the stitch type chosen",
+function regionSwitches(
+  ids: { diagonal: string; colorOnly: string },
+  words: {
+    diagonal: { title: string; on: string; off: string };
+    colorOnly: { title: string; off: string; on: string };
+  }
+): RegionSwitches {
+  return {
+    diagonal: {
+      id: ids.diagonal,
+      group: "Region",
+      label: "Diagonal neighbours",
+      title: words.diagonal.title,
+      control: "segments",
+      values: ["on", "off"],
+      defaultValue: "on",
+      separated: true,
+      choices: [
+        { value: "on", label: "Diagonal", title: words.diagonal.on },
+        { value: "off", label: "Edges only", title: words.diagonal.off },
+      ],
     },
-    { value: "on", label: "Color only", title: "The region is one colour of any stitch type; each stitch keeps its type" },
-  ],
-};
+    colorOnly: {
+      id: ids.colorOnly,
+      group: "Region",
+      label: "Color only",
+      title: words.colorOnly.title,
+      control: "segments",
+      values: ["off", "on"],
+      defaultValue: "off",
+      choices: [
+        { value: "off", label: "Color and type", title: words.colorOnly.off },
+        { value: "on", label: "Color only", title: words.colorOnly.on },
+      ],
+    },
+  };
+}
+
+/** The region a tool's switches describe: 8- or 4-connected, and whether the stitch type is ignored. */
+export function regionOf(option: <V extends OptionValue>(spec: ToolOptionSpec<V>) => V, switches: RegionSwitches) {
+  return {
+    connectivity: option(switches.diagonal) === "on" ? (8 as const) : (4 as const),
+    colorOnly: option(switches.colorOnly) === "on",
+  };
+}
+
+/** Fill's: Diagonal on, as Fill always was; Color only changes the colour and keeps each stitch's type. */
+export const FILL_REGION = regionSwitches(
+  { diagonal: "fillDiagonal", colorOnly: "fillColorOnly" },
+  {
+    diagonal: {
+      title: "On: stitches touching at a corner are filled too. Off: only stitches above, below, left and right",
+      on: "Stitches touching at a corner are filled too",
+      off: "Only stitches above, below, left and right are filled",
+    },
+    colorOnly: {
+      title: "On: only the colour changes, each stitch keeps its type, and the region is every touching stitch of that colour",
+      off: "The region is one colour and one stitch type; it gets the colour and the stitch type chosen",
+      on: "The region is one colour of any stitch type; each stitch keeps its type",
+    },
+  }
+);
+
+/** The Magic wand's: the same choices as Fill's, kept apart from them (G-116 decision (e)). */
+export const WAND_REGION = regionSwitches(
+  { diagonal: "wandDiagonal", colorOnly: "wandColorOnly" },
+  {
+    diagonal: {
+      title: "On: stitches touching at a corner are selected too. Off: only stitches above, below, left and right",
+      on: "Stitches touching at a corner are selected too",
+      off: "Only stitches above, below, left and right are selected",
+    },
+    colorOnly: {
+      title: "On: the area is every touching stitch of the colour, whatever its type",
+      off: "The area is one colour and one stitch type",
+      on: "The area is one colour of any stitch type",
+    },
+  }
+);
 
 /**
  * What a new area does to the selection (G-116, D331): replaces it, is added to it, or is taken out of it. One choice for
@@ -164,9 +219,11 @@ export const BRUSH_OPTIONS = [BRUSH_SIZE, BRUSH_SHAPE] as const;
 /** For the tools that lay stitches without a brush: Fill and Lasso fill. */
 export const STITCH_OPTIONS = [STITCH_KIND] as const;
 /** Fill's: the stitch type, and how its region is found (G-115). */
-export const FILL_OPTIONS = [STITCH_KIND, FILL_DIAGONAL, FILL_COLOR_ONLY] as const;
+export const FILL_OPTIONS = [STITCH_KIND, FILL_REGION.diagonal, FILL_REGION.colorOnly] as const;
 /** Select's and Lasso's: what a new area does to the selection (G-116). */
 export const SELECTION_OPTIONS = [SELECTION_MODE] as const;
+/** The Magic wand's: the selection mode, then how its region is found. */
+export const WAND_OPTIONS = [SELECTION_MODE, WAND_REGION.diagonal, WAND_REGION.colorOnly] as const;
 /** For the tools that lay stitches with the brush: Brush and Line. */
 export const LAYING_OPTIONS = [...BRUSH_OPTIONS, STITCH_KIND] as const;
 /** For the shapes that enclose something, whose outline is as thick as the brush. */

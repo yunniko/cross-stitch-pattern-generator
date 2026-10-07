@@ -59,6 +59,7 @@ describe("the command table", () => {
       "tool.backstitch-edit [J]",
       "tool.select [S]",
       "tool.lasso [Q]",
+      "tool.wand [W]",
       "tool.crop [C]",
       "tool.move [V]",
       "tool.pan [H]",

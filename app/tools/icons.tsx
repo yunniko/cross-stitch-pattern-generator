@@ -70,6 +70,16 @@ export function BackstitchIcon() {
   );
 }
 
+/** A wand with sparks at its tip: one click selects the whole area it touches. */
+export function WandIcon() {
+  return (
+    <svg {...TOOL_ICON_PROPS}>
+      <path d="M4 20 14 10" strokeWidth={2.2} />
+      <path d="M17 3v3M17 11v3M12.5 7.5h1.5M20 7.5h1.5M14 4.5l1 1M19 9.5l1 1M20 4.5l-1 1" />
+    </svg>
+  );
+}
+
 /** The lasso loop again, this time solid and shaded: the area it encloses is what gets painted. */
 export function LassoFillIcon() {
   return (

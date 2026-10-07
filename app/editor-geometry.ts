@@ -4,7 +4,8 @@ import { smoothClosedPath } from "@/lib/editor/lasso";
 import { HIGHLIGHT_MASK_ALPHA } from "@/lib/export/render";
 import { backstitchThreads, dashPatternFor, dashSegments } from "@/lib/editor/backstitch-style";
 import type { CellPoint } from "@/lib/editor/shape-raster";
-import type { BackstitchLine, PaletteColor } from "@/lib/types";
+import { lineWithinRect } from "@/lib/editor/backstitch";
+import type { BackstitchLine, FloatingSelection, PaletteColor } from "@/lib/types";
 import type { CellRect, StitchPattern } from "@/lib/types";
 
 // The Image window's target on-screen width: cell size derives from it, so a small pattern isn't tiny and a large one fits.
@@ -191,6 +192,26 @@ export function drawSelectionOutline(ctx: CanvasRenderingContext2D, rect: CellRe
   selectionStroke(ctx, cellSize);
   if (mask) traceMaskBoundary(ctx, rect, cellSize, mask);
   else ctx.strokeRect(rect.x * cellSize, rect.y * cellSize, rect.width * cellSize, rect.height * cellSize);
+  ctx.restore();
+}
+
+/**
+ * The piece in hand's outline: its shape, and each of its lines that the shape does not hold, traced on its own (G-116). A
+ * wand click on a line takes lines and no stitches, and those lines are then the only sign of what is selected.
+ */
+export function drawPieceOutline(ctx: CanvasRenderingContext2D, piece: FloatingSelection, cellSize: number) {
+  drawSelectionOutline(ctx, piece, cellSize, piece.mask);
+  const box: CellRect = { x: 0, y: 0, width: piece.width, height: piece.height };
+  const loose = (piece.backstitch ?? []).filter((line) => !lineWithinRect(line, box, piece.mask));
+  if (loose.length === 0) return;
+  ctx.save();
+  selectionStroke(ctx, cellSize);
+  ctx.beginPath();
+  for (const line of loose) {
+    ctx.moveTo((piece.x + line.x1) * cellSize, (piece.y + line.y1) * cellSize);
+    ctx.lineTo((piece.x + line.x2) * cellSize, (piece.y + line.y2) * cellSize);
+  }
+  ctx.stroke();
   ctx.restore();
 }
 

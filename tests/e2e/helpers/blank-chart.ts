@@ -74,3 +74,23 @@ export async function saved(page: Page): Promise<{ cells: number[]; kinds: numbe
 }
 
 export const at = (x: number, y: number) => y * WIDTH + x;
+
+type Stitch = readonly [number, number];
+
+/** Presses on stitch `from` and lets go on stitch `to`: a selection box, or a move of the piece pressed on. */
+export async function dragStitch(page: Page, from: Stitch, to: Stitch) {
+  const a = await stitchPoint(page, ...from);
+  const b = await stitchPoint(page, ...to);
+  await page.mouse.move(a.x, a.y);
+  await page.mouse.down();
+  await page.mouse.move(b.x, b.y, { steps: 5 });
+  await page.mouse.up();
+}
+
+/** One of the selection modes Select, Lasso and the Magic wand share (G-116), by the start of its title. */
+export const selectionMode = (page: Page, name: "Select" | "Select +" | "Select −") =>
+  page.getByRole("radiogroup", { name: "Selection mode" }).getByRole("radio", { name: new RegExp(`^${name.replace("+", "\\+")}:`) });
+
+/** One choice of a region switch, Fill's or the Magic wand's, whichever tool is in hand (G-115, G-116). */
+export const regionSwitch = (page: Page, group: "Diagonal neighbours" | "Color only", choice: string) =>
+  page.getByRole("group", { name: group }).getByRole("button", { name: choice, exact: true });

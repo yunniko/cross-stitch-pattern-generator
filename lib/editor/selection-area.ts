@@ -1,5 +1,6 @@
-import { clipLines, lineKey, lineWithinRect, shiftLines } from "./backstitch";
+import { clipLines, hitLine, lineKey, lineWithinRect, shiftLines } from "./backstitch";
 import { liftSelection } from "./floating-selection";
+import { regionMask, type RegionRule } from "./region";
 import type { BackstitchLine, CellRect, FloatingSelection, StitchPattern } from "../types";
 
 /**
@@ -61,6 +62,18 @@ export function linesOfColour(pattern: StitchPattern, paletteIndex: number): Sel
     cells: new Uint8Array(pattern.cellPalette.length),
     lines: (pattern.backstitch ?? []).filter((line) => line.paletteIndex === paletteIndex),
   };
+}
+
+/**
+ * What a Magic wand click selects (G-116, D332): a press on a backstitch line takes every line of its colour (the hit test the
+ * backstitch tools use, at the precise `point` in corners); anywhere else, the region of the stitch `cell` as Fill would find
+ * it with the same rule, empty stitches included. Symmetry plays no part (decision (b)).
+ */
+export function wandArea(pattern: StitchPattern, cell: number, point: { x: number; y: number }, rule: RegionRule): SelectionArea {
+  const lines = pattern.backstitch ?? [];
+  const hit = hitLine(lines, point.x, point.y);
+  if (hit) return linesOfColour(pattern, lines[hit.index].paletteIndex);
+  return areaFromCells(pattern, regionMask(pattern, cell, rule));
 }
 
 /**

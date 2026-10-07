@@ -18,7 +18,7 @@ import type { ToolOption } from "./options";
  * allowed to touch, the `EditorApi`. The shell (`use-tools.tsx`) routes events to the tool in hand and has no per-tool code.
  *
  * A module may offer several tools that share one gesture and one state: Line, Rectangle and Oval are one module, as are
- * Select and Lasso, whose piece in hand survives swapping between the two.
+ * Select, Lasso and Magic wand, whose piece in hand survives swapping between them.
  */
 
 export interface ToolDefinition {

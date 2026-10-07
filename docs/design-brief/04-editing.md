@@ -27,11 +27,12 @@ Sixteen tools; exactly one is in hand, chosen by its control or its key. Brush i
 | **Crop** | C | Cuts the chart down, or grows it, with a frame whose four edges are the four numbers of the Crop section below; applied on request, one undo step | No | No | **Ignores** |
 | **Select** | S | Drag a rectangle; the stitches inside are lifted as a piece in hand | No | No | **Ignores** |
 | **Lasso** | Q | Draw freehand around the stitches wanted; they are lifted as a piece in hand | No | No | **Ignores** |
+| **Magic wand** | W | One press selects the region under the pointer, found exactly as Fill finds it, with its own **Diagonal neighbours** and **Color only** choices (kept apart from Fill's); on an empty stitch, the touching empty stitches. A press on a backstitch line selects every line of its colour, and no stitches. The selection is lifted as a piece in hand | No | No | **Ignores** |
 | **Move** | V | Drag to shift the whole design within the canvas; stitches that pass an edge wrap round to the other side so none is lost; the photo behind the chart moves by the same amount; backstitch lines move with it and a line pushed off the chart is removed | No | No | **Ignores** |
 | **Pan** | H (or Space held) | Drag to scroll the chart | | | |
 | **Zoom** | Z | A press zooms the way **Zoom direction** says; a right press, or Shift or Alt with a press, zooms the other way (both together: the way chosen). The pointer shows the way a press zooms | | | |
 
-Changing tool puts down what the old one held: leaving Select or Lasso for any other tool than the other selection tool applies the piece in hand; a half-drawn shape, Lasso fill path, backstitch run or lines in hand are dropped.
+Changing tool puts down what the old one held: leaving Select, Lasso or Magic wand for a tool that is not one of them applies the piece in hand; a half-drawn shape, Lasso fill path, backstitch run or lines in hand are dropped.
 
 **Alt held** lends the Picker to the tools that paint (Brush, Fill, Line, Rectangle, Oval, Lasso fill; D318): while Alt is down the picker is in hand and the cursor is a dropper; when it comes up the tool it borrowed from is back, unless another tool was chosen meanwhile, which then stays (D319). Alt works wherever the focus is outside a text entry. With any other tool Alt does what it did before: Zoom keeps it as its own zoom out. Switching to another program while Alt is down gives the tool back.
 
@@ -83,7 +84,7 @@ Choosing any tool other than Pan or Zoom drops the frame without changing the ch
 
 ## Selection and the piece in hand
 
-Choosing a region with Select or Lasso (or pasting, or placing lettering from `07`) puts a **piece in hand**: it floats over the chart, which is unchanged underneath until the piece is applied.
+Choosing a region with Select, Lasso or the Magic wand (or pasting, or placing lettering from `07`) puts a **piece in hand**: it floats over the chart, which is unchanged underneath until the piece is applied.
 
 **Selection mode** (one choice for every selection tool, kept between visits; default Select):
 
@@ -107,7 +108,7 @@ Under Select + and Select − a press always starts a new area. A piece that has
 | **Crop to selection** | A piece | Cuts the chart down to the piece's rectangle, discarding everything outside it (the piece is applied first); the photo behind keeps its alignment |
 | **Apply here** (Enter) | A piece | Merges the piece into the chart where it sits |
 | **Cancel** (Escape) | A piece | Puts the chart back as it was when this selection started, discarding the piece and its changes |
-| **Invert selection** | Select or Lasso | Selects every cell and backstitch line the selection leaves out (the piece is applied first); with nothing selected, the whole chart. Inverting twice gives the same selection |
+| **Invert selection** | Select, Lasso or Magic wand | Selects every cell and backstitch line the selection leaves out (the piece is applied first); with nothing selected, the whole chart. Inverting twice gives the same selection |
 
 A lasso piece is a **shape**: stitches outside the shape inside its box are not in the piece, are never stamped, vacated or filled; copy, move, flip and rotate carry the shape. A backstitch line is taken by a rectangle or lasso only when **both** its ends are inside.
 
@@ -158,7 +159,7 @@ Keys act when no text entry has the focus, and not while the command list is ope
 
 | Key | Does |
 |---|---|
-| B, F, L, R, O, Q, G, I, C, K, J, S, V, H, Z | Brush, Fill, Line, Rectangle, Oval, Lasso, Lasso fill, Picker, Crop, Backstitch, Backstitch edit, Select, Move, Pan, Zoom |
+| B, F, L, R, O, Q, G, I, C, K, J, S, W, V, H, Z | Brush, Fill, Line, Rectangle, Oval, Lasso, Lasso fill, Picker, Crop, Backstitch, Backstitch edit, Select, Magic wand, Move, Pan, Zoom |
 | X | Swap the two drawing colours |
 | 1, 2, 3 | Color, Black & white, Stitched pattern |
 | Y | Symbols on or off (Color and Black & white) |
@@ -167,10 +168,10 @@ Keys act when no text entry has the focus, and not while the command list is ope
 | Space (held) | Pan temporarily |
 | Alt (held) | The Picker while held, with a tool that paints in hand |
 | Escape | Cancels the piece, the shape, the lasso fill or the backstitch run in hand; puts down the backstitch in hand; or puts the crop frame back over the whole chart. Only one of these can be in hand at a time |
-| Enter | Applies the piece in hand (Select and Lasso), or the crop frame (Crop); otherwise the pen of the keyboard cell cursor (above) |
+| Enter | Applies the piece in hand (Select, Lasso and Magic wand), or the crop frame (Crop); otherwise the pen of the keyboard cell cursor (above) |
 | Delete, Backspace | Deletes the backstitch in hand (Backstitch edit only) |
 | Ctrl/Cmd + C | Copies the piece in hand, or the backstitch in hand |
-| Ctrl/Cmd + V | Pastes the copied piece (Select or Lasso in hand), or the copied backstitch (Backstitch edit in hand) |
+| Ctrl/Cmd + V | Pastes the copied piece (Select, Lasso or Magic wand in hand), or the copied backstitch (Backstitch edit in hand) |
 | Ctrl/Cmd + D | Duplicates the piece in hand, or the backstitch in hand |
 | Ctrl/Cmd + K | Opens the command list, and closes it |
 | Ctrl/Cmd + Z | Undo. Does nothing with a piece in hand |

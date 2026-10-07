@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { pickTool, waitForAutosave } from "./helpers/app";
-import { at, blankChart, click, EMPTY, saved, SLASH, takeEmpty, takeThread, WHOLE, WIDTH } from "./helpers/blank-chart";
+import { at, blankChart, click, EMPTY, regionSwitch, saved, SLASH, takeEmpty, takeThread, WHOLE, WIDTH } from "./helpers/blank-chart";
 
 /**
  * G-115 M1: Fill's region is the touching stitches of the pressed one's colour and stitch type; "Color only" fills every
@@ -9,8 +9,6 @@ import { at, blankChart, click, EMPTY, saved, SLASH, takeEmpty, takeThread, WHOL
  */
 
 const chooseKind = (page: Page, label: string) => page.getByRole("radio", { name: label, exact: true }).click();
-const fillSwitch = (page: Page, group: "Diagonal neighbours" | "Color only", choice: string) =>
-  page.getByRole("group", { name: group }).getByRole("button", { name: choice, exact: true });
 
 /** Row 2 of three whole stitches over row 3 of three half stitches "/", all in the one thread; then Fill in hand. */
 async function twoRows(page: Page) {
@@ -24,8 +22,8 @@ async function twoRows(page: Page) {
 
 test("Fill keeps to the pressed stitch's type, and its switches are offered and kept across a reload", async ({ page }) => {
   await twoRows(page);
-  await expect(fillSwitch(page, "Diagonal neighbours", "Diagonal")).toHaveAttribute("aria-pressed", "true");
-  await expect(fillSwitch(page, "Color only", "Color and type")).toHaveAttribute("aria-pressed", "true");
+  await expect(regionSwitch(page, "Diagonal neighbours", "Diagonal")).toHaveAttribute("aria-pressed", "true");
+  await expect(regionSwitch(page, "Color only", "Color and type")).toHaveAttribute("aria-pressed", "true");
 
   await takeEmpty(page);
   await click(page, 1, 2);
@@ -50,19 +48,19 @@ test("Fill keeps to the pressed stitch's type, and its switches are offered and 
     "colour and type: the type chosen"
   ).toEqual([WHOLE, WHOLE, WHOLE]);
 
-  await fillSwitch(page, "Diagonal neighbours", "Edges only").click();
-  await fillSwitch(page, "Color only", "Color only").click();
+  await regionSwitch(page, "Diagonal neighbours", "Edges only").click();
+  await regionSwitch(page, "Color only", "Color only").click();
   await waitForAutosave(page);
   await page.reload();
   await expect(page.getByTestId("chart-frame")).toBeVisible();
   await pickTool(page, "Fill");
-  await expect(fillSwitch(page, "Diagonal neighbours", "Edges only")).toHaveAttribute("aria-pressed", "true");
-  await expect(fillSwitch(page, "Color only", "Color only")).toHaveAttribute("aria-pressed", "true");
+  await expect(regionSwitch(page, "Diagonal neighbours", "Edges only")).toHaveAttribute("aria-pressed", "true");
+  await expect(regionSwitch(page, "Color only", "Color only")).toHaveAttribute("aria-pressed", "true");
 });
 
 test("Color only fills the colour across stitch types and keeps each stitch's type", async ({ page }) => {
   await twoRows(page);
-  await fillSwitch(page, "Color only", "Color only").click();
+  await regionSwitch(page, "Color only", "Color only").click();
   // Filling the half stitches with their own thread as whole stitches changes nothing: colour only keeps the type.
   await chooseKind(page, "Whole stitch");
   await click(page, 1, 3);
@@ -95,7 +93,7 @@ test("with Diagonal neighbours off, a stitch touching only at a corner is left a
   let chart = await saved(page);
   expect([chart.cells[at(5, 5)], chart.cells[at(6, 6)]], "diagonal on: both").toEqual([EMPTY, EMPTY]);
 
-  await fillSwitch(page, "Diagonal neighbours", "Edges only").click();
+  await regionSwitch(page, "Diagonal neighbours", "Edges only").click();
   await click(page, 5, 8);
   chart = await saved(page);
   expect([chart.cells[at(5, 8)], chart.cells[at(6, 9)]], "edges only: the corner neighbour stays").toEqual([EMPTY, 0]);

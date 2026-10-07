@@ -17,7 +17,7 @@ import type { CellRect, FloatingSelection, SourceImageRef, StitchPattern } from 
 import { createCanvas, type AnyCanvas, type Canvas2D } from "@/lib/export/canvas-backend";
 import { isFlatMode, type ChartView } from "@/lib/editor/view";
 import { isSelectTool, type Tool } from "./editor-types";
-import { drawBackstitch, drawLassoPath, drawSelectionOutline } from "./editor-geometry";
+import { drawBackstitch, drawLassoPath, drawPieceOutline, drawSelectionOutline } from "./editor-geometry";
 import type { StitchTiles } from "@/lib/export/stitch-texture";
 import { drawRealisticRegion } from "./realistic-tiles";
 
@@ -258,7 +258,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, p: StitchPattern, scene
   }
 
   if (isSelectTool(activeTool) && selection && !selectDragging) {
-    drawSelectionOutline(ctx, selection, cellSize, selection.mask);
+    drawPieceOutline(ctx, selection, cellSize);
   }
   ctx.restore();
 }
@@ -424,7 +424,7 @@ function drawGestureContent(
       if (!baseDrawn) drawScene(ctx, gesture.base, scene, rect);
       ctx.save();
       clipTo(ctx, rect);
-      if (gesture.kept) drawSelectionOutline(ctx, gesture.kept, scene.cellSize, gesture.kept.mask);
+      if (gesture.kept) drawPieceOutline(ctx, gesture.kept, scene.cellSize);
       drawSelectionOutline(ctx, gesture.rect, scene.cellSize);
       ctx.restore();
       return;
@@ -432,7 +432,7 @@ function drawGestureContent(
       if (!baseDrawn) drawScene(ctx, gesture.base, scene, rect);
       ctx.save();
       clipTo(ctx, rect);
-      if (gesture.kept) drawSelectionOutline(ctx, gesture.kept, scene.cellSize, gesture.kept.mask);
+      if (gesture.kept) drawPieceOutline(ctx, gesture.kept, scene.cellSize);
       drawLassoPath(ctx, gesture.path, scene.cellSize, gesture.stroke);
       ctx.restore();
       return;
@@ -454,7 +454,7 @@ function drawGestureContent(
       }
       ctx.save();
       clipTo(ctx, rect);
-      drawSelectionOutline(ctx, gesture.piece, scene.cellSize, gesture.piece.mask);
+      drawPieceOutline(ctx, gesture.piece, scene.cellSize);
       ctx.restore();
       return;
     }

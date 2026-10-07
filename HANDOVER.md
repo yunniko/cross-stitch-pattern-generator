@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-10-07 at the G-116 M2 commit (production v0.8.0 at 692b2d4; 1,349 unit; CI green on 88966ca and e589e7d; CI full e2e green on cb42113; live checks as in the deploy log)
+Last verified: 2026-10-07 at the G-116 M3 commit (production v0.8.0 at 692b2d4; 1,352 unit; CI green on cbe6ae0; CI full e2e green on cb42113; live checks as in the deploy log)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab), live at
@@ -11,7 +11,7 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 **Production** runs 692b2d4, v0.8.0 (2026-10-07, per the deploy log below): the 1b shell, and generation and every export but the editable save running in the `processor` container. The work itself is in the Rust sidecar and **nothing stands behind it** — the TypeScript pipeline is deleted, not disabled (D221). Every signed-off goal, with what it produced and how it was verified, is in `docs/goals-archive.md` — G-028 onwards, from the OXS format to the Atelier redesign (D157–D167), the move to the server (D149–D155) and the Rust port.
 
-**G-116, selection modes, Invert and the Magic wand — ACTIVE, M2 of 4 done.** A selection is a `SelectionArea` (a chart-sized cell mask and a set of lines, `lib/editor/selection-area.ts`), combined by mode and lifted by `liftArea`; a piece records the lines it took (`originLines`) and a merge clears exactly those (D330). The piece code is `lib/editor/floating-selection.ts`. Fill and the wand find a region with `lib/editor/region.ts` (D329). Select and Lasso share one selection mode option (`SELECTION_MODE`, D331) and an Invert selection action; the bar no longer shows the piece's size. Not yet released; the wand (M3) and the release (M4) follow.
+**G-116, selection modes, Invert and the Magic wand — ACTIVE, M3 of 4 done.** A selection is a `SelectionArea` (a chart-sized cell mask and a set of lines, `lib/editor/selection-area.ts`), combined by mode and lifted by `liftArea`; a piece records the lines it took (`originLines`) and a merge clears exactly those (D330). The piece code is `lib/editor/floating-selection.ts`. Fill and the wand find a region with `lib/editor/region.ts` (D329). Select and Lasso share one selection mode option (`SELECTION_MODE`, D331) and an Invert selection action; the bar no longer shows the piece's size. The Magic wand (W) is a third selection tool in `app/tools/select.tsx`; `wandArea` picks the region or a colour's lines, and its switches share Fill's declaration under their own ids (D332). Not yet released; the release (M4) follows.
 
 **G-103, G-105, G-110, G-115 and G-100 — signed off 2026-10-07, archived.** Releases: the version is `package.json`'s, read through `lib/app-version.ts` (D308); a change under `app/`, `lib/`, `rust/` or `public/` carries a note in `release-notes/next/`, checked by `check:fast` and CI (D309); `npm run release` cuts a tagged release shown on `/whats-new` (D310); every deploy is a release (D311). Workspaces: Photo, Edit and Export are features (D312); `commandGate` in `app/commands/registry.ts` reads the workspace's switch first (D313), and the server refuses a workspace's requests through `REQUEST_WORKSPACES` in `lib/features/request-check.ts` (D314). The view as switches is `lib/editor/view.ts`, what is in force derived by `viewInForce` (D315). Fill by stitch type is `fillSymmetric`'s `FillRule` in `lib/editor/symmetry.ts` (D322). A dither pattern is one type behind `Pattern` and one line in `PATTERNS` (`rust/cs-core/src/dither/mod.rs`, D326–D328); the app's list and pictures are generated from it.
 
@@ -347,6 +347,7 @@ which the Pattern Keeper PDF shares and calls with backstitch switched off.)
 
 ## Next steps and open questions
 
+- **The quick bar's tool track overflows at desktop widths** (found in G-116 M3): at 1400 px with the Magic wand in hand, the selection actions (Invert among them) sit past the track's right edge, reached only by scrolling a track whose scrollbar is hidden (D213). Select's bar was already partly cut off before G-116. Needs a layout decision, not a patch.
 - **G-095 (the redesign) and G-102 (feature switches) are signed off and archived** (2026-10-06). Left on the triage list from its QA pass: a Generate pressed before the colour recommendation arrives uses the previous count, and a late recommendation overwrites a typed one (since G-087). G-101 (phone layout: the 390 px window scrolls sideways, and 55 desktop controls are under 24 px) is drafted for later.
 - G-076 (stitch textures) was signed off 2026-09-30 and is archived.
 - G-075 (accounts) was signed off 2026-09-30 and is archived. G-074 (the four photo sliders) was signed

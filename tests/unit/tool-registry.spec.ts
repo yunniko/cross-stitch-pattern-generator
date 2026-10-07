@@ -10,7 +10,7 @@ import { DEFAULT_TOOL, moduleIndexOf, TOOL_DEFINITIONS, TOOL_KEYS, TOOL_MODULES,
  */
 
 describe("the registry", () => {
-  it("holds the sixteen tools in the order of the tool list", () => {
+  it("holds the seventeen tools in the order of the tool list", () => {
     expect(TOOL_DEFINITIONS.map((tool) => tool.id)).toEqual([
       "brush",
       "fill",
@@ -24,12 +24,13 @@ describe("the registry", () => {
       "backstitch-edit",
       "select",
       "lasso",
+      "wand",
       "crop",
       "move",
       "pan",
       "zoom",
     ]);
-    expect(TOOL_DEFINITIONS.map((tool) => tool.group)).toEqual([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2]);
+    expect(TOOL_DEFINITIONS.map((tool) => tool.group)).toEqual([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2]);
     expect(DEFAULT_TOOL).toBe("brush");
   });
 
@@ -60,6 +61,7 @@ describe("the registry", () => {
       j: "backstitch-edit",
       s: "select",
       q: "lasso",
+      w: "wand",
       c: "crop",
       v: "move",
       h: "pan",
@@ -96,7 +98,7 @@ describe("what the editor reads from a tool's definition", () => {
   it("is what it was when each was a list of names", () => {
     expect(ids(usesStitchKind)).toEqual(["brush", "fill", "line", "rect", "oval", "lasso-fill"]);
     expect(ids(isKeyboardCursorTool)).toEqual(["brush", "fill", "line", "rect", "oval"]);
-    expect(ids(isSelectTool)).toEqual(["select", "lasso"]);
+    expect(ids(isSelectTool)).toEqual(["select", "lasso", "wand"]);
     expect(TOOL_DEFINITIONS.filter((tool) => tool.navigation).map((tool) => tool.id)).toEqual(["pan", "zoom"]);
     // G-104, D318: Alt borrows the picker from the tools that paint with the colour in hand; Zoom keeps its own Alt.
     expect(TOOL_DEFINITIONS.filter((tool) => tool.heldPicker).map((tool) => tool.id)).toEqual([
@@ -121,6 +123,7 @@ describe("what the editor reads from a tool's definition", () => {
       text: "cross",
       select: "cross",
       lasso: "cross",
+      wand: "cross",
       pan: "grab",
       zoom: "zoom",
     });
@@ -168,6 +171,7 @@ describe("the options each tool declares (G-093)", () => {
       "backstitch-edit": "",
       select: "selectionMode",
       lasso: "selectionMode",
+      wand: "selectionMode wandDiagonal wandColorOnly",
       crop: "",
       move: "",
       pan: "",

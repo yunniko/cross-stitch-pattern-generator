@@ -132,13 +132,14 @@ not edited by hand.
 |  | BS edit tool | J | A chart, in Edit |
 |  | Select tool | S | A chart, in Edit |
 |  | Lasso tool | Q | A chart, in Edit |
+|  | Magic wand tool | W | A chart, in Edit |
 |  | Crop tool | C | A chart, in Edit |
 |  | Move tool | V | A chart, in Edit |
 |  | Pan tool | H | A chart |
 |  | Zoom tool | Z | A chart |
-| Selection | Invert the selection | — | Select or Lasso in hand |
+| Selection | Invert the selection | — | Select, Lasso or Magic wand in hand |
 |  | Copy the piece | Ctrl+C | A piece in hand |
-|  | Paste the copied piece | Ctrl+V | Select or Lasso in hand; a piece was copied |
+|  | Paste the copied piece | Ctrl+V | Select, Lasso or Magic wand in hand; a piece was copied |
 |  | Duplicate the piece | Ctrl+D | A piece in hand |
 |  | Fill the piece with the colour in hand | — | A piece and a colour in hand |
 |  | Flip the piece left to right | — | A piece in hand |

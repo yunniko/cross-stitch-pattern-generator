@@ -1,6 +1,6 @@
 import { BrushIcon, FillIcon } from "./icons";
 import { inputsFrom } from "./shared";
-import { FILL_COLOR_ONLY, FILL_DIAGONAL, FILL_OPTIONS, LAYING_OPTIONS } from "./options";
+import { FILL_OPTIONS, FILL_REGION, LAYING_OPTIONS, regionOf } from "./options";
 import type { EditorApi, ToolModule, ToolRuntime } from "./types";
 import { useRef } from "react";
 import { stampCells, type StampOffset } from "@/lib/editor/brush-stamp";
@@ -199,15 +199,13 @@ export const brushModule = {
     },
   ],
   useRuntime(api: EditorApi): ToolRuntime {
+    const region = regionOf(api.option, FILL_REGION);
     const brush = useBrushTool({
       ...inputsFrom(api),
       colorForPointer: api.colorForPointer,
       stamp: api.stamp,
       symmetry: api.symmetry,
-      fill: {
-        connectivity: api.option(FILL_DIAGONAL) === "on" ? 8 : 4,
-        rule: api.option(FILL_COLOR_ONLY) === "on" ? { colorOnly: true } : { sameKind: true },
-      },
+      fill: { connectivity: region.connectivity, rule: region.colorOnly ? { colorOnly: true } : { sameKind: true } },
     });
     return {
       onPointerDown: (e, frame) => (api.activeTool === "fill" ? brush.fillAt(e, frame) : brush.onPointerDown(e, frame)),
