@@ -21,13 +21,16 @@ import { NextResponse } from "next/server";
  * minutes at a much smaller capacity: brute-forcing a password is the threat, not a reader who mistypes it
  * twice, and a fast-refilling bucket does nothing against a script patient enough to stay under it.
  */
-export type RateKind = "job" | "auth" | "authAccount" | "prediction" | "ditherPreview";
+export type RateKind = "job" | "auth" | "authAccount" | "mail" | "prediction" | "ditherPreview";
 const CONFIG: Record<RateKind, { capacity: number; windowMs: number; env: string }> = {
   job: { capacity: 6, windowMs: 60_000, env: "RATE_LIMIT_JOBS_PER_MINUTE" },
   auth: { capacity: 8, windowMs: 15 * 60_000, env: "RATE_LIMIT_AUTH_PER_15MIN" },
   // Per account as well as per address (G-117, D334), so guesses spread over many addresses still meet a limit. Larger
   // than `auth`, so one address cannot lock a person out of their own account.
   authAccount: { capacity: 20, windowMs: 15 * 60_000, env: "RATE_LIMIT_AUTH_ACCOUNT_PER_15MIN" },
+  // Messages to one email address (G-113): a confirmation or reset link, whoever asks for it. Small, so the form cannot be
+  // used to fill someone's inbox; a refusal sends nothing and answers as a sent message would.
+  mail: { capacity: 5, windowMs: 60 * 60_000, env: "RATE_LIMIT_MAIL_PER_HOUR" },
   // A prediction (G-087) is a few milliseconds of work asked for after each pause in changing a setting, so it has a bucket of its
   // own: sharing `job`'s six a minute would let the hint use up the reader's Generates.
   prediction: { capacity: 90, windowMs: 60_000, env: "RATE_LIMIT_PREDICTIONS_PER_MINUTE" },
@@ -181,6 +184,11 @@ export function signInRateLimited(address: string, email: string): SpendResult {
   const byAddress = spend(`auth:${address}`, "auth");
   if (!byAddress.ok) return byAddress;
   return spend(`authAccount:${email}`, "authAccount");
+}
+
+/** One message to this email address (G-113): the `mail` bucket, keyed by the address the message goes to. */
+export function mailRateLimited(email: string): SpendResult {
+  return spend(`mail:${email}`, "mail");
 }
 
 /** Where the processor lives on the internal network; only these handlers ever address it. */

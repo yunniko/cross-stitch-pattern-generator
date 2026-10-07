@@ -472,3 +472,4 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | D341 | 04-editing | the compact forms and More (where: docs/interface-placement.md) |
 | D342 | out of scope (accounts and admin) | |
 | D343 | out of scope (accounts and admin) | |
+| D344 | out of scope (accounts and admin) | |

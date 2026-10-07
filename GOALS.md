@@ -120,11 +120,12 @@ Outside both: G-111's comments follow G-112; G-097 comes after G-108, whose char
 
 **Milestones:**
 - [x] M1 — **The mail contract and the token rule.** `lib/mail/`: one contract, file (recording) and SMTP/Resend transports, the messages a declared list; taken from `listing-studio`'s mailer (`src/lib/mail/`, same stack, nodemailer), recorded as a decision. Tokens hashed, used once, expiring, one pure rule in `lib/auth/`. Unit tests.
-- [ ] M2 — **Confirming an address.** Registering sends the confirmation; the link confirms once; an unconfirmed account that signs in sees only the request to confirm and a resend; one rule says "confirmed" for G-106 and G-108 to read; applied only while sending is on. Limited under the `auth` kind. Unit and e2e against the stand-in.
+- [x] M2 — **Confirming an address.** Registering sends the confirmation; the link confirms once; an unconfirmed account that signs in sees only the request to confirm and a resend; one rule says "confirmed" for G-106 and G-108 to read; applied only while sending is on. Limited under the `auth` kind. Unit and e2e against the stand-in.
 - [ ] M3 — **Resetting a password.** Ask (same answer whether or not the address has an account), receive the link, set a new password, sign in; the reset ends sessions open elsewhere through a marker checked where sessions are read. Unit and e2e against the stand-in; the full suite.
 - [ ] M4 — **Release and deploy** to cross-stitch.craftodejnice.cz (its existing target), sending off; checked live with single harmless requests (no message sent, the site usable as before).
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-10-07 — **M2 done.** Registering sends the confirmation link; `/confirm-address/link` confirms once; an unconfirmed account is refused at log-in and offered `/confirm-address` to send it again; registering an address that has an account answers the same and mails that account instead (D344). Verified: tsc and eslint clean, 1,396 unit (+3), 16/16 e2e (accounts, email-confirmation, admin) on a fresh production build, docs-lint and the brief check pass. Next: M3.
 - 2026-10-07 — **M1 done.** `lib/mail/` (D342: file and Resend transports, no SMTP since `listing-studio` sends through Resend in production) and the link-token rule (D343). Verified: 16 new unit cases, tsc and eslint clean, docs-lint and the brief check pass. Next: M2.
 - 2026-10-07 — **Plan accepted** (Owner: "go ahead"), M1–M4 as above, no milestone marked for review.
 - 2026-10-07 — Plan presented to the Owner (M1–M4 above), awaiting acceptance.

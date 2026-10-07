@@ -68,6 +68,13 @@ export function appWithProcessor({
         RATE_LIMIT_AUTH_PER_15MIN: "1000",
         RATE_LIMIT_AUTH_ACCOUNT_PER_15MIN: "1000",
         RATE_LIMIT_DITHER_PREVIEWS_PER_MINUTE: "1000",
+        RATE_LIMIT_MAIL_PER_HOUR: "1000",
+        // Sending on, through the file transport (G-113, D342): each message lands in e2e-mail-outbox, which
+        // tests/e2e/helpers/mail.ts reads; nothing leaves the machine. The links name this server.
+        MAIL_TRANSPORT: "file",
+        MAIL_FROM: "Cross-Stitch Pattern Generator <no-reply@example.com>",
+        MAIL_OUTBOX_DIR: path.join(root, "e2e-mail-outbox"),
+        APP_URL: `http://localhost:${port}`,
         // The e2e suite's own Postgres (docker-compose.yml's `db` service; port per that file's own note).
         // Not a secret worth generating fresh -- nothing this database holds needs to survive a suite run.
         DATABASE_URL: "postgresql://cross_stitch:cross_stitch@127.0.0.1:54324/cross_stitch",

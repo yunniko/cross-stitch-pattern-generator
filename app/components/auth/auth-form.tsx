@@ -77,6 +77,15 @@ export function AuthError({ message }: { message: string }) {
   );
 }
 
+/** A neutral message on an auth card: a link was sent, an address was confirmed, email is not available yet (G-113). */
+export function AuthNotice({ children }: { children: ReactNode }) {
+  return (
+    <p role="status" data-testid="auth-notice" className="mb-4 rounded-md border border-line px-3 py-2 text-sm text-ink">
+      {children}
+    </p>
+  );
+}
+
 /**
  * `useFormStatus` reads the nearest enclosing `<form>`'s pending state, so this has to be the form's child.
  * Full width fits the single-purpose register/login forms; the personal cabinet's smaller forms (G-075 M2)

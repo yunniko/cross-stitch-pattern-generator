@@ -3,12 +3,29 @@
 import Link from "next/link";
 import { useActionState } from "react";
 import { registerAction, type AuthFormState } from "@/lib/auth/actions";
-import { AuthCard, AuthError, AuthField, AuthSubmitButton } from "@/app/components/auth/auth-form";
+import { AuthCard, AuthError, AuthField, AuthNotice, AuthSubmitButton } from "@/app/components/auth/auth-form";
 
 const INITIAL_STATE: AuthFormState = {};
 
 export default function RegisterPage() {
   const [state, formAction] = useActionState(registerAction, INITIAL_STATE);
+  if (state.sent) {
+    // The same words whether the address was new or already had an account (D344): its mailbox is told which.
+    return (
+      <AuthCard title="Check your email">
+        <AuthNotice>
+          We sent a message to <strong>{state.sent}</strong>. Open the link in it to confirm the address, then log in. The link works for 48
+          hours.
+        </AuthNotice>
+        <p className="mt-4 text-center text-[13px] text-muted">
+          No message?{" "}
+          <Link href="/confirm-address" className="text-accent hover:underline">
+            Send it again
+          </Link>
+        </p>
+      </AuthCard>
+    );
+  }
   return (
     <AuthCard title="Register">
       {/* noValidate: field errors are server-rendered (fieldErrors above), consistently across browsers and

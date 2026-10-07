@@ -1,11 +1,12 @@
 "use server";
 
 import { AuthError, CredentialsSignin } from "next-auth";
-import { headers } from "next/headers";
 import bcrypt from "bcryptjs";
 import { signIn, signOut } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { authRateLimited, clientIp } from "@/lib/server/request-guard";
+import { authRateLimited } from "@/lib/server/request-guard";
+import { requestAddress, sendAlreadyRegistered, sendConfirmationLink } from "@/lib/auth/links";
+import { mailOn } from "@/lib/mail/send";
 import { emailError, nameError, normalizeEmail, normalizeName, passwordError } from "@/lib/auth/validation";
 
 /**
@@ -19,16 +20,22 @@ export interface AuthFormState {
   fieldErrors?: Partial<Record<"name" | "email" | "password", string>>;
   /** Echoes what was submitted, since a failed action re-renders the form and would otherwise clear it. */
   values?: { name?: string; email?: string };
+  /** Registering while sending is on (G-113): the address the confirmation was sent to, and nothing else to show. */
+  sent?: string;
+  /** Logging in was refused only because the address is not confirmed yet: the form offers the link again. */
+  unconfirmed?: boolean;
 }
 
-async function requestAddress(): Promise<string> {
-  return clientIp(new Headers(await headers()));
-}
-
-/** Sign-in's refusal, in words: too many attempts (`authorize()` throws `SignInThrottled`, D334) or a wrong pair. */
-function signInError(error: AuthError): string {
-  if (error instanceof CredentialsSignin && error.code === "throttled") return "Too many attempts. Try again in a few minutes.";
-  return "Invalid email or password.";
+/**
+ * Sign-in's refusal, in words: too many attempts (`authorize()` throws `SignInThrottled`, D334), an address not confirmed yet
+ * (`AddressNotConfirmed`, D344; only after the right password), or a wrong pair.
+ */
+function signInError(error: AuthError): Pick<AuthFormState, "error" | "unconfirmed"> {
+  if (error instanceof CredentialsSignin && error.code === "throttled") return { error: "Too many attempts. Try again in a few minutes." };
+  if (error instanceof CredentialsSignin && error.code === "unconfirmed") {
+    return { error: "Confirm your email address first: open the link we sent to it.", unconfirmed: true };
+  }
+  return { error: "Invalid email or password." };
 }
 
 export async function registerAction(_prev: AuthFormState, formData: FormData): Promise<AuthFormState> {
@@ -48,6 +55,8 @@ export async function registerAction(_prev: AuthFormState, formData: FormData): 
   if (passwordErr) fieldErrors.password = passwordErr;
   if (Object.keys(fieldErrors).length > 0) return { error: "Check the highlighted fields.", fieldErrors, values };
 
+  if (mailOn()) return registerAndConfirm(values.email, values.name, password);
+
   const existing = await prisma.user.findUnique({ where: { email: values.email } });
   if (existing) return { error: "An account with that email already exists.", values };
 
@@ -66,6 +75,28 @@ export async function registerAction(_prev: AuthFormState, formData: FormData): 
   }
 }
 
+/**
+ * Registering while sending is on (G-113, D344): the account is made unconfirmed and a link is sent to the address. When
+ * the address already has an account, that account's owner is told so by mail instead, and the page answers the same
+ * either way; both roads hash the password once, so the time taken does not tell them apart either.
+ */
+async function registerAndConfirm(email: string, name: string, password: string): Promise<AuthFormState> {
+  const passwordHash = await bcrypt.hash(password, 10);
+  const existing = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+  if (existing) {
+    await sendAlreadyRegistered(email);
+    return { sent: email };
+  }
+  try {
+    const user = await prisma.user.create({ data: { email, name: name || null, passwordHash }, select: { id: true } });
+    await sendConfirmationLink(user.id, email);
+  } catch (error) {
+    // Registered by a request that arrived at the same moment: that one's link is on its way.
+    if ((error as { code?: string }).code !== "P2002") throw error;
+  }
+  return { sent: email };
+}
+
 export async function loginAction(_prev: AuthFormState, formData: FormData): Promise<AuthFormState> {
   const values = { email: normalizeEmail(formData.get("email")) };
   const password = typeof formData.get("password") === "string" ? (formData.get("password") as string) : "";
@@ -75,7 +106,7 @@ export async function loginAction(_prev: AuthFormState, formData: FormData): Pro
     await signIn("credentials", { email: values.email, password, redirectTo: "/account" });
     return {};
   } catch (error) {
-    if (error instanceof AuthError) return { error: signInError(error), values };
+    if (error instanceof AuthError) return { ...signInError(error), values };
     throw error;
   }
 }

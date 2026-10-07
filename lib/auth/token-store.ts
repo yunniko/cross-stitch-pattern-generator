@@ -20,7 +20,7 @@ export async function issueToken(purpose: TokenPurpose, userId: string): Promise
  * Uses a token: whatever it allows, it is gone afterwards. Deleting by its hash is what makes "once" hold when the same
  * link is opened twice at the same moment: only one of the two deletes finds the row.
  */
-export async function useToken(purpose: TokenPurpose, raw: unknown): Promise<TokenVerdict> {
+export async function spendToken(purpose: TokenPurpose, raw: unknown): Promise<TokenVerdict> {
   if (!wellFormedToken(raw)) return { ok: false, reason: "unknown" };
   const hash = hashToken(raw);
   const record = await prisma.verificationToken.findUnique({ where: { token: hash } });
@@ -32,7 +32,7 @@ export async function useToken(purpose: TokenPurpose, raw: unknown): Promise<Tok
 }
 
 /** Whether a token would be accepted, without using it: the page that asks for a new password checks before it asks. */
-export async function peekToken(purpose: TokenPurpose, raw: unknown): Promise<TokenVerdict> {
+export async function checkToken(purpose: TokenPurpose, raw: unknown): Promise<TokenVerdict> {
   if (!wellFormedToken(raw)) return { ok: false, reason: "unknown" };
   const record = await prisma.verificationToken.findUnique({ where: { token: hashToken(raw) } });
   return judgeToken(record, purpose, new Date());

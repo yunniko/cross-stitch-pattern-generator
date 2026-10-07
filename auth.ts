@@ -5,10 +5,17 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { normalizeEmail } from "@/lib/auth/validation";
 import { clientIp, signInRateLimited } from "@/lib/server/request-guard";
+import { mustConfirmAddress } from "@/lib/auth/confirmation";
+import { mailOn } from "@/lib/mail/send";
 
 /** Refused before the password is looked at: too many attempts from this address or at this account (D334). */
 export class SignInThrottled extends CredentialsSignin {
   code = "throttled";
+}
+
+/** The password was right, but the address is not confirmed yet while sending is on (G-113, D344). */
+export class AddressNotConfirmed extends CredentialsSignin {
+  code = "unconfirmed";
 }
 
 /**
@@ -50,11 +57,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const user = await prisma.user.findUnique({ where: { email } });
         const passwordOk = await bcrypt.compare(password, user?.passwordHash ?? NO_ACCOUNT_HASH);
         if (!user?.passwordHash || !passwordOk || user.disabled) return null;
+        if (mustConfirmAddress(user, mailOn())) throw new AddressNotConfirmed();
 
         // Admin bootstrap: the account whose email matches ADMIN_EMAIL is promoted at sign-in, solving the
         // first-admin chicken-and-egg problem. Gated behind ADMIN_BOOTSTRAP_ENABLED, which the Owner sets to
         // "false" once that account exists -- otherwise anyone could register ADMIN_EMAIL and sign in as it
-        // (there is no email verification yet to stop them).
+        // (while sending is off there is no email confirmation to stop them; with it on, the check above does).
         let role = user.role;
         const adminEmail = normalizeEmail(process.env.ADMIN_EMAIL);
         const bootstrapEnabled = process.env.ADMIN_BOOTSTRAP_ENABLED !== "false";
@@ -80,8 +88,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
       if (typeof token.id !== "string") return null;
       if (typeof token.checkedAt === "number" && now - token.checkedAt < ACCOUNT_RECHECK_MS) return token;
-      const account = await prisma.user.findUnique({ where: { id: token.id }, select: { role: true, disabled: true } });
-      if (!account || account.disabled) return null;
+      const account = await prisma.user.findUnique({
+        where: { id: token.id },
+        select: { role: true, disabled: true, emailVerified: true },
+      });
+      if (!account || account.disabled || mustConfirmAddress(account, mailOn())) return null;
       token.role = account.role;
       token.checkedAt = now;
       return token;
