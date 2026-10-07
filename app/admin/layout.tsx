@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { currentAdmin } from "@/lib/admin/require-admin";
 
 /**
  * Every `/admin/*` page shares this guard (G-075 M3): signed out goes to `/login`, signed in but not an
@@ -10,7 +11,8 @@ import { auth } from "@/auth";
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  if (session.user.role !== "ADMIN") redirect("/");
+  // The role is read from the database, not the session (D335).
+  if (!(await currentAdmin())) redirect("/");
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6 p-6">

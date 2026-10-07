@@ -197,7 +197,7 @@ Accounts need Postgres and a few secrets; copy `.env.example` to `.env` first.
 
 ```
 npm install --legacy-peer-deps
-docker compose up -d db
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db
 npx prisma migrate deploy
 npm run dev
 ```

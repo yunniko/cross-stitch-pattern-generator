@@ -20,6 +20,8 @@ const nextConfig: NextConfig = {
    * the bundle, not the rest of the file. Read through `lib/app-version.ts`.
    */
   env: { APP_VERSION: packageJson.version },
+  /** No `X-Powered-By: Next.js`: it tells a visitor nothing and a scanner which advisories to try (G-117). */
+  poweredByHeader: false,
   async headers() {
     return [
       {
@@ -27,6 +29,12 @@ const nextConfig: NextConfig = {
         headers: [
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          // HTTPS only, for a year (G-117, D336). A browser ignores it over plain http, so local runs are unaffected.
+          { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
+          // No page of this site may be framed, so its one-press admin actions cannot be clicked through a disguise.
+          // The policy holds only `frame-ancestors`: a full CSP needs a nonce for Next's inline scripts (D336).
+          { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
+          { key: "X-Frame-Options", value: "DENY" },
         ],
       },
     ];

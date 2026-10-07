@@ -1,9 +1,24 @@
-import NextAuth from "next-auth";
+import NextAuth, { CredentialsSignin } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { normalizeEmail } from "@/lib/auth/validation";
+import { clientIp, signInRateLimited } from "@/lib/server/request-guard";
+
+/** Refused before the password is looked at: too many attempts from this address or at this account (D334). */
+export class SignInThrottled extends CredentialsSignin {
+  code = "throttled";
+}
+
+/**
+ * Compared against when the email has no account, so a wrong email takes as long as a wrong password and the time
+ * taken does not say which accounts exist (G-117). A bcrypt hash of a random string, cost 10 like every real one.
+ */
+const NO_ACCOUNT_HASH = "$2b$10$/zxnWfHqyXy9rSBY6Se4eekTBUDejGS/CTopeVSWJJ7iAsnOLcgvu";
+
+/** How often a signed-in session re-reads its account, so a disabled or demoted account loses access within this (D335). */
+const ACCOUNT_RECHECK_MS = 5 * 60_000;
 
 /**
  * Accounts (G-075). Stack, session strategy and the admin-bootstrap mechanic are copied from
@@ -18,22 +33,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
   // JWT sessions: the credentials provider needs them (there is no browser session cookie an adapter-backed
   // session lookup could key off during `authorize()`), and it also means no database read on every request.
-  session: { strategy: "jwt" },
+  // Seven days, renewed while in use; the account itself is re-read every few minutes (D335).
+  session: { strategy: "jwt", maxAge: 7 * 24 * 60 * 60 },
   pages: { signIn: "/login" },
   providers: [
     Credentials({
       credentials: { email: {}, password: {} },
-      authorize: async (credentials) => {
+      // Every way in arrives here -- the login form's action and Auth.js's own callback route -- so the limit is
+      // spent here, once per password check (G-117, D334).
+      authorize: async (credentials, request) => {
         const email = normalizeEmail(credentials?.email);
         const password = typeof credentials?.password === "string" ? credentials.password : "";
         if (!email || !password) return null;
+        if (!signInRateLimited(clientIp(request), email).ok) throw new SignInThrottled();
 
         const user = await prisma.user.findUnique({ where: { email } });
-        if (!user?.passwordHash) return null;
-        if (user.disabled) return null;
-
-        const passwordOk = await bcrypt.compare(password, user.passwordHash);
-        if (!passwordOk) return null;
+        const passwordOk = await bcrypt.compare(password, user?.passwordHash ?? NO_ACCOUNT_HASH);
+        if (!user?.passwordHash || !passwordOk || user.disabled) return null;
 
         // Admin bootstrap: the account whose email matches ADMIN_EMAIL is promoted at sign-in, solving the
         // first-admin chicken-and-egg problem. Gated behind ADMIN_BOOTSTRAP_ENABLED, which the Owner sets to
@@ -52,11 +68,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    jwt({ token, user }) {
+    // The token carries the role, so the account is re-read every few minutes: a disabled or deleted account is
+    // signed out, and a changed role takes effect, without waiting for the token to expire (G-117, D335).
+    async jwt({ token, user }) {
+      const now = Date.now();
       if (user) {
         token.id = user.id;
         token.role = user.role;
+        token.checkedAt = now;
+        return token;
       }
+      if (typeof token.id !== "string") return null;
+      if (typeof token.checkedAt === "number" && now - token.checkedAt < ACCOUNT_RECHECK_MS) return token;
+      const account = await prisma.user.findUnique({ where: { id: token.id }, select: { role: true, disabled: true } });
+      if (!account || account.disabled) return null;
+      token.role = account.role;
+      token.checkedAt = now;
       return token;
     },
     session({ session, token }) {

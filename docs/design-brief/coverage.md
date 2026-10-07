@@ -434,6 +434,7 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | G-113 | out of scope | draft: email for accounts |
 | G-114 | internal | draft: backups |
 | G-116 | 04-editing | selection modes, Invert, the Magic wand |
+| G-117 | internal | security fixes; the sign-in message is accounts (out of scope) |
 | D308 | 01-overview | the version shown |
 | D309 | internal | |
 | D310 | 01-overview | "What's new" |
@@ -460,3 +461,8 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | D331 | 04-editing | selection modes; the Invert selection row |
 | D332 | 04-editing | the Magic wand row |
 | D333 | 04-editing | the selection's actions (where they sit: docs/interface-placement.md) |
+| D334 | out of scope (accounts and admin) | |
+| D335 | out of scope (accounts and admin) | |
+| D336 | internal | |
+| D337 | internal | |
+| D338 | internal | |

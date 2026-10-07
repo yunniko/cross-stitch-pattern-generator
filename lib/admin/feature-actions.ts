@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import type { FeatureSwitch } from "@/generated/prisma/client";
-import { auth } from "@/auth";
+import { requireAdmin } from "@/lib/admin/require-admin";
 import { isFeatureIdShape, isFeatureState, type FeatureState } from "@/lib/features/features";
 import { prisma } from "@/lib/prisma";
 
@@ -33,12 +33,6 @@ async function attempt(work: () => Promise<string | void>): Promise<ActionResult
     if (code === "P2002") return { error: "That name is taken." };
     return { error: error instanceof Error ? error.message : "The change was refused." };
   }
-}
-
-async function requireAdmin(): Promise<{ id: string; email: string }> {
-  const session = await auth();
-  if (!session?.user?.id || session.user.role !== "ADMIN") throw new Error("Admin access required.");
-  return { id: session.user.id, email: session.user.email ?? "" };
 }
 
 /** A state to set, or "site" for a person or a set to follow the site (no row). */

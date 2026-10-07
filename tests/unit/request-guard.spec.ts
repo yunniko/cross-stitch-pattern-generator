@@ -1,5 +1,13 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { authRateLimited, clientIp, guardMutation, originRejected, rateLimited, resetRateLimits } from "@/lib/server/request-guard";
+import {
+  authRateLimited,
+  clientIp,
+  guardMutation,
+  originRejected,
+  rateLimited,
+  resetRateLimits,
+  signInRateLimited,
+} from "@/lib/server/request-guard";
 
 /**
  * The two checks standing in front of the processor (G-034 M2, acceptance criterion 6): a state-changing request must
@@ -119,9 +127,44 @@ describe("rate limit", () => {
     expect(rateLimited(request({ ip: "198.51.100.4" }))).toBeNull();
   });
 
-  it("reads the client address from the first x-forwarded-for entry", () => {
-    // Behind nginx the header is "client, proxy1, proxy2" -- taking the last entry would rate-limit the proxy instead.
-    expect(clientIp(request({ ip: "203.0.113.7, 10.0.0.1" }))).toBe("203.0.113.7");
+  it("takes the address nginx saw, not one the client wrote (D334)", () => {
+    // nginx appends the address it saw to whatever the client sent, so only the last entry is its own.
+    expect(clientIp(request({ ip: "198.51.100.99, 203.0.113.7" }))).toBe("203.0.113.7");
+  });
+
+  it("prefers x-real-ip, which nginx sets outright", () => {
+    const headers = new Headers({ "x-real-ip": "203.0.113.7", "x-forwarded-for": "198.51.100.99" });
+    expect(clientIp(headers)).toBe("203.0.113.7");
+  });
+
+  it("names a request with neither header 'unknown'", () => {
+    expect(clientIp(new Headers())).toBe("unknown");
+  });
+
+  it("does not let a changed x-forwarded-for start a fresh allowance", () => {
+    const forged = (n: number) => new Headers({ "x-real-ip": "203.0.113.7", "x-forwarded-for": `198.51.100.${n}` });
+    for (let i = 0; i < 6; i++) rateLimited(new Request(`${SITE}/api/jobs`, { method: "POST", headers: forged(i) }));
+    const seventh = new Request(`${SITE}/api/jobs`, { method: "POST", headers: forged(99) });
+    expect(rateLimited(seventh)?.status).toBe(429);
+  });
+});
+
+describe("sign-in limit (D334)", () => {
+  it("refuses an address after its allowance, whichever account it tries", () => {
+    for (let i = 0; i < 8; i++) expect(signInRateLimited("203.0.113.30", `a${i}@example.test`).ok).toBe(true);
+    expect(signInRateLimited("203.0.113.30", "fresh@example.test").ok).toBe(false);
+  });
+
+  it("refuses an account after its allowance, whichever address tries it", () => {
+    for (let i = 0; i < 20; i++) expect(signInRateLimited(`198.51.100.${i}`, "one@example.test").ok).toBe(true);
+    expect(signInRateLimited("198.51.100.200", "one@example.test").ok).toBe(false);
+    expect(signInRateLimited("198.51.100.200", "other@example.test").ok).toBe(true);
+  });
+
+  it("does not spend an account's allowance once the address is refused", () => {
+    for (let i = 0; i < 8; i++) signInRateLimited("203.0.113.31", `b${i}@example.test`);
+    for (let i = 0; i < 30; i++) signInRateLimited("203.0.113.31", "victim@example.test");
+    for (let i = 0; i < 20; i++) expect(signInRateLimited(`192.0.2.${i}`, "victim@example.test").ok).toBe(true);
   });
 });
 

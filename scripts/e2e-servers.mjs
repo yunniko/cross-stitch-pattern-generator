@@ -27,6 +27,7 @@ const env = {
   PROCESSOR_URL: `http://127.0.0.1:${PROCESSOR_PORT}`,
   RATE_LIMIT_JOBS_PER_MINUTE: "1000",
   RATE_LIMIT_AUTH_PER_15MIN: "1000",
+  RATE_LIMIT_AUTH_ACCOUNT_PER_15MIN: "1000",
   DATABASE_URL: "postgresql://cross_stitch:cross_stitch@127.0.0.1:54324/cross_stitch",
   AUTH_SECRET: "e2e-suite-only-not-a-real-secret-00000000",
   AUTH_TRUST_HOST: "true",

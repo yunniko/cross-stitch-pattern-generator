@@ -2,6 +2,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { serializePattern } from "@/lib/editor/pattern-serialize";
+import { attachmentDisposition } from "@/lib/export/content-disposition";
 import { ditherPreviewError, predictionError, settingsError } from "./validate-settings";
 import { ditherPreviewWithRust, predictWithRust } from "./rust-jobs";
 import type { PredictionRequest } from "@/lib/pipeline/prediction";
@@ -239,7 +240,7 @@ function handleJobResult(res: ServerResponse, jobId: string): void {
     res.writeHead(200, {
       "content-type": exported.contentType,
       "content-length": exported.bytes.byteLength,
-      "content-disposition": `attachment; filename="${exported.filename.replace(/"/g, "")}"`,
+      "content-disposition": attachmentDisposition(exported.filename),
     });
     res.end(Buffer.from(exported.bytes));
     return;

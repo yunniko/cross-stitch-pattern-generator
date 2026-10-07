@@ -1,0 +1,8 @@
+# Local dev and the e2e suite only: the database on a host port, for `npm run dev` and the test servers (G-117, D337).
+# Never used in production, where only the compose network reaches `db`.
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db
+services:
+  db:
+    ports:
+      # 54320-54323 belong to other projects' databases on the production host (COMPANY/INFRASTRUCTURE_DEPLOY.md).
+      - "127.0.0.1:54324:5432"

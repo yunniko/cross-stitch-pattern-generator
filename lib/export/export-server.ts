@@ -1,3 +1,4 @@
+import { dispositionFilename } from "./content-disposition";
 import { serializePattern } from "../editor/pattern-serialize";
 import { NO_SYMMETRY } from "../editor/symmetry-axes";
 import { errorFromResponse, isNetworkFailure, ProcessorUnreachableError } from "../pipeline/server-errors";
@@ -133,8 +134,7 @@ export async function runServerExport(request: ExportJobRequest, onProgress?: Ex
     if (!collected.ok) throw await errorFromResponse(collected, "The finished file couldn't be collected.");
 
     // The filename the server chose, so a server export downloads under exactly the name a browser export would.
-    const disposition = collected.headers.get("content-disposition") ?? "";
-    const named = /filename="([^"]+)"/.exec(disposition)?.[1];
+    const named = dispositionFilename(collected.headers.get("content-disposition") ?? "");
     return { blob: await collected.blob(), filename: named ?? `${request.baseName}.dat` };
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") throw new Error("That export was cancelled.");

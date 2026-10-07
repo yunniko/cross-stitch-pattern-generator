@@ -2,20 +2,19 @@
 # project's first database. The caps on app/processor are D149's, measured on the production host -- this box
 # runs ~20 other sites, so no service may take more than its share.
 services:
-  # `db` and `migrate` have no profile: `docker compose up -d db` alone is enough for local dev
-  # (`npm run dev` reads DATABASE_URL from .env and talks to it directly, no container build needed).
+  # `db` and `migrate` have no profile. `db` publishes no port here: the app and `migrate` reach it on the compose
+  # network, and a host port would let any account on the shared host at it (G-117, D337). Local dev and the e2e suite
+  # add the port with `docker-compose.dev.yml`:
+  #   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db
   db:
     image: postgres:17-alpine
     restart: unless-stopped
     environment:
       POSTGRES_USER: cross_stitch
-      POSTGRES_PASSWORD: cross_stitch
+      # Production sets DB_PASSWORD in .env; the default is for a local or CI database only (D337). Postgres reads
+      # this only when it first creates its data, so changing it later also needs `ALTER USER` (HANDOVER, Rules).
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-cross_stitch}
       POSTGRES_DB: cross_stitch
-    ports:
-      # Port chosen following this host's registry (COMPANY/INFRASTRUCTURE_DEPLOY.md: 54320-54323 taken by
-      # other projects' db containers) -- re-verify live before the M5 deploy, per INFRASTRUCTURE.md's
-      # "never trust a cached port fact" rule, rather than trusting this number.
-      - "127.0.0.1:54324:5432"
     volumes:
       - db-data:/var/lib/postgresql/data
     healthcheck:
@@ -37,11 +36,11 @@ services:
       db:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://cross_stitch:cross_stitch@db:5432/cross_stitch
+      DATABASE_URL: postgresql://cross_stitch:${DB_PASSWORD:-cross_stitch}@db:5432/cross_stitch
 
   # Production-style app container -- opt in with:
   #   docker compose --profile app up -d --build
-  # (dev flow is `npm run dev` against `docker compose up -d db`, no app/processor build needed)
+  # (dev flow is `npm run dev` against the dev database above, no app/processor build needed)
   app:
     profiles: ["app"]
     build:
@@ -59,9 +58,12 @@ services:
       # here if the deploy .env ever went missing, so the safe value is nothing at all.
       APP_URL: ${APP_URL:-}
       PROCESSOR_URL: http://processor:8081
-      DATABASE_URL: postgresql://cross_stitch:cross_stitch@db:5432/cross_stitch
+      DATABASE_URL: postgresql://cross_stitch:${DB_PASSWORD:-cross_stitch}@db:5432/cross_stitch
       AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET in .env}
       AUTH_TRUST_HOST: "true"
+      # The site's own address for Auth.js's links and redirects; without it Auth.js names the container's bind
+      # address (G-117). APP_URL is the same address, so it serves when AUTH_URL is not set.
+      AUTH_URL: ${AUTH_URL:-${APP_URL:-}}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       ADMIN_BOOTSTRAP_ENABLED: ${ADMIN_BOOTSTRAP_ENABLED:-true}
       # How long a browser keeps its feature states before asking again (G-102); 300 when unset.

@@ -369,3 +369,8 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D331 — One selection mode, shared by every selection tool — active
 - D332 — The Magic wand is a third selection tool, with its own region switches — active
 - D333 — The selection's actions live in a Selection tab; Apply here and Cancel stay on the bar too — active
+- D334 — Every password check is limited inside `authorize()`, per address and per account — active
+- D335 — A session rechecks its account every five minutes; admin rights are read from the database — active
+- D336 — HSTS and a frame-ancestors-only Content-Security-Policy on every response — active
+- D337 — The database publishes a host port only in `docker-compose.dev.yml`; production's password comes from `.env` — active
+- D338 — The Prisma CLI's remaining dev-dependency advisories are accepted rather than downgrading to Prisma 6 — active

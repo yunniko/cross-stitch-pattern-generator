@@ -50,6 +50,21 @@ Outside both: G-111's comments follow G-112; G-097 comes after G-108, whose char
 
 **The shortest road to selling**, if that becomes the aim: G-103, G-107, G-113, G-109, G-106. Saved charts, the gallery, the guide and the editor goals can all follow it; tiers would then differ by features and limits only, and G-106's "what happens to saved charts" has nothing to decide until G-108.
 
+### G-117 · Security fixes from the 2026-10-07 review — ACTIVE (Owner, 2026-10-07)
+- **What:** fix the findings of the security review of the deployed app (v0.8.0). The review itself is kept out of this public repository (Owner, 2026-10-07: "remove review from repository and fix issues"); it is at `E:\CLAUDE\private\cross-stitch\2026-10-07-security-review.md`.
+- **Why:** two of the findings were confirmed against the live site.
+- **Acceptance criteria:** each finding is fixed or, where a fix needs the Owner or a later goal, recorded with its reason; fixes have tests; released with G-116 and deployed; the fixes rechecked against the live site with single harmless requests.
+- **Constraints:** nothing describing an open weakness goes into this repository before it is fixed live (Owner instruction above; the repository is public). nginx changes need root, so they go to the Owner as commands (INFRASTRUCTURE.md).
+
+**Milestones:**
+- [x] M1 — Application fixes: one rate limit for every sign-in path, per address and per account; the client address from the proxy's own header; sessions that see a disabled or demoted account within minutes; one admin check reading the database; security headers; constant-time login; Auth.js's own URL; non-Latin file names in server exports. Unit tests.
+- [x] M2 — Infrastructure and dependencies: Postgres off the host's ports in production and its password out of the repository; Next.js and the audited packages upgraded; nginx `limit_req` commands for the Owner.
+- [ ] M3 — Release with G-116, deploy to cross-stitch.craftodejnice.cz (its existing target), recheck the confirmed findings live.
+
+**Progress log** (newest first):
+- 2026-10-07 — M1 and M2 done (D334–D338). Verified: tsc clean, 1,367 unit (new: `tests/unit/content-disposition.spec.ts`, the sign-in limit and client address in `request-guard.spec.ts`), lint 0 errors, prettier, check:brief, docs-lint; `docker compose config` renders the password and `AUTH_URL` from `.env` and no `db` port without the dev file. `npm audit --omit=dev`: 0. One finding needs email verification and is left to G-113, recorded outside the repository. The nginx `limit_req` commands go to the Owner with the end-of-goal report. Rules in force: two rules now enforced in CI left it (the backstitch dash-table comparison, `lib/`'s framework-import lint). Next: M3, with the e2e suite in CI first.
+- 2026-10-07 — Goal created at the Owner's instruction. The review commit (`940b773`, never pushed) and the unpushed v0.9.0 release commit were dropped from `master`; the review is kept outside the repository.
+
 ### G-116 · Selection modes (replace, add, subtract), Invert selection, and a Magic wand — ACTIVE (accepted 2026-10-07)
 - **What:** asked by the Owner, 2026-10-07.
   1. The selection bar loses its information: the "Selection" label, the size and place of the piece, and the hint text.

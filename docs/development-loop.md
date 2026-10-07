@@ -134,7 +134,7 @@ Seen during G-098 and G-096, with what was done:
   moment moved them. They are tagged `@alone`, and `npm run test:e2e` runs them after the rest, one at a time.
 - **Lint cache** on by default; **`npm run e2e:servers`**; **`npm run check:fast`**.
 - 2026-10-05: the project's own test database runs on port 54324 with its migrations applied, and `npx playwright test`
-  starts its own servers when none are running. `docker compose up -d db` needs `AUTH_SECRET` in the environment even
+  starts its own servers when none are running. `docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db` needs `AUTH_SECRET` in the environment even
   though the database does not use it; Playwright's configuration supplies it.
 
 ## Still open

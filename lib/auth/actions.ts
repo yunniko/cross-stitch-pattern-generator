@@ -1,6 +1,6 @@
 "use server";
 
-import { AuthError } from "next-auth";
+import { AuthError, CredentialsSignin } from "next-auth";
 import { headers } from "next/headers";
 import bcrypt from "bcryptjs";
 import { signIn, signOut } from "@/auth";
@@ -22,8 +22,13 @@ export interface AuthFormState {
 }
 
 async function requestAddress(): Promise<string> {
-  const h = await headers();
-  return clientIp(new Request("http://internal", { headers: h }));
+  return clientIp(new Headers(await headers()));
+}
+
+/** Sign-in's refusal, in words: too many attempts (`authorize()` throws `SignInThrottled`, D334) or a wrong pair. */
+function signInError(error: AuthError): string {
+  if (error instanceof CredentialsSignin && error.code === "throttled") return "Too many attempts. Try again in a few minutes.";
+  return "Invalid email or password.";
 }
 
 export async function registerAction(_prev: AuthFormState, formData: FormData): Promise<AuthFormState> {
@@ -65,15 +70,12 @@ export async function loginAction(_prev: AuthFormState, formData: FormData): Pro
   const values = { email: normalizeEmail(formData.get("email")) };
   const password = typeof formData.get("password") === "string" ? (formData.get("password") as string) : "";
 
-  const address = await requestAddress();
-  const limited = authRateLimited(address);
-  if (!limited.ok) return { error: "Too many attempts. Try again in a few minutes.", values };
-
+  // The attempt limit is spent in `authorize()`, which every sign-in passes through (D334).
   try {
     await signIn("credentials", { email: values.email, password, redirectTo: "/account" });
     return {};
   } catch (error) {
-    if (error instanceof AuthError) return { error: "Invalid email or password.", values };
+    if (error instanceof AuthError) return { error: signInError(error), values };
     throw error;
   }
 }

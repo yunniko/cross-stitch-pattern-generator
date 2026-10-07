@@ -21,10 +21,13 @@ import { NextResponse } from "next/server";
  * minutes at a much smaller capacity: brute-forcing a password is the threat, not a reader who mistypes it
  * twice, and a fast-refilling bucket does nothing against a script patient enough to stay under it.
  */
-export type RateKind = "job" | "auth" | "prediction" | "ditherPreview";
+export type RateKind = "job" | "auth" | "authAccount" | "prediction" | "ditherPreview";
 const CONFIG: Record<RateKind, { capacity: number; windowMs: number; env: string }> = {
   job: { capacity: 6, windowMs: 60_000, env: "RATE_LIMIT_JOBS_PER_MINUTE" },
   auth: { capacity: 8, windowMs: 15 * 60_000, env: "RATE_LIMIT_AUTH_PER_15MIN" },
+  // Per account as well as per address (G-117, D334), so guesses spread over many addresses still meet a limit. Larger
+  // than `auth`, so one address cannot lock a person out of their own account.
+  authAccount: { capacity: 20, windowMs: 15 * 60_000, env: "RATE_LIMIT_AUTH_ACCOUNT_PER_15MIN" },
   // A prediction (G-087) is a few milliseconds of work asked for after each pause in changing a setting, so it has a bucket of its
   // own: sharing `job`'s six a minute would let the hint use up the reader's Generates.
   prediction: { capacity: 90, windowMs: 60_000, env: "RATE_LIMIT_PREDICTIONS_PER_MINUTE" },
@@ -54,11 +57,18 @@ interface Bucket {
 
 const buckets = new Map<string, Bucket>();
 
-/** Behind nginx the real address is in `x-forwarded-for`; its first entry is the client, the rest are proxies. */
-export function clientIp(req: Request): string {
-  const forwarded = req.headers.get("x-forwarded-for");
-  if (forwarded) return forwarded.split(",")[0].trim();
-  return req.headers.get("x-real-ip") ?? "unknown";
+/**
+ * The address the connection came from. Behind nginx it is `x-real-ip`, which the vhost sets from the connection itself
+ * and so overwrites whatever a client sent. Without it, only the last `x-forwarded-for` entry was added by a proxy;
+ * every entry before it is the client's own claim (G-117, D334).
+ */
+export function clientIp(req: Request | Headers): string {
+  const headers = req instanceof Headers ? req : req.headers;
+  const real = headers.get("x-real-ip")?.trim();
+  if (real) return real;
+  const forwarded = headers.get("x-forwarded-for");
+  const last = forwarded?.split(",").at(-1)?.trim();
+  return last || "unknown";
 }
 
 /** The spellings a browser may use for this machine. They address one site, so the check must read them as one. */
@@ -160,6 +170,17 @@ export function guardMutation(req: Request, kind: RateKind = "job"): NextRespons
  */
 export function authRateLimited(address: string): SpendResult {
   return spend(`auth:${address}`, "auth");
+}
+
+/**
+ * One password check: a token from the address and one from the account (G-117, D334). Every way into `authorize()`
+ * spends it, the login form and Auth.js's own callback route alike. The account's token is not spent once the address
+ * is refused, so a single address cannot use up someone else's account.
+ */
+export function signInRateLimited(address: string, email: string): SpendResult {
+  const byAddress = spend(`auth:${address}`, "auth");
+  if (!byAddress.ok) return byAddress;
+  return spend(`authAccount:${email}`, "authAccount");
 }
 
 /** Where the processor lives on the internal network; only these handlers ever address it. */

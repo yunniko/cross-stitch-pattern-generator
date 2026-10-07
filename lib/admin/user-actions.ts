@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { auth } from "@/auth";
+import { requireAdmin } from "@/lib/admin/require-admin";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -9,11 +9,6 @@ import { prisma } from "@/lib/prisma";
  * only `/admin`'s layout guard could have reached here -- and refuses to act on the caller's own account, so
  * an admin can never demote or disable the only session that could undo it.
  */
-async function requireAdmin(): Promise<{ id: string }> {
-  const session = await auth();
-  if (!session?.user?.id || session.user.role !== "ADMIN") throw new Error("Admin access required.");
-  return { id: session.user.id };
-}
 
 export async function promoteToAdminAction(userId: string): Promise<void> {
   const admin = await requireAdmin();
