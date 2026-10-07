@@ -15,7 +15,7 @@ test("with no thread chosen, a Brush stroke sets the stitch type and keeps the c
   for (const x of [0, 1, 2]) await click(page, x, 2);
 
   await releaseThread(page);
-  await expect(page.getByText("No thread chosen").first()).toBeVisible();
+  await expect(page.getByRole("button", { name: "Foreground colour: No thread chosen" })).toBeVisible();
   await page.getByRole("radio", { name: "Half stitch /", exact: true }).click();
   // One stroke over the three stitches and on across two empty ones.
   const from = await stitchPoint(page, 0, 2);
