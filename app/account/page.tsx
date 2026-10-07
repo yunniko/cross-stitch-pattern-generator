@@ -64,8 +64,14 @@ export default async function AccountProfilePage() {
         <PasswordForm />
       </section>
 
-      <section className="flex flex-col gap-3">
-        <SectionTitle>Danger zone</SectionTitle>
+      <section
+        aria-labelledby="danger-zone"
+        className="flex flex-col gap-3 rounded-lg border border-danger-edge bg-danger-deep/30 p-3.5"
+        data-testid="danger-zone"
+      >
+        <SectionTitle id="danger-zone" tone="danger">
+          Danger zone
+        </SectionTitle>
         <DeleteAccount email={user.email} />
       </section>
     </div>

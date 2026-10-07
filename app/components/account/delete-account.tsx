@@ -20,14 +20,21 @@ export function DeleteAccount({ email }: { email: string }) {
 
   if (!confirming) {
     return (
-      <PillButton type="button" variant="outline" size="md" onClick={() => setConfirming(true)}>
-        Delete account…
-      </PillButton>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="m-0 text-[13px] text-danger">Deleting your account cannot be undone.</p>
+        <button
+          type="button"
+          onClick={() => setConfirming(true)}
+          className="rounded-full border border-danger-strong bg-danger-edge px-4 py-1.5 text-sm text-on-danger hover:bg-danger-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger"
+        >
+          Delete account…
+        </button>
+      </div>
     );
   }
 
   return (
-    <form action={formAction} noValidate className="flex flex-col gap-3 rounded-md border border-danger-edge/60 bg-danger-deep/20 p-3">
+    <form action={formAction} noValidate className="flex flex-col gap-3">
       <p className="text-[13px] text-danger">
         This deletes your account and everything tied to it. It cannot be undone. Type <strong>{email}</strong> to confirm.
       </p>

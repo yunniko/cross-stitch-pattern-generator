@@ -18,9 +18,9 @@ export function PageHead({ title, lead, children }: { title: string; lead?: Reac
 }
 
 /** A heading inside a page. */
-export function SectionTitle({ children, id }: { children: ReactNode; id?: string }) {
+export function SectionTitle({ children, id, tone = "plain" }: { children: ReactNode; id?: string; tone?: "plain" | "danger" }) {
   return (
-    <h2 id={id} className="m-0 text-[13px] font-medium tracking-[0.08em] text-muted uppercase">
+    <h2 id={id} className={`m-0 text-[13px] font-medium tracking-[0.08em] uppercase ${tone === "danger" ? "text-danger" : "text-muted"}`}>
       {children}
     </h2>
   );
