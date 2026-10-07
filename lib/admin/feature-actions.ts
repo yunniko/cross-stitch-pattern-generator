@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import type { FeatureSwitch } from "@/generated/prisma/client";
 import { requireAdmin } from "@/lib/admin/require-admin";
+import { logChange } from "@/lib/admin/change-log-data";
 import { isFeatureIdShape, isFeatureState, type FeatureState } from "@/lib/features/features";
 import { prisma } from "@/lib/prisma";
 
@@ -48,10 +49,6 @@ function checkedEntries(entries: unknown): Array<{ featureId: string; state: Sta
   });
 }
 
-async function log(admin: { id: string; email: string }, scope: string, subject: string, change: string): Promise<void> {
-  await prisma.featureChange.create({ data: { scope, subject, change, byUserId: admin.id, byEmail: admin.email } });
-}
-
 /** The site's states: "on" removes the row, since a feature with no row is on. */
 export async function setSiteFeaturesAction(entries: Array<{ featureId: string; state: StateChoice }>): Promise<ActionResult> {
   return attempt(async () => {
@@ -64,9 +61,10 @@ export async function setSiteFeaturesAction(entries: Array<{ featureId: string; 
           create: { featureId, state: SWITCH[state], updatedBy: admin.email },
           update: { state: SWITCH[state], updatedBy: admin.email },
         });
-      await log(admin, "SITE", "", `${featureId} → ${state === "site" ? "on" : state}`);
+      await logChange(admin, "SITE", "", `${featureId} → ${state === "site" ? "on" : state}`);
     }
     revalidatePath("/admin/features");
+    revalidatePath("/admin/changes");
     revalidatePath("/");
   });
 }
@@ -88,7 +86,7 @@ export async function setUserFeaturesAction(
           create: { userId, featureId, state: SWITCH[state], updatedBy: admin.email },
           update: { state: SWITCH[state], updatedBy: admin.email },
         });
-      await log(admin, "USER", userId, `${user.email}: ${featureId} → ${state === "site" ? "as the site" : state}`);
+      await logChange(admin, "USER", userId, `${user.email}: ${featureId} → ${state === "site" ? "as the site" : state}`);
     }
     revalidatePath(`/admin/users/${userId}/features`);
     revalidatePath("/");
@@ -102,8 +100,9 @@ export async function createFeatureSetAction(name: string): Promise<ActionResult
     const trimmed = name.trim();
     if (!NAME.test(trimmed)) throw new Error("A set needs a name of up to 60 characters.");
     const set = await prisma.featureSet.create({ data: { name: trimmed } });
-    await log(admin, "SET", set.id, `set "${trimmed}" made`);
+    await logChange(admin, "SET", set.id, `set "${trimmed}" made`);
     revalidatePath("/admin/features");
+    revalidatePath("/admin/changes");
     return set.id;
   });
 }
@@ -119,8 +118,9 @@ export async function deleteFeatureSetAction(setId: string): Promise<ActionResul
     if (set.tiers.length > 0) throw new Error("A tier points at this set; detach it first.");
     if (set.audiences.length > 0) throw new Error("Guests or accounts are given this set; choose another for them first.");
     await prisma.featureSet.delete({ where: { id: setId } });
-    await log(admin, "SET", setId, `set "${set.name}" deleted`);
+    await logChange(admin, "SET", setId, `set "${set.name}" deleted`);
     revalidatePath("/admin/features");
+    revalidatePath("/admin/changes");
   });
 }
 
@@ -141,9 +141,10 @@ export async function setFeatureSetEntriesAction(
           create: { setId, featureId, state: SWITCH[state] },
           update: { state: SWITCH[state] },
         });
-      await log(admin, "SET", setId, `set "${set.name}": ${featureId} → ${state === "site" ? "as the site" : state}`);
+      await logChange(admin, "SET", setId, `set "${set.name}": ${featureId} → ${state === "site" ? "as the site" : state}`);
     }
     revalidatePath("/admin/features");
+    revalidatePath("/admin/changes");
     revalidatePath("/");
   });
 }
@@ -154,8 +155,9 @@ export async function createTierAction(name: string): Promise<ActionResult> {
     const trimmed = name.trim();
     if (!NAME.test(trimmed)) throw new Error("A tier needs a name of up to 60 characters.");
     const tier = await prisma.tier.create({ data: { name: trimmed } });
-    await log(admin, "TIER", tier.id, `tier "${trimmed}" made`);
+    await logChange(admin, "TIER", tier.id, `tier "${trimmed}" made`);
     revalidatePath("/admin/features");
+    revalidatePath("/admin/changes");
   });
 }
 
@@ -168,8 +170,9 @@ export async function attachSetToTierAction(tierId: string, setId: string | null
     const set = setId ? await prisma.featureSet.findUnique({ where: { id: setId }, select: { name: true } }) : null;
     if (setId && !set) throw new Error("No such set.");
     await prisma.tier.update({ where: { id: tierId }, data: { featureSetId: setId } });
-    await log(admin, "TIER", tierId, `tier "${tier.name}" → ${set ? `set "${set.name}"` : "no set"}`);
+    await logChange(admin, "TIER", tierId, `tier "${tier.name}" → ${set ? `set "${set.name}"` : "no set"}`);
     revalidatePath("/admin/features");
+    revalidatePath("/admin/changes");
     revalidatePath("/");
   });
 }
@@ -184,8 +187,9 @@ export async function setAudienceSetAction(audience: string, setId: string | nul
     if (setId)
       await prisma.audienceSet.upsert({ where: { audience }, create: { audience, featureSetId: setId }, update: { featureSetId: setId } });
     else await prisma.audienceSet.deleteMany({ where: { audience } });
-    await log(admin, "AUDIENCE", audience, `${audience} → ${set ? `set "${set.name}"` : "no set"}`);
+    await logChange(admin, "AUDIENCE", audience, `${audience} → ${set ? `set "${set.name}"` : "no set"}`);
     revalidatePath("/admin/features");
+    revalidatePath("/admin/changes");
     revalidatePath("/");
   });
 }

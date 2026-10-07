@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
+import { ADMIN_SECTIONS } from "@/lib/admin/sections";
 
-/** Users is the more frequent task of the two admin pages, so the bare index lands there. */
+/** The bare index opens the first section, Overview (G-107 M3). */
 export default function AdminIndexPage() {
-  redirect("/admin/users");
+  redirect(ADMIN_SECTIONS[0].href);
 }

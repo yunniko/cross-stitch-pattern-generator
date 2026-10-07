@@ -11,7 +11,8 @@ import { generateSmallPattern, showWorkspace, chooseExport } from "./helpers/app
  */
 
 async function readCount(page: import("@playwright/test").Page, testId: string): Promise<number> {
-  return Number(await page.getByTestId(testId).textContent());
+  // The cell shows "1 203"; the number itself is its data-count (G-107 M3).
+  return Number(await page.getByTestId(testId).getAttribute("data-count"));
 }
 
 // @alone: these read site-wide counters, so any other spec generating at the same moment moves them. `npm run test:e2e`
@@ -20,7 +21,7 @@ test("generating once and exporting twice moves the stats page's counts by exact
   test.setTimeout(120_000);
 
   await signInAsAdmin(page);
-  await page.goto("/admin/stats");
+  await page.goto("/admin/overview");
   const before = {
     generateToday: await readCount(page, "admin-stats-GENERATE-today"),
     generateAllTime: await readCount(page, "admin-stats-GENERATE-allTime"),
@@ -40,7 +41,7 @@ test("generating once and exporting twice moves the stats page's counts by exact
     expect(download.suggestedFilename()).toMatch(/\.png$/);
   }
 
-  await page.goto("/admin/stats");
+  await page.goto("/admin/overview");
   const after = {
     generateToday: await readCount(page, "admin-stats-GENERATE-today"),
     generateAllTime: await readCount(page, "admin-stats-GENERATE-allTime"),
@@ -58,7 +59,7 @@ test("an anonymous generation and export are still counted, with no userId", { t
   test.setTimeout(120_000);
 
   await signInAsAdmin(page);
-  await page.goto("/admin/stats");
+  await page.goto("/admin/overview");
   const before = {
     generateToday: await readCount(page, "admin-stats-GENERATE-today"),
     exportToday: await readCount(page, "admin-stats-EXPORT-today"),
@@ -73,7 +74,7 @@ test("an anonymous generation and export are still counted, with no userId", { t
   expect(download.suggestedFilename()).toMatch(/\.png$/);
 
   await signInAsAdmin(page);
-  await page.goto("/admin/stats");
+  await page.goto("/admin/overview");
   const after = {
     generateToday: await readCount(page, "admin-stats-GENERATE-today"),
     exportToday: await readCount(page, "admin-stats-EXPORT-today"),

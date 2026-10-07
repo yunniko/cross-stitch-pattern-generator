@@ -31,11 +31,11 @@ test("the admin area: its mark, its sections, and the ways to the account and th
   await signInAsAdmin(page);
   // An admin's account header leads to the admin area.
   await panel.header(page).getByRole("link", { name: "Admin" }).click();
-  await expect(page).toHaveURL(/\/admin\/users$/);
+  await expect(page).toHaveURL(/\/admin\/overview$/);
 
   await expect(panel.header(page).getByText("Admin", { exact: true })).toBeVisible();
-  await expect(panel.adminNav(page).getByRole("link")).toHaveText([/^Users[\d ]+$/, "Stats", "Features"]);
-  await expect(panel.current(page)).toContainText("Users");
+  await expect(panel.adminNav(page).getByRole("link")).toHaveText(["Overview", /^Users[\d ]+$/, "Features", "Change log"]);
+  await expect(panel.current(page)).toHaveText("Overview");
 
   await panel.adminNav(page).getByRole("link", { name: "Features" }).click();
   await expect(page).toHaveURL(/\/admin\/features$/);

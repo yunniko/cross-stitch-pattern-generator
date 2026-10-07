@@ -16,16 +16,24 @@ export interface UsageDay {
   exports: number;
 }
 
-/** The last `days` UTC days, today last, each with its generations and exports; a day with none is there with zeros. */
-export function dailyUsage(events: readonly { kind: "GENERATE" | "EXPORT"; createdAt: Date }[], now: Date, days = 30): UsageDay[] {
+/**
+ * The last `days` UTC days, today last, each with its generations and exports; a day with none is there with zeros. An
+ * event stands for `count` of its kind (1 if not given), so counts already summed per day add the same way.
+ */
+export function dailyUsage(
+  events: readonly { kind: "GENERATE" | "EXPORT"; createdAt: Date; count?: number }[],
+  now: Date,
+  days = 30
+): UsageDay[] {
   const today = usageWindowStarts(now).today.getTime();
   const first = today - (days - 1) * DAY_MS;
   const series: UsageDay[] = Array.from({ length: days }, (_, i) => ({ day: new Date(first + i * DAY_MS), generations: 0, exports: 0 }));
   for (const event of events) {
     const index = Math.floor((event.createdAt.getTime() - first) / DAY_MS);
     if (index < 0 || index >= days) continue;
-    if (event.kind === "GENERATE") series[index].generations += 1;
-    else series[index].exports += 1;
+    const count = event.count ?? 1;
+    if (event.kind === "GENERATE") series[index].generations += count;
+    else series[index].exports += count;
   }
   return series;
 }
@@ -79,4 +87,13 @@ export function exportsByKind(
   return [...rows.values()].sort(
     (a, b) => Number(a.label === NOT_RECORDED) - Number(b.label === NOT_RECORDED) || b.allTime - a.allTime || a.label.localeCompare(b.label)
   );
+}
+
+/** Exports by kind in one window (the admin's Overview): each row's count and its width against the largest, in percent. */
+export function exportMix(
+  rows: readonly { exportKind: string | null; count: number }[]
+): { label: string; count: number; share: number }[] {
+  const merged = exportsByKind([], rows);
+  const most = Math.max(0, ...merged.map((row) => row.allTime));
+  return merged.map((row) => ({ label: row.label, count: row.allTime, share: most === 0 ? 0 : (row.allTime / most) * 100 }));
 }

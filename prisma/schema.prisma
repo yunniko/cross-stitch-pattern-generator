@@ -32,6 +32,9 @@ model User {
   /// Sessions signed in before this moment are ended at their next account recheck (G-113, D345): set when the
   /// password is reset through a mailed link. Null means no session has been ended this way.
   sessionsValidFrom DateTime?
+  /// When a session of this account last re-read it, or signed in (G-107 M3): to the five minutes of the recheck, not
+  /// each request. Null for an account not seen since this was kept.
+  lastSeenAt        DateTime?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
@@ -201,11 +204,11 @@ enum UsageKind {
   EXPORT
 }
 
-/// Every change an admin makes to the switches (G-102 M3): who, when, what. Append-only; the admin's Features page shows
-/// the latest.
+/// Every change an admin makes (G-102 M3; role and login changes too since G-107 M3, D348): who, when, what.
+/// Append-only; the admin's Change log shows it, and the Features page its feature changes.
 model FeatureChange {
   id        String   @id @default(cuid())
-  /// SITE, USER, SET or TIER.
+  /// SITE, USER, SET, TIER or AUDIENCE for the switches; ACCOUNT for a role or a login (`lib/admin/change-log.ts`).
   scope     String
   /// The user id, the set id or the tier id the change was to; empty for the site.
   subject   String   @default("")
@@ -216,4 +219,5 @@ model FeatureChange {
   createdAt DateTime @default(now())
 
   @@index([createdAt])
+  @@index([scope, createdAt])
 }

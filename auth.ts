@@ -26,6 +26,16 @@ export class AddressNotConfirmed extends CredentialsSignin {
 const NO_ACCOUNT_HASH = "$2b$10$/zxnWfHqyXy9rSBY6Se4eekTBUDejGS/CTopeVSWJJ7iAsnOLcgvu";
 
 /**
+ * Keeps the admin's "last seen" (G-107 M3) at sign-in and at each recheck. Not awaited: a slow or failed write is never
+ * why a request waits or a session ends.
+ */
+function markSeen(id: string, now: number): void {
+  prisma.user.updateMany({ where: { id }, data: { lastSeenAt: new Date(now) } }).catch((error: unknown) => {
+    console.error("last-seen write failed:", error);
+  });
+}
+
+/**
  * Accounts (G-075). Stack, session strategy and the admin-bootstrap mechanic are copied from
  * `listing-studio`'s `auth.ts` (D244): the exact same problem, already solved and running in production on
  * this same Next version, so re-deriving it here would only be a chance to get it wrong differently.
@@ -83,6 +93,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.role = user.role;
         token.checkedAt = now;
         token.signedInAt = now;
+        markSeen(user.id as string, now);
         return token;
       }
       if (typeof token.id !== "string") return null;
@@ -95,6 +106,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (!account || sessionEnded(account, signedInAt, mailOn())) return null;
       token.role = account.role;
       token.checkedAt = now;
+      markSeen(token.id, now);
       return token;
     },
     session({ session, token }) {

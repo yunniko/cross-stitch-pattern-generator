@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import type { FeatureState } from "@/lib/features/features";
+import { FEATURE_SCOPES } from "@/lib/admin/change-log";
+import { latestChanges } from "@/lib/admin/change-log-data";
 import { FeaturesAdmin } from "./features-admin";
 
 /**
@@ -22,7 +24,8 @@ export default async function AdminFeaturesPage() {
       orderBy: { name: "asc" },
       select: { id: true, name: true, featureSetId: true, _count: { select: { subscriptions: true } } },
     }),
-    prisma.featureChange.findMany({ orderBy: { createdAt: "desc" }, take: 30 }),
+    // The feature changes only; roles and logins are in the Change log (D348).
+    latestChanges(FEATURE_SCOPES, 30),
     prisma.audienceSet.findMany(),
   ]);
   return (

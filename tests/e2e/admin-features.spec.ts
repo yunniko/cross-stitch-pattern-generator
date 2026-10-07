@@ -138,7 +138,8 @@ test("a set is made, filled and attached to a tier; a person on the tier gets it
 
     // Their own page: On for Fill wins over the tier's set.
     await page.goto("/admin/users?q=" + encodeURIComponent(email));
-    await page.getByTestId("admin-user-row").first().getByRole("link", { name: "Features" }).click();
+    await page.getByTestId("admin-user-row").getByRole("link", { name: email, exact: true }).click();
+    await page.getByTestId("admin-user-panel").getByRole("link", { name: "Edit features" }).click();
     await expect(page.getByTestId("user-tier")).toContainText(`On the tier "${name}"`);
     await expect(page.getByTestId("user-tier")).toContainText(`gives the set "${name}"`);
     await choose(page, "tool.fill", "On");

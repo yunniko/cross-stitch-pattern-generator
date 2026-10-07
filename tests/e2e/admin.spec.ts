@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { ADMIN_EMAIL, READER_PASSWORD, registerReader, signInAsAdmin, uniqueEmail } from "./helpers/auth";
 
 /**
@@ -6,6 +6,12 @@ import { ADMIN_EMAIL, READER_PASSWORD, registerReader, signInAsAdmin, uniqueEmai
  * signed-in non-admin are both turned away), then the admin workflow (search, promote/demote, disable a
  * login and confirm it actually refuses that reader, pagination).
  */
+
+/** Opens a person's side panel from their row (G-107 M3): the role and login actions are there. */
+async function choose(page: Page, email: string) {
+  await page.getByTestId("admin-user-row").getByRole("link", { name: email, exact: true }).click();
+  await expect(page.getByTestId("admin-user-panel")).toContainText(email);
+}
 
 test("an anonymous visitor is redirected away from /admin", async ({ page }) => {
   await page.goto("/admin/users");
@@ -41,6 +47,7 @@ test("the admin can search, promote, demote, and disable a reader's login", asyn
   await page.click('button:has-text("Search")');
   await expect(page.getByTestId("admin-user-row")).toHaveCount(1);
   await expect(page.getByTestId("admin-user-row")).toContainText("USER");
+  await choose(page, target1);
   await page.click('button:has-text("Promote")');
   await expect(page.getByTestId("admin-user-row")).toContainText("ADMIN");
   await page.click('button:has-text("Demote")');
@@ -50,6 +57,7 @@ test("the admin can search, promote, demote, and disable a reader's login", asyn
   await page.fill('input[name="q"]', target2);
   await page.click('button:has-text("Search")');
   await expect(page.getByTestId("admin-user-row")).toContainText("Active");
+  await choose(page, target2);
   await page.click('button:has-text("Disable login")');
   await expect(page.getByTestId("admin-user-row")).toContainText("Disabled");
 
@@ -65,6 +73,7 @@ test("the admin can search, promote, demote, and disable a reader's login", asyn
   await page.goto("/admin/users");
   await page.fill('input[name="q"]', target2);
   await page.click('button:has-text("Search")');
+  await choose(page, target2);
   await page.click('button:has-text("Enable login")');
   await expect(page.getByTestId("admin-user-row")).toContainText("Active");
 
@@ -89,5 +98,5 @@ test("more than a page of accounts shows working pagination", async ({ page }) =
   expect(page2Rows).toBeGreaterThan(0);
 
   await page.click('a:has-text("Previous")');
-  await expect(page).toHaveURL(/page=1/);
+  await expect(page).toHaveURL(/\/admin\/users$/);
 });

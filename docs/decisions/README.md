@@ -383,3 +383,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D345 — A password reset ends every session signed in before it — active
 - D346 — The account and admin areas draw their sidebars from declared section lists — active
 - D347 — Each export's usage event records the kind that was exported — active
+- D348 — Every admin change goes into one change log, and last seen is kept at the account recheck — active

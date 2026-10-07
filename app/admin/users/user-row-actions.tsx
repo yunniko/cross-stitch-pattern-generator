@@ -2,8 +2,9 @@ import { demoteToUserAction, promoteToAdminAction, setUserDisabledAction } from 
 import { PillButton } from "@/app/components/ui";
 
 /**
- * One row's actions (G-075 M3). `own` hides every action for the signed-in admin's own row -- the server
- * actions also refuse self-demotion/self-disable, but there is no reason to show a button that can only fail.
+ * A person's role and login actions (G-075 M3; in the Users side panel since G-107 M3). `own` hides every action for the
+ * signed-in admin's own account -- the server actions also refuse self-demotion/self-disable, but there is no reason to
+ * show a button that can only fail.
  */
 export function UserRowActions({
   userId,
@@ -16,7 +17,7 @@ export function UserRowActions({
   disabled: boolean;
   own: boolean;
 }) {
-  if (own) return <span className="text-xs text-faint">You</span>;
+  if (own) return <span className="text-xs text-faint">You: your own role and login are not changed here.</span>;
 
   return (
     <div className="flex flex-wrap gap-2">

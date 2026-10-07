@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { PillButton } from "@/app/components/ui";
 import {
   attachSetToTierAction,
@@ -73,6 +74,22 @@ export function FeaturesAdmin({ site, sets, tiers, changes, audiences }: Feature
         {tab("tiers", `Tiers (${tiers.length})`)}
         {tab("changes", "Changes")}
       </div>
+      <ol
+        aria-label="Which state wins"
+        className="m-0 flex list-none flex-wrap items-center gap-2 p-0 text-xs"
+        data-testid="feature-ladder"
+      >
+        {["A person's own", "Their tier's set", "The set for guests or accounts", "The site"].map((step, i, steps) => (
+          <li key={step} className="flex items-center gap-2">
+            <span className="rounded-md border border-line px-2 py-0.5 text-ink">{step}</span>
+            {i < steps.length - 1 && (
+              <span aria-hidden="true" className="text-faint">
+                →
+              </span>
+            )}
+          </li>
+        ))}
+      </ol>
       {problem && (
         <p role="alert" className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-[13px] text-danger">
           {problem}
@@ -265,7 +282,13 @@ export function FeaturesAdmin({ site, sets, tiers, changes, audiences }: Feature
 
       {section === "changes" && (
         <div className="flex flex-col gap-2">
-          <p className="m-0 text-[12px] text-muted">The latest thirty changes, newest first.</p>
+          <p className="m-0 text-[12px] text-muted">
+            The latest thirty feature changes, newest first. Every admin change, roles and logins too, is in the{" "}
+            <Link href="/admin/changes" className="text-accent hover:underline">
+              Change log
+            </Link>
+            .
+          </p>
           {changes.length === 0 ? (
             <p className="m-0 text-[13px] text-muted">No change yet.</p>
           ) : (
