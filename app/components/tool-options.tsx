@@ -7,7 +7,8 @@ import { SegmentedControl } from "./ui";
 
 /**
  * The options of the tool in hand (G-093): drawn from what the tool declares, with nothing here that knows a tool or an
- * option by name. Options with one heading are drawn together under it.
+ * option by name. Options with one heading are drawn together; the heading names the group for a screen reader but is
+ * not written on the bar (Owner, 2026-10-07, G-118: the bar shows controls, not their names).
  */
 export interface ToolOptionsProps {
   options: readonly ToolOption[];
@@ -62,7 +63,7 @@ function Control({ option, value, onChange }: { option: ToolOption; value: Optio
             type="button"
             role="radio"
             aria-checked={value === candidate}
-            aria-label={title}
+            aria-label={shown(candidate)?.name ?? title}
             title={title}
             onClick={() => onChange(candidate)}
             className={`flex h-6 w-7 items-center justify-center rounded-md transition-colors ${
@@ -90,7 +91,6 @@ export function ToolOptions({ options, valueOf, onChange }: ToolOptionsProps) {
         <Fragment key={group.name}>
           {group.separated && <div className="h-5 w-px shrink-0 bg-line" aria-hidden="true" />}
           <div className="flex shrink-0 items-center gap-1.5" role="group" aria-label={group.name}>
-            <span className="text-[11px] font-medium tracking-wider text-muted uppercase">{group.name}</span>
             {group.options.map((option) => (
               <Control key={option.id} option={option} value={valueOf(option)} onChange={(value) => onChange(option, value)} />
             ))}

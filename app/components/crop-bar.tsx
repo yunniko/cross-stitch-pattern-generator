@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { formatFinishedSize, type SizeUnit } from "@/lib/export/finished-size";
 import { parseInset, type CropEdge, type CropInsets } from "@/lib/editor/crop-frame";
 import { PillButton } from "./ui";
-import { PINNED_END } from "./panels";
+import { PinnedEnd } from "./pinned-end";
 
 /**
  * The Crop tool's parameters (G-089): the four numbers that used to sit in the Chart tab's Canvas group, now one value with the
@@ -160,7 +160,7 @@ export function CropBar({
           )}
         </span>
       </div>
-      <div className={PINNED_END}>
+      <PinnedEnd>
         <PillButton size="xs" onClick={onCancel} disabled={!changed} title="Put the frame back over the whole chart (Escape)">
           Cancel
         </PillButton>
@@ -173,7 +173,7 @@ export function CropBar({
         >
           Apply
         </PillButton>
-      </div>
+      </PinnedEnd>
     </div>
   );
 }

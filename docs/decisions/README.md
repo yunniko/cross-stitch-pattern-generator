@@ -374,3 +374,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D336 — HSTS and a frame-ancestors-only Content-Security-Policy on every response — active
 - D337 — The database publishes a host port only in `docker-compose.dev.yml`; production's password comes from `.env` — active
 - D338 — The Prisma CLI's remaining dev-dependency advisories are accepted rather than downgrading to Prisma 6 — active
+- D339 — The quick bar shows controls, not names; committing controls sit in a slot after its track — active

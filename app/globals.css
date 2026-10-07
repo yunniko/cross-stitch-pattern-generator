@@ -134,6 +134,11 @@ body {
   display: none;
 }
 
+/* A divider parts two groups, so none opens the track: the tool's name before the first one is not drawn (G-118). */
+.at-tool-track > .sr-only:first-child + .at-divider {
+  display: none;
+}
+
 /* The grid the chart floats on: two hairline rulings on the well colour, as 1b draws the canvas area. */
 .at-well {
   background-color: var(--at-well);

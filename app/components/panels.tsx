@@ -1,5 +1,6 @@
 import type { ProjectLoadFailure } from "@/lib/editor/project-store";
 import { NoticeBar, PillButton } from "./ui";
+import { PinnedEnd } from "./pinned-end";
 
 export interface WorkspaceNoticesProps {
   restoreFailure: ProjectLoadFailure | null;
@@ -68,9 +69,6 @@ export function WorkspaceNotices({
   );
 }
 
-/** The end of a tool's own controls that stays in view while the rest scrolls under it in a narrow window (as D213): the pair that commits. */
-export const PINNED_END = "sticky right-0 z-10 flex shrink-0 items-center gap-1.5 bg-surface pl-2";
-
 export interface BackstitchBarProps {
   /** How many lines are in hand; every action but Paste needs at least one. */
   selectedCount: number;
@@ -113,7 +111,6 @@ export function BackstitchBar({
   const none = selectedCount === 0;
   return (
     <div className="flex min-w-max flex-1 items-center gap-2.5" data-testid="backstitch-bar">
-      <span className="text-[11px] font-medium tracking-wider text-muted uppercase">Backstitch</span>
       <span className="font-mono text-xs whitespace-nowrap text-muted">{none ? "none selected" : `${selectedCount} selected`}</span>
       <div className="flex items-center gap-1.5">
         <PillButton size="xs" onClick={onCopy} disabled={none} title="Copy the selected line">
@@ -153,11 +150,11 @@ export function BackstitchBar({
       <PillButton size="xs" onClick={onDelete} disabled={none} title="Delete the selected line (Delete)">
         Delete
       </PillButton>
-      <div className={`ml-auto ${PINNED_END}`}>
+      <PinnedEnd>
         <PillButton size="xs" onClick={onDeselect} disabled={none} title="Escape">
           Deselect
         </PillButton>
-      </div>
+      </PinnedEnd>
     </div>
   );
 }

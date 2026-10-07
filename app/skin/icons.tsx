@@ -309,6 +309,63 @@ export const INTERFACE_ICONS = {
       <rect x="8" y="8" width="8" height="8" strokeDasharray="2.5 2" />
     </>
   ),
+  /**
+   * How a click finds its region (G-118, the Region switches as pictures). One language for all four: a filled stitch is in
+   * the region, a hollow one is not. Diagonal: the eight around the middle; Edges only: the four that share a side.
+   */
+  "region-diagonal": outline(
+    "h-3.5 w-3.5",
+    1.5,
+    <g fill="currentColor">
+      <rect x="2.5" y="2.5" width="5.5" height="5.5" rx="0.8" />
+      <rect x="9.25" y="2.5" width="5.5" height="5.5" rx="0.8" />
+      <rect x="16" y="2.5" width="5.5" height="5.5" rx="0.8" />
+      <rect x="2.5" y="9.25" width="5.5" height="5.5" rx="0.8" />
+      <rect x="9.25" y="9.25" width="5.5" height="5.5" rx="0.8" />
+      <rect x="16" y="9.25" width="5.5" height="5.5" rx="0.8" />
+      <rect x="2.5" y="16" width="5.5" height="5.5" rx="0.8" />
+      <rect x="9.25" y="16" width="5.5" height="5.5" rx="0.8" />
+      <rect x="16" y="16" width="5.5" height="5.5" rx="0.8" />
+    </g>
+  ),
+  "region-edges": outline(
+    "h-3.5 w-3.5",
+    1.5,
+    <>
+      <g fill="currentColor">
+        <rect x="9.25" y="2.5" width="5.5" height="5.5" rx="0.8" />
+        <rect x="2.5" y="9.25" width="5.5" height="5.5" rx="0.8" />
+        <rect x="9.25" y="9.25" width="5.5" height="5.5" rx="0.8" />
+        <rect x="16" y="9.25" width="5.5" height="5.5" rx="0.8" />
+        <rect x="9.25" y="16" width="5.5" height="5.5" rx="0.8" />
+      </g>
+      <g strokeWidth="1.1">
+        <rect x="3" y="3" width="4.5" height="4.5" rx="0.8" />
+        <rect x="16.5" y="3" width="4.5" height="4.5" rx="0.8" />
+        <rect x="3" y="16.5" width="4.5" height="4.5" rx="0.8" />
+        <rect x="16.5" y="16.5" width="4.5" height="4.5" rx="0.8" />
+      </g>
+    </>
+  ),
+  /** A whole stitch and a half stitch of one colour: Color and type takes only the whole one, Color only takes both. */
+  "region-color-and-type": outline(
+    "h-3.5 w-3.5",
+    1.6,
+    <>
+      <rect x="2" y="6" width="10" height="10" rx="1" fill="currentColor" />
+      <path d="M14 16 L22 16 L22 8 Z" />
+    </>
+  ),
+  "region-color-only": outline(
+    "h-3.5 w-3.5",
+    1.6,
+    <>
+      <rect x="2" y="6" width="10" height="10" rx="1" fill="currentColor" />
+      <path d="M14 16 L22 16 L22 8 Z" fill="currentColor" />
+    </>
+  ),
+  /** Swap the two drawing colours (X). */
+  "swap-colours": outline("h-3.5 w-3.5", 1.8, <path d="M7 4 4 7l3 3M4 7h11a4 4 0 0 1 4 4v1M17 20l3-3-3-3M20 17H9a4 4 0 0 1-4-4v-1" />),
 } as const satisfies Record<string, IconComponent>;
 
 export type InterfaceIconName = keyof typeof INTERFACE_ICONS;

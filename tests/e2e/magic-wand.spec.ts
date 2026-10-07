@@ -59,24 +59,24 @@ test("W takes the wand; it offers the selection modes, Invert and its own region
   await expect(tool(page, "Magic wand")).toHaveAttribute("aria-pressed", "true");
   await expect(selectionMode(page, "Select")).toHaveAttribute("aria-checked", "true");
   await expect(selectionAction(page, "Invert selection")).toBeEnabled();
-  await expect(regionSwitch(page, "Diagonal neighbours", "Diagonal")).toHaveAttribute("aria-pressed", "true");
-  await expect(regionSwitch(page, "Color only", "Color and type")).toHaveAttribute("aria-pressed", "true");
+  await expect(regionSwitch(page, "Diagonal neighbours", "Diagonal")).toHaveAttribute("aria-checked", "true");
+  await expect(regionSwitch(page, "Color only", "Color and type")).toHaveAttribute("aria-checked", "true");
 
   await regionSwitch(page, "Diagonal neighbours", "Edges only").click();
   await regionSwitch(page, "Color only", "Color only").click();
   await pickTool(page, "Fill");
   await expect(regionSwitch(page, "Diagonal neighbours", "Diagonal"), "Fill's own switch is untouched").toHaveAttribute(
-    "aria-pressed",
+    "aria-checked",
     "true"
   );
-  await expect(regionSwitch(page, "Color only", "Color and type")).toHaveAttribute("aria-pressed", "true");
+  await expect(regionSwitch(page, "Color only", "Color and type")).toHaveAttribute("aria-checked", "true");
 
   await waitForAutosave(page);
   await page.reload();
   await expect(page.getByTestId("chart-frame")).toBeVisible();
   await pickTool(page, "Magic wand");
-  await expect(regionSwitch(page, "Diagonal neighbours", "Edges only")).toHaveAttribute("aria-pressed", "true");
-  await expect(regionSwitch(page, "Color only", "Color only")).toHaveAttribute("aria-pressed", "true");
+  await expect(regionSwitch(page, "Diagonal neighbours", "Edges only")).toHaveAttribute("aria-checked", "true");
+  await expect(regionSwitch(page, "Color only", "Color only")).toHaveAttribute("aria-checked", "true");
 });
 
 for (const diagonal of ["Diagonal", "Edges only"] as const) {

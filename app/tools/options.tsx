@@ -19,8 +19,11 @@ export interface ToolOption<V extends OptionValue = OptionValue> extends ToolOpt
   title?: string;
   /** A list to pick from, a row of labelled segments, or a row of pictured choices. */
   control: "select" | "segments" | "icons";
-  /** How each value is shown; a value with none is shown as itself. */
-  choices?: readonly { value: V; label: ReactNode; title?: string }[];
+  /**
+   * How each value is shown; a value with none is shown as itself. `name` is a pictured choice's short accessible name,
+   * where its title is a sentence.
+   */
+  choices?: readonly { value: V; label: ReactNode; title?: string; name?: string }[];
   /** A hairline before its group, where the design sets it apart. */
   separated?: boolean;
 }
@@ -114,13 +117,14 @@ function regionSwitches(
       group: "Region",
       label: "Diagonal neighbours",
       title: words.diagonal.title,
-      control: "segments",
+      // Pictures, not words, on the bar (Owner, 2026-10-07, G-118); the words stay as each choice's name and title.
+      control: "icons",
       values: ["on", "off"],
       defaultValue: "on",
       separated: true,
       choices: [
-        { value: "on", label: "Diagonal", title: words.diagonal.on },
-        { value: "off", label: "Edges only", title: words.diagonal.off },
+        { value: "on", label: <SkinIcon name="region-diagonal" />, name: "Diagonal", title: words.diagonal.on },
+        { value: "off", label: <SkinIcon name="region-edges" />, name: "Edges only", title: words.diagonal.off },
       ],
     },
     colorOnly: {
@@ -128,12 +132,12 @@ function regionSwitches(
       group: "Region",
       label: "Color only",
       title: words.colorOnly.title,
-      control: "segments",
+      control: "icons",
       values: ["off", "on"],
       defaultValue: "off",
       choices: [
-        { value: "off", label: "Color and type", title: words.colorOnly.off },
-        { value: "on", label: "Color only", title: words.colorOnly.on },
+        { value: "off", label: <SkinIcon name="region-color-and-type" />, name: "Color and type", title: words.colorOnly.off },
+        { value: "on", label: <SkinIcon name="region-color-only" />, name: "Color only", title: words.colorOnly.on },
       ],
     },
   };

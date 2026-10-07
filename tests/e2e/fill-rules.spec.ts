@@ -22,8 +22,8 @@ async function twoRows(page: Page) {
 
 test("Fill keeps to the pressed stitch's type, and its switches are offered and kept across a reload", async ({ page }) => {
   await twoRows(page);
-  await expect(regionSwitch(page, "Diagonal neighbours", "Diagonal")).toHaveAttribute("aria-pressed", "true");
-  await expect(regionSwitch(page, "Color only", "Color and type")).toHaveAttribute("aria-pressed", "true");
+  await expect(regionSwitch(page, "Diagonal neighbours", "Diagonal")).toHaveAttribute("aria-checked", "true");
+  await expect(regionSwitch(page, "Color only", "Color and type")).toHaveAttribute("aria-checked", "true");
 
   await takeEmpty(page);
   await click(page, 1, 2);
@@ -54,8 +54,8 @@ test("Fill keeps to the pressed stitch's type, and its switches are offered and 
   await page.reload();
   await expect(page.getByTestId("chart-frame")).toBeVisible();
   await pickTool(page, "Fill");
-  await expect(regionSwitch(page, "Diagonal neighbours", "Edges only")).toHaveAttribute("aria-pressed", "true");
-  await expect(regionSwitch(page, "Color only", "Color only")).toHaveAttribute("aria-pressed", "true");
+  await expect(regionSwitch(page, "Diagonal neighbours", "Edges only")).toHaveAttribute("aria-checked", "true");
+  await expect(regionSwitch(page, "Color only", "Color only")).toHaveAttribute("aria-checked", "true");
 });
 
 test("Color only fills the colour across stitch types and keeps each stitch's type", async ({ page }) => {

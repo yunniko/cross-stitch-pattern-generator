@@ -2,11 +2,13 @@
 
 import { rgbToHex } from "@/lib/color/color";
 import { EMPTY_CELL, type PaletteColor } from "@/lib/types";
+import { SkinIcon } from "../skin/skin";
 
 /**
  * The foreground and background a chart is drawn with (G-064), as an image editor shows them: two squares, one over
  * the other, in fixed places. Clicking the one behind makes it the foreground; neither square moves, only which is
- * drawn on top. A left press on the chart paints with the front one, a right press with the one behind.
+ * drawn on top. A left press on the chart paints with the front one, a right press with the one behind. The threads'
+ * names are not written beside them (Owner, 2026-10-07, G-118): each square names its thread on hover.
  */
 
 const EMPTY_SWATCH =
@@ -57,23 +59,21 @@ export function ColorPair({ pattern, slots, onActivate, onSwap }: ColorPairProps
   };
 
   return (
-    <div className="flex shrink-0 items-center gap-2.5">
+    <div className="flex shrink-0 items-center gap-1">
       <div className="relative h-[26px] w-[26px] shrink-0" role="group" aria-label="Drawing colours">
         {/* The one behind is painted first so the active one sits over it. */}
         {square(back)}
         {square(front)}
       </div>
-      <div className="flex flex-col leading-tight">
-        <span className="max-w-[10rem] truncate text-[13px]">{swatchColor(pattern, slots[front]).label}</span>
-        <button
-          type="button"
-          onClick={onSwap}
-          title="Swap the two colours — X"
-          className="max-w-[10rem] truncate text-left text-[11px] text-muted transition-colors hover:text-ink"
-        >
-          {swatchColor(pattern, slots[back]).label}
-        </button>
-      </div>
+      <button
+        type="button"
+        onClick={onSwap}
+        aria-label="Swap the two colours"
+        title="Swap the two colours — X"
+        className="flex h-6 w-6 items-center justify-center rounded-md text-muted transition-colors hover:bg-raised hover:text-ink"
+      >
+        <SkinIcon name="swap-colours" />
+      </button>
     </div>
   );
 }

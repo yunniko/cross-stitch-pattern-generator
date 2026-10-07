@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { GROUP_LABEL, PillButton } from "./ui";
-import { PINNED_END } from "./panels";
+import { PinnedEnd } from "./pinned-end";
 import { SkinIcon } from "../skin/skin";
 import type { InterfaceIconName } from "../skin/icons";
 
@@ -177,11 +177,11 @@ function ActionButton({ action, wide }: { action: Action; wide: boolean }): Reac
 export function SelectionFinish(props: SelectionActionsProps) {
   const finish = groups(props).at(-1)!;
   return (
-    <div className={`ml-auto ${PINNED_END}`} data-testid="selection-bar">
+    <PinnedEnd testId="selection-bar">
       {finish.actions.map((action) => (
         <ActionButton key={action.label} action={action} wide={false} />
       ))}
-    </div>
+    </PinnedEnd>
   );
 }
 

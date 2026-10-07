@@ -93,4 +93,4 @@ export const selectionMode = (page: Page, name: "Select" | "Select +" | "Select 
 
 /** One choice of a region switch, Fill's or the Magic wand's, whichever tool is in hand (G-115, G-116). */
 export const regionSwitch = (page: Page, group: "Diagonal neighbours" | "Color only", choice: string) =>
-  page.getByRole("group", { name: group }).getByRole("button", { name: choice, exact: true });
+  page.getByRole("radiogroup", { name: group }).getByRole("radio", { name: choice, exact: true });

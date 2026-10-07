@@ -48,7 +48,8 @@ Lasso and Lasso fill smooth the wobble of a hand-drawn line and close the loop; 
 | **Left press** paints with the foreground; **right press** with the background. A stroke keeps the colour it started with |
 | **Pick** | The Picker (I, or Alt held with a tool that paints) takes a colour off the chart: a left press as the foreground, a right press as the background |
 | **Choose** | A press on a thread's entry in the thread list makes it the foreground (a second press on the same entry releases it: no colour in hand); a right press on a entry loads the background and does not change which is in front; a press on the background square makes it the foreground |
-| **Swap** | Action, key **X**: swaps the roles without moving either colour |
+| **Swap** | Action, key **X**, also offered with the pair: swaps the roles without moving either colour |
+| **Names** | Each colour's square gives its thread's name when pointed at; the names are not written beside the pair (Owner, 2026-10-07) |
 | **Empty stitch as colour** | "Empty (no stitch)" is chosen like a thread and paints stitches away |
 | **Unavailable states** | With no colour in hand (shown as "No thread chosen"), tools that paint do nothing, except the Brush, which sets the stitch type; a colour that has been merged away counts as no colour in hand |
 | **Kept** | Not kept |
@@ -76,8 +77,8 @@ Choosing any tool other than Pan or Zoom drops the frame without changing the ch
 | **Brush shape** | **Round** (the disc that fits the size) or **Square** (the whole block) | Round | Browser | With brush size |
 | **Shape fill** | **Outline** or **Filled** | Outline | Browser | Only with Rectangle and Oval |
 | **Stitch type** | **Whole stitch**, **Half stitch "/"**, **Half stitch "\\"** (three exclusive choices, each shown as the shape of the stitch) | Whole | Browser | Only with Brush, Fill, Line, Rectangle, Oval and Lasso fill. Each cell holds one kind. See `06` |
-| **Diagonal neighbours** | **Diagonal** (stitches touching at a corner are filled too) or **Edges only** (only above, below, left and right) | Diagonal | Browser | Only with Fill |
-| **Color only** | **Color and type** (the region is one colour and one stitch type, and gets the stitch type chosen) or **Color only** (the region is one colour of any type; each stitch keeps its type; an empty stitch stays whole) | Color and type | Browser | Only with Fill |
+| **Diagonal neighbours** | **Diagonal** (stitches touching at a corner are filled too) or **Edges only** (only above, below, left and right), each shown as a picture of the stitches it reaches and named when pointed at | Diagonal | Browser | Only with Fill |
+| **Color only** | **Color and type** (the region is one colour and one stitch type, and gets the stitch type chosen) or **Color only** (the region is one colour of any type; each stitch keeps its type; an empty stitch stays whole), each shown as a picture and named when pointed at | Color and type | Browser | Only with Fill |
 | **Zoom direction** | **In** (a press zooms in) or **Out** (a press zooms out) | In | Browser | Only with Zoom |
 
 **Outline of what a press will cover:** under the pointer, the stitches the tool in hand would cover are outlined, in the brush's size and shape (a disc for round, a block for square; one stitch for a filled rectangle or oval, whatever the brush size); it follows the pointer and leaves with it; the system pointer is hidden over the chart for these tools, and a small dot marks the exact place in the outlined stitch.

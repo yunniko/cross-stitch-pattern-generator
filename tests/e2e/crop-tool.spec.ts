@@ -194,7 +194,8 @@ test("Apply and Cancel stay in view in a narrow window", async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 700 });
   await openTool(page);
   await field(page, "Left").fill("2");
-  const bar = (await page.getByTestId("crop-bar").boundingBox())!;
+  // They sit in the bar's own end, beside the scrolling options (G-118), so the bar is what they must stay inside.
+  const bar = (await page.getByTestId("quick-bar").boundingBox())!;
   for (const name of ["Apply", "Cancel"]) {
     const box = (await page.getByRole("button", { name }).boundingBox())!;
     expect(box.x + box.width).toBeLessThanOrEqual(bar.x + bar.width);

@@ -31,6 +31,9 @@ seen to find it".
    and Export-then-start-new are Export's; Choose a photo, a dropped photo and Generate are Photo's; Continue in Edit is
    Edit's. Undo, Redo and the starting choices other than a photo belong to none and stay. A new control or command names
    its workspace; `commandGate` and `gatedAction` read that switch before the control's own.
+8. **Q shows controls, not names** (Owner, 2026-10-07, G-118, D339): no tool name, no group headings and no thread names on
+   it; each control carries its name for a screen reader and as a title. What commits the tool's work (Apply here, Cancel,
+   Crop's pair, Deselect) sits in Q's end, after the options and never over them. Panels and tabs keep their headings.
 
 ## Every control, by scope
 
@@ -68,7 +71,7 @@ tabs while its tool is in hand; **X** the Export workspace's panel; **Pr** Prefe
 | Stitch type (`06`) | Tool (painting tools) | Q, with those tools | Yes |
 | Lock transparency (`04`) | Tool (those that paint) | Q, with the tools that declare it | Yes |
 | Symmetry axes (`04`) | Tool modifier; saved in the chart | Q, with the tools that declare it | Yes |
-| Selection actions: invert, copy … crop to selection, apply, cancel (`04`) | Selection | Tt, the Selection tab of Select, Lasso and the Magic wand, in groups; apply and cancel also on Q, in view when it is narrow (D333) | Yes, by the Owner's decision (2026-10-07): the bar had no room beside the wand's switches; by rule 1 alone they would be on Q |
+| Selection actions: invert, copy … crop to selection, apply, cancel (`04`) | Selection | Tt, the Selection tab of Select, Lasso and the Magic wand, in groups; apply and cancel also on Q, in its end (D333, D339) | Yes, by the Owner's decision (2026-10-07): the bar had no room beside the wand's switches; by rule 1 alone they would be on Q |
 | Backstitch-edit actions (`06`) | Selection (lines in hand) | Q, as above | Yes |
 | Crop numbers, Apply, Cancel (`04`) | Tool (Crop) | Q | Yes |
 | Text: font, size, weight, colour, text, preview, Add (`07`) | Tool (Text) | Tt | Yes |

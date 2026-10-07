@@ -435,7 +435,7 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | G-114 | internal | draft: backups |
 | G-116 | 04-editing | selection modes, Invert, the Magic wand |
 | G-117 | internal | security fixes; the sign-in message is accounts (out of scope) |
-| G-118 | this goal | draft: the quick bar fits every tool at every desktop width |
+| G-118 | 04-editing | the two colours, the Region switches (where the bar shows them: docs/interface-placement.md); the quick bar fits every tool at every desktop width; M1 takes the names off it |
 | D308 | 01-overview | the version shown |
 | D309 | internal | |
 | D310 | 01-overview | "What's new" |
@@ -467,3 +467,4 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | D336 | internal | |
 | D337 | internal | |
 | D338 | internal | |
+| D339 | 04-editing | the two colours, the Region switches (where: docs/interface-placement.md) |
