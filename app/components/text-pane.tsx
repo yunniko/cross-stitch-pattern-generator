@@ -19,7 +19,7 @@ import {
 import type { StitchPattern } from "@/lib/types";
 import type { ReadyLettering } from "../tools/text";
 import type { ChangeTextSetting, TextSettings } from "../tools/types";
-import { PillButton } from "./ui";
+import { GROUP_LABEL, PillButton } from "./ui";
 
 /**
  * The Text tool's tab (G-081; the tool's own tab since G-095): one line of lettering from a font on the Owner's own computer, shown cell by cell before it goes on
@@ -29,7 +29,6 @@ import { PillButton } from "./ui";
  * what is seen is what will be stitched. The warnings under it come from the legibility review.
  */
 
-const GROUP_LABEL = "text-[11px] font-medium uppercase tracking-[0.08em] text-muted";
 const FIELD = "w-full rounded-lg border border-line bg-sunken px-2.5 py-1.5 text-[13px] text-ink";
 const STEP = "h-7 w-7 rounded-md border border-line text-sm text-ink hover:bg-sunken disabled:opacity-40";
 const WEIGHT_STEP = 5;

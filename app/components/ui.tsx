@@ -22,6 +22,9 @@ type PillSize = "xs" | "sm" | "md" | "lg";
 export const DISABLED_ICON = "disabled:cursor-not-allowed disabled:opacity-40";
 export const DISABLED_TEXT = "disabled:cursor-not-allowed disabled:text-faint";
 
+/** The small capitals that head a group of controls in a panel pane. */
+export const GROUP_LABEL = "text-[11px] font-medium uppercase tracking-[0.08em] text-muted";
+
 const PILL_BASE = `rounded-md font-medium transition-colors ${DISABLED_TEXT}`;
 const PILL_VARIANTS: Record<PillVariant, string> = {
   outline: "border border-line text-ink enabled:hover:bg-raised",

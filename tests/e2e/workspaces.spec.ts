@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import { FIXTURE, expectPhotoLoaded, generateAndWait, openSmallChart, pickTool, saveButton, showWorkspace } from "./helpers/app";
+import { selectionFinish } from "./helpers/selection";
 
 /**
  * G-095 M3, D297: the three workspaces, and what belongs to none of them. Photo makes the chart, Edit changes it, Export
@@ -72,7 +73,7 @@ test("each workspace keeps its own tool in hand, and a piece in hand in Edit is 
   await page.mouse.down();
   await page.mouse.move(box.x + 120, box.y + 100, { steps: 4 });
   await page.mouse.up();
-  await expect(tool(page, "Apply here")).toBeEnabled();
+  await expect(selectionFinish(page, "Apply here")).toBeEnabled();
 
   await showWorkspace(page, "Export");
   await pickTool(page, "Zoom");
@@ -84,7 +85,7 @@ test("each workspace keeps its own tool in hand, and a piece in hand in Edit is 
   // Looking at the other two applied nothing: the piece is in hand, and Undo still waits for it.
   await showWorkspace(page, "Edit");
   await expect(tool(page, "Select")).toHaveAttribute("aria-pressed", "true");
-  await expect(tool(page, "Apply here")).toBeEnabled();
+  await expect(selectionFinish(page, "Apply here")).toBeEnabled();
   await expect(tool(page, "Undo")).toBeDisabled();
 });
 

@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { openSmallChart } from "./helpers/app";
+import { selectionFinish } from "./helpers/selection";
 
 /**
  * Owner, 2026-09-23: with a selection in hand, pressing New chart left the selection's own bar on screen. That bar
@@ -26,7 +27,7 @@ async function generateAndSelect(page: Page) {
   await page.mouse.down();
   await page.mouse.move(box.x + cell * 7.5, box.y + cell * 5.5, { steps: 4 });
   await page.mouse.up();
-  await expect(page.getByRole("button", { name: "Apply here" })).toBeEnabled();
+  await expect(selectionFinish(page, "Apply here")).toBeEnabled();
 }
 
 test("the start screen's own bar replaces the selection bar, and the chart can be returned to", async ({ page }) => {
@@ -37,12 +38,12 @@ test("the start screen's own bar replaces the selection bar, and the chart can b
 
   // The start screen owns the bar while it is up: its way back is reachable, the selection's actions are not.
   await expect(page.getByRole("button", { name: /^Back to / })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Apply here" })).toHaveCount(0);
+  await expect(selectionFinish(page, "Apply here")).toHaveCount(0);
   await expect(page.getByText("New chart", { exact: true })).toBeVisible();
 
   // And going back puts the selection back exactly as it was, rather than quietly dropping it.
   await page.getByRole("button", { name: /^Back to / }).click();
-  await expect(page.getByRole("button", { name: "Apply here" })).toBeEnabled();
+  await expect(selectionFinish(page, "Apply here")).toBeEnabled();
   expect(errors).toEqual([]);
 });
 
@@ -59,5 +60,5 @@ test("a chart started from the start screen keeps none of the previous selection
   await expect(page.getByTestId("chart-frame")).toBeVisible();
   await expect(page.getByText(/30 × 20, 0 stitches, 0 colors/)).toBeVisible();
   // Select is still the tool, so its bar is here — but holding nothing: the old chart's piece did not come along.
-  await expect(page.getByRole("button", { name: "Apply here" })).toBeDisabled();
+  await expect(selectionFinish(page, "Apply here")).toBeDisabled();
 });

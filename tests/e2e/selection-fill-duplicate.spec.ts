@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import { openSmallChart, saveButton } from "./helpers/app";
+import { clickSelectionAction, selectionAction, selectionFinish, showSelectionTab } from "./helpers/selection";
 
 /** G-063: the Fill and Duplicate buttons, through the real UI (Owner, 2026-09-23). */
 
@@ -40,7 +41,7 @@ async function generateAndSelect(page: Page) {
   await page.mouse.down();
   await page.mouse.move(box.x + cell * 9.5, box.y + cell * 6.5, { steps: 4 });
   await page.mouse.up();
-  await expect(page.getByRole("button", { name: "Apply here" })).toBeEnabled();
+  await expect(selectionFinish(page, "Apply here")).toBeEnabled();
   return { box, cell };
 }
 
@@ -48,16 +49,18 @@ test("Fill paints the selected area in the brush's colour and leaves it floating
   await generateAndSelect(page);
   await pickFirstThread(page);
 
-  await expect(page.getByRole("button", { name: "Fill selection", exact: true })).toBeEnabled();
-  await page.getByRole("button", { name: "Fill selection", exact: true }).click();
+  // Picking the thread showed the Threads tab; the actions are in the Selection tab.
+  await showSelectionTab(page);
+  await expect(selectionAction(page, "Fill selection")).toBeEnabled();
+  await clickSelectionAction(page, "Fill selection");
 
   // Still in hand: it can be moved, applied or cancelled exactly as before.
-  await expect(page.getByRole("button", { name: "Apply here" })).toBeEnabled();
-  await expect(page.getByRole("button", { name: "Cancel" })).toBeEnabled();
+  await expect(selectionFinish(page, "Apply here")).toBeEnabled();
+  await expect(selectionFinish(page, "Cancel")).toBeEnabled();
 
   // Cancelling puts back whatever the fill covered, so the fill really was only in the floating piece.
   const before = await colourCount(page);
-  await page.getByRole("button", { name: "Cancel" }).click();
+  await selectionFinish(page, "Cancel").click();
   expect(await colourCount(page)).toBe(before);
 });
 
@@ -70,9 +73,9 @@ test("Fill then Apply leaves one flat block in the chart, and Undo takes it back
   // `generateAndSelect` drags from stitch (2, 2) to (9, 6).
   const [w, h, x, y] = [8, 5, 2, 2];
 
-  await page.getByRole("button", { name: "Fill selection", exact: true }).click();
+  await clickSelectionAction(page, "Fill selection");
   await page.keyboard.press("Enter");
-  await expect(page.getByRole("button", { name: "Apply here" })).toBeDisabled();
+  await expect(selectionFinish(page, "Apply here")).toBeDisabled();
 
   const filled = await exportChart(page);
   const inRect: number[] = [];
@@ -89,15 +92,15 @@ test("Fill then Apply leaves one flat block in the chart, and Undo takes it back
 test("Duplicate leaves the original and puts a copy in hand, which Paste can repeat", async ({ page }) => {
   await generateAndSelect(page);
 
-  await expect(page.getByRole("button", { name: "Duplicate" })).toBeEnabled();
-  await page.getByRole("button", { name: "Duplicate" }).click();
+  await expect(selectionAction(page, "Duplicate")).toBeEnabled();
+  await clickSelectionAction(page, "Duplicate");
 
   // A piece is still in hand -- the copy -- and the clipboard now holds it, so Paste is live without a Copy press.
-  await expect(page.getByRole("button", { name: "Apply here" })).toBeEnabled();
-  await expect(page.getByRole("button", { name: "Paste" })).toBeEnabled();
+  await expect(selectionFinish(page, "Apply here")).toBeEnabled();
+  await expect(selectionAction(page, "Paste")).toBeEnabled();
 
   await page.keyboard.press("Enter");
-  await expect(page.getByRole("button", { name: "Apply here" })).toBeDisabled();
+  await expect(selectionFinish(page, "Apply here")).toBeDisabled();
 });
 
 test("Fill is unavailable while the brush holds no colour", async ({ page }) => {
@@ -118,6 +121,6 @@ test("Fill is unavailable while the brush holds no colour", async ({ page }) => 
   await page.mouse.move(box.x + cell * 9.5, box.y + cell * 6.5, { steps: 4 });
   await page.mouse.up();
 
-  await expect(page.getByRole("button", { name: "Apply here" })).toBeEnabled();
-  await expect(page.getByRole("button", { name: "Fill selection", exact: true })).toBeDisabled();
+  await expect(selectionFinish(page, "Apply here")).toBeEnabled();
+  await expect(selectionAction(page, "Fill selection")).toBeDisabled();
 });

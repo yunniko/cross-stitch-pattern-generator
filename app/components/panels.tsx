@@ -1,6 +1,5 @@
 import type { ProjectLoadFailure } from "@/lib/editor/project-store";
 import { NoticeBar, PillButton } from "./ui";
-import { SkinIcon } from "../skin/skin";
 
 export interface WorkspaceNoticesProps {
   restoreFailure: ProjectLoadFailure | null;
@@ -71,27 +70,6 @@ export function WorkspaceNotices({
 
 /** The end of a tool's own controls that stays in view while the rest scrolls under it in a narrow window (as D213): the pair that commits. */
 export const PINNED_END = "sticky right-0 z-10 flex shrink-0 items-center gap-1.5 bg-surface pl-2";
-
-export interface SelectionBarProps {
-  hasSelection: boolean;
-  hasClipboard: boolean;
-  /** Selects everything the selection leaves out; with nothing selected, the whole chart (G-116). */
-  onInvert: () => void;
-  onCopy: () => void;
-  onPaste: () => void;
-  onDuplicate: () => void;
-  /** Paints the selected area in the brush's colour (G-063). */
-  onFill: () => void;
-  /** False when the brush is holding no colour, which leaves nothing to fill with. */
-  canFill: boolean;
-  onFlipHorizontal: () => void;
-  onFlipVertical: () => void;
-  onRotateClockwise: () => void;
-  onRotateAnticlockwise: () => void;
-  onCrop: () => void;
-  onCancel: () => void;
-  onDeselect: () => void;
-}
 
 export interface BackstitchBarProps {
   /** How many lines are in hand; every action but Paste needs at least one. */
@@ -180,107 +158,6 @@ export function BackstitchBar({
           Deselect
         </PillButton>
       </div>
-    </div>
-  );
-}
-
-export function SelectionBar({
-  hasSelection,
-  hasClipboard,
-  onCopy,
-  onPaste,
-  onDuplicate,
-  onFill,
-  canFill,
-  onFlipHorizontal,
-  onFlipVertical,
-  onRotateClockwise,
-  onRotateAnticlockwise,
-  onCrop,
-  onCancel,
-  onDeselect,
-  onInvert,
-}: SelectionBarProps) {
-  const fillTitle = canFill
-    ? "Paint the whole selected area in the brush's colour"
-    : "Pick a thread in the list first \u2014 there is no colour to fill with";
-  const actions = [
-    [
-      "Invert selection",
-      "Select everything the selection leaves out, backstitch included; with nothing selected, the whole chart",
-      <SkinIcon key="i" name="invert-selection" />,
-      onInvert,
-      false,
-    ],
-    ["Copy", "Copy the selected piece", <SkinIcon key="i" name="copy" />, onCopy, !hasSelection],
-    ["Paste", "Paste the copied piece as a new floating selection", <SkinIcon key="i" name="paste" />, onPaste, !hasClipboard],
-    [
-      "Duplicate",
-      "Leave this piece where it is and take a copy of it in hand",
-      <SkinIcon key="i" name="duplicate" />,
-      onDuplicate,
-      !hasSelection,
-    ],
-    // "Fill selection", not "Fill": the tool rail has a Fill of its own, and both are on screen at once.
-    ["Fill selection", fillTitle, <SkinIcon key="i" name="fill-piece" />, onFill, !hasSelection || !canFill],
-    ["Flip horizontal", "Mirror the piece left to right", <SkinIcon key="i" name="flip-horizontal" />, onFlipHorizontal, !hasSelection],
-    ["Flip vertical", "Mirror the piece top to bottom", <SkinIcon key="i" name="flip-vertical" />, onFlipVertical, !hasSelection],
-    ["Rotate right", "Turn the piece a quarter turn clockwise", <SkinIcon key="i" name="rotate-right" />, onRotateClockwise, !hasSelection],
-    [
-      "Rotate left",
-      "Turn the piece a quarter turn anticlockwise",
-      <SkinIcon key="i" name="rotate-left" />,
-      onRotateAnticlockwise,
-      !hasSelection,
-    ],
-    [
-      "Crop to selection",
-      "Cut the chart down to this rectangle, discarding everything outside it",
-      <SkinIcon key="i" name="crop-to-piece" />,
-      onCrop,
-      !hasSelection,
-    ],
-    [
-      "Apply here",
-      "Merge the piece into the picture where it sits \u2014 Enter",
-      <SkinIcon key="i" name="apply" />,
-      onDeselect,
-      !hasSelection,
-    ],
-    [
-      "Cancel",
-      "Put the chart back as it was when this selection started, discarding its changes \u2014 Escape",
-      <SkinIcon key="i" name="cancel" />,
-      onCancel,
-      !hasSelection,
-    ],
-  ] as const;
-  const action = ([label, title, icon, onClick, isDisabled]: (typeof actions)[number]) => {
-    // Apply here sits before Cancel, and the committing pair carry their names (Owner, 2026-09-18).
-    const named = label === "Cancel" || label === "Apply here";
-    return (
-      <PillButton
-        key={label}
-        aria-label={label}
-        title={title}
-        onClick={onClick}
-        disabled={isDisabled}
-        className={named ? "flex items-center gap-1.5 px-2.5 whitespace-nowrap" : "px-2"}
-      >
-        {icon}
-        {named && label}
-      </PillButton>
-    );
-  };
-
-  return (
-    // The piece in hand, and what can be done to it. It adds to the bar of tool options (G-095): Undo and Redo are the
-    // bar above's, and wait there while a piece is in hand. The selection mode is an option, drawn before it; the piece's
-    // size and the hint that once opened the bar are gone (Owner, 2026-10-07).
-    <div className="flex min-w-max flex-1 items-center gap-2.5" data-testid="selection-bar">
-      <div className="ml-auto flex items-center gap-1">{actions.slice(0, -2).map(action)}</div>
-      {/* Apply and Cancel stay in view however narrow the window: the rest scrolls beneath them. */}
-      <div className={PINNED_END}>{actions.slice(-2).map(action)}</div>
     </div>
   );
 }

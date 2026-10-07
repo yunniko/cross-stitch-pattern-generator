@@ -2,6 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 import { pickTool, waitForAutosave } from "./helpers/app";
 import { asEndpoints, exportLines } from "./helpers/backstitch";
 import { at, blankChart, click, dragStitch, EMPTY, HEIGHT, regionSwitch, saved, selectionMode, WIDTH } from "./helpers/blank-chart";
+import { clickSelectionAction, selectionAction } from "./helpers/selection";
 
 /**
  * The Magic wand (G-116 M3): a click selects the whole area of one colour it lands on, found exactly as Fill finds a region
@@ -57,7 +58,7 @@ test("W takes the wand; it offers the selection modes, Invert and its own region
   await page.locator("body").press("w");
   await expect(tool(page, "Magic wand")).toHaveAttribute("aria-pressed", "true");
   await expect(selectionMode(page, "Select")).toHaveAttribute("aria-checked", "true");
-  await expect(page.getByRole("button", { name: "Invert selection" })).toBeEnabled();
+  await expect(selectionAction(page, "Invert selection")).toBeEnabled();
   await expect(regionSwitch(page, "Diagonal neighbours", "Diagonal")).toHaveAttribute("aria-pressed", "true");
   await expect(regionSwitch(page, "Color only", "Color and type")).toHaveAttribute("aria-pressed", "true");
 
@@ -95,7 +96,7 @@ for (const diagonal of ["Diagonal", "Edges only"] as const) {
     await pickTool(page, "Magic wand");
     await regionSwitch(page, "Diagonal neighbours", diagonal).click();
     await click(page, 1, 1);
-    await page.getByRole("button", { name: "Fill selection", exact: true }).click();
+    await clickSelectionAction(page, "Fill selection");
     await page.keyboard.press("Enter");
     expect(await stitched(page)).toEqual(filled);
   });

@@ -8,7 +8,7 @@ import type { ExportChoice } from "../hooks/use-exports";
 import type { UpdateWorkspaceOption } from "../hooks/use-workspace-options";
 import { SkinIcon } from "../skin/skin";
 import { CellSizeField } from "./cell-size-field";
-import { PillButton, SegmentedControl } from "./ui";
+import { GROUP_LABEL, PillButton, SegmentedControl } from "./ui";
 import { useFeature, useFeatures } from "../features/features-context";
 
 /**
@@ -19,7 +19,6 @@ import { useFeature, useFeatures } from "../features/features-context";
  * settings in Chart, all of them whatever was chosen.
  */
 
-const GROUP_LABEL = "text-[11px] font-medium uppercase tracking-[0.08em] text-muted";
 const FIELD = "rounded-lg border border-line bg-sunken px-2.5 py-1.5 text-[13px] text-ink";
 
 const printFormatOf = (choice: ExportChoice): PrintFormat | null => {

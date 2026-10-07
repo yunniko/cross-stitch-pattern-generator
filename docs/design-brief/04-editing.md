@@ -1,6 +1,6 @@
 # 04 · Editing
 
-Drawing and changing a chart. Sources: `app/tools/*`, `app/commands/registry.ts`, `app/hooks/use-keyboard-shortcuts.ts`, `use-keyboard-cursor.ts`, `lib/editor/*`, `app/components/tool-rail.tsx`, `context-bar.tsx`, `panels.tsx`, `command-list.tsx`; as of 2026-10-05. All of it runs on the device and works with no connection. Backstitch tools are in `06`, lettering in `07`, the thread list in `05`.
+Drawing and changing a chart. Sources: `app/tools/*`, `app/commands/registry.ts`, `app/hooks/use-keyboard-shortcuts.ts`, `use-keyboard-cursor.ts`, `lib/editor/*`, `app/components/tool-rail.tsx`, `context-bar.tsx`, `panels.tsx`, `selection-actions.tsx`, `command-list.tsx`; as of 2026-10-05. All of it runs on the device and works with no connection. Backstitch tools are in `06`, lettering in `07`, the thread list in `05`.
 
 ## When editing is possible
 
@@ -109,6 +109,7 @@ Under Select + and Select − a press always starts a new area. A piece that has
 | **Apply here** (Enter) | A piece | Merges the piece into the chart where it sits |
 | **Cancel** (Escape) | A piece | Puts the chart back as it was when this selection started, discarding the piece and its changes |
 | **Invert selection** | Select, Lasso or Magic wand | Selects every cell and backstitch line the selection leaves out (the piece is applied first); with nothing selected, the whole chart. Inverting twice gives the same selection |
+
 
 A lasso piece is a **shape**: stitches outside the shape inside its box are not in the piece, are never stamped, vacated or filled; copy, move, flip and rotate carry the shape. A backstitch line is taken by a rectangle or lasso only when **both** its ends are inside.
 

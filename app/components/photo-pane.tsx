@@ -17,7 +17,7 @@ import { DitherChooser } from "./dither-chooser";
 import { DitherPreview } from "./dither-preview";
 import { PaletteSetup } from "./palette-setup";
 import { TextureEditor } from "./texture-editor";
-import { PillButton, SegmentedControl, Slider, type SegmentOption, InlineError } from "./ui";
+import { GROUP_LABEL, InlineError, PillButton, SegmentedControl, Slider, type SegmentOption } from "./ui";
 import { useGatedOptions } from "../features/features-context";
 import { brandFeature } from "../features/registry";
 import { FeatureGate } from "./feature-gate";
@@ -37,8 +37,6 @@ const ADJUST_SLIDERS: ReadonlyArray<{ key: keyof PhotoAdjust; label: string; hin
   { key: "saturation", label: "Saturation", hint: "How colourful: all the way down is grey" },
   { key: "temperature", label: "Warm / cool", hint: "Right is warmer (amber), left is cooler (blue)" },
 ];
-
-const GROUP_LABEL = "text-[11px] font-medium uppercase tracking-[0.08em] text-muted";
 
 // Labels only: the stored values stay "latest" and "original", which saved files, the processor's request validation
 // and the golden hashes all speak (Owner rename, 2026-09-20).

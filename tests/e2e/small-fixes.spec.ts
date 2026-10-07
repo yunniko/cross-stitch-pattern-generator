@@ -2,6 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { expectPhotoLoaded, pickTool, saveButton, showWorkspace, openViewSettings } from "./helpers/app";
+import { clickSelectionAction, selectionFinish } from "./helpers/selection";
 
 /**
  * G-079: errors that can be dismissed and go away by themselves, the canvas colour on the shared colour picker (and gone
@@ -191,8 +192,8 @@ test("with transparency locked, Fill selection paints only the stitches that are
   await page.mouse.down();
   await page.mouse.move(to.x, to.y, { steps: 6 });
   await page.mouse.up();
-  await page.getByRole("button", { name: "Fill selection", exact: true }).click();
-  await page.getByRole("button", { name: "Apply here" }).click();
+  await clickSelectionAction(page, "Fill selection");
+  await selectionFinish(page, "Apply here").click();
 
   const after = await savedCells(page);
   const inside = (i: number) => i % SIZE <= 24 && Math.floor(i / SIZE) <= 24;

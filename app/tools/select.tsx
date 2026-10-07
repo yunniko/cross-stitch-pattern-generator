@@ -1,4 +1,4 @@
-import { SelectionBar } from "../components/panels";
+import { SelectionFinish, SelectionPanel, type SelectionActionsProps } from "../components/selection-actions";
 import { LassoIcon, SelectIcon, WandIcon } from "./icons";
 import { regionOf, SELECTION_MODE, SELECTION_OPTIONS, WAND_OPTIONS, WAND_REGION } from "./options";
 import { act, inputsFrom } from "./shared";
@@ -300,6 +300,9 @@ export function useSelectTool(
   };
 }
 
+/** The three share one tab in the panel, holding what can be done to the selection (G-116, D333). */
+const SELECTION_TAB = { label: "Selection" };
+
 /**
  * Select, Lasso and the Magic wand: one piece in hand, taken as a rectangle, a drawn shape or a clicked region; swapping
  * between them keeps it (G-072, G-116).
@@ -317,6 +320,7 @@ export const selectModule = {
       Icon: SelectIcon,
       piece: true,
       cursor: "cross",
+      tab: SELECTION_TAB,
     },
     {
       id: "lasso",
@@ -329,6 +333,7 @@ export const selectModule = {
       Icon: LassoIcon,
       piece: true,
       cursor: "cross",
+      tab: SELECTION_TAB,
     },
     {
       id: "wand",
@@ -342,6 +347,7 @@ export const selectModule = {
       Icon: WandIcon,
       piece: true,
       cursor: "cross",
+      tab: SELECTION_TAB,
     },
   ],
   commands: [
@@ -375,6 +381,24 @@ export const selectModule = {
     const inHand = api.activeTool === "select" || api.activeTool === "lasso" || api.activeTool === "wand";
     const held = inHand && select.selection !== null;
     const colour = api.activeColorIndex;
+    const shown = inHand && api.pattern !== null && !api.startingNew;
+    const actions: SelectionActionsProps = {
+      hasSelection: select.selection !== null,
+      hasClipboard: select.clipboard !== null,
+      onInvert: select.invert,
+      onCopy: select.copy,
+      onPaste: select.paste,
+      onDuplicate: select.duplicate,
+      onFill: () => colour !== null && select.fill(colour),
+      canFill: colour !== null,
+      onFlipHorizontal: select.flipHorizontal,
+      onFlipVertical: select.flipVertical,
+      onRotateClockwise: select.rotateClockwise,
+      onRotateAnticlockwise: select.rotateAnticlockwise,
+      onCrop: select.crop,
+      onCancel: select.cancel,
+      onDeselect: select.merge,
+    };
     return {
       onPointerDown: select.onPointerDown,
       onPointerMove: select.onPointerMove,
@@ -407,26 +431,9 @@ export const selectModule = {
         invalidateClipboard: select.invalidateClipboard,
         insert: select.insert,
       },
-      quick:
-        inHand && api.pattern && !api.startingNew ? (
-          <SelectionBar
-            hasSelection={select.selection !== null}
-            hasClipboard={select.clipboard !== null}
-            onInvert={select.invert}
-            onCopy={select.copy}
-            onPaste={select.paste}
-            onDuplicate={select.duplicate}
-            onFill={() => api.activeColorIndex !== null && select.fill(api.activeColorIndex)}
-            canFill={api.activeColorIndex !== null}
-            onFlipHorizontal={select.flipHorizontal}
-            onFlipVertical={select.flipVertical}
-            onRotateClockwise={select.rotateClockwise}
-            onRotateAnticlockwise={select.rotateAnticlockwise}
-            onCrop={select.crop}
-            onCancel={select.cancel}
-            onDeselect={select.merge}
-          />
-        ) : undefined,
+      // The committing pair stays on the bar; every action, in its group, is in the Selection tab (Owner, 2026-10-07; D333).
+      quick: shown ? <SelectionFinish {...actions} /> : undefined,
+      panel: () => <SelectionPanel {...actions} />,
     };
   },
 } as const satisfies ToolModule;

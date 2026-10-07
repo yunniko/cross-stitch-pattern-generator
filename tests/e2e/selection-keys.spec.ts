@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { openSmallChart } from "./helpers/app";
+import { selectionFinish } from "./helpers/selection";
 
 /**
  * G-063: the two committing actions answer the keyboard, and history refuses to move while a piece is in hand
@@ -29,7 +30,7 @@ async function generateAndSelect(page: Page) {
   await page.mouse.down();
   await page.mouse.move(box.x + cell * 9.5, box.y + cell * 6.5, { steps: 4 });
   await page.mouse.up();
-  await expect(page.getByRole("button", { name: "Apply here" })).toBeEnabled();
+  await expect(selectionFinish(page, "Apply here")).toBeEnabled();
   return { box, cell };
 }
 
@@ -41,12 +42,12 @@ async function selectDragAndFinish(page: Page, finish: (page: Page) => Promise<v
   await page.mouse.move(box.x + cell * 20, box.y + cell * 14, { steps: 6 });
   await page.mouse.up();
   await finish(page);
-  await expect(page.getByRole("button", { name: "Apply here" })).toBeDisabled();
+  await expect(selectionFinish(page, "Apply here")).toBeDisabled();
   return stitchCount(page);
 }
 
 test("Enter applies the piece, exactly as the Apply here button does", async ({ page }) => {
-  const byButton = await selectDragAndFinish(page, (p) => p.getByRole("button", { name: "Apply here" }).click());
+  const byButton = await selectDragAndFinish(page, (p) => selectionFinish(p, "Apply here").click());
   const byKey = await selectDragAndFinish(page, (p) => p.keyboard.press("Enter"));
 
   expect(byKey).toBe(byButton);
@@ -56,7 +57,7 @@ test("Escape cancels the piece, exactly as the Cancel button does, and both rest
   await generateAndSelect(page);
   const untouched = await stitchCount(page);
 
-  const byButton = await selectDragAndFinish(page, (p) => p.getByRole("button", { name: "Cancel" }).click());
+  const byButton = await selectDragAndFinish(page, (p) => selectionFinish(p, "Cancel").click());
   const byKey = await selectDragAndFinish(page, (p) => p.keyboard.press("Escape"));
 
   expect(byKey).toBe(byButton);

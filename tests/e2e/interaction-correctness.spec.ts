@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { openSmallChart } from "./helpers/app";
+import { selectionFinish } from "./helpers/selection";
 
 /** G-031 M2 (review B4, B5, B7, B8): keyboard shortcuts read live state, Space never steals a focused control's activation, drags stay cheap on the largest grid. */
 
@@ -29,7 +30,7 @@ test("Space with a floating selection merges it where it currently is, not where
   await page.mouse.down();
   await page.mouse.move(box.x + cell * 5.5, box.y + cell * 5.5, { steps: 4 });
   await page.mouse.up();
-  await expect(page.getByRole("button", { name: "Apply here" })).toBeEnabled();
+  await expect(selectionFinish(page, "Apply here")).toBeEnabled();
   await page.mouse.move(box.x + cell * 4, box.y + cell * 4);
   await page.mouse.down();
   await page.mouse.move(box.x + cell * 14, box.y + cell * 4, { steps: 6 });
@@ -42,7 +43,7 @@ test("Space with a floating selection merges it where it currently is, not where
   await expect(page.getByRole("button", { name: "Pan" })).toHaveAttribute("aria-pressed", "true");
   await page.keyboard.up("Space");
   await expect(page.getByRole("button", { name: "Select", exact: true })).toHaveAttribute("aria-pressed", "true");
-  await expect(page.getByRole("button", { name: "Apply here" })).toBeDisabled(); // merged
+  await expect(selectionFinish(page, "Apply here")).toBeDisabled(); // merged
   await expect(page.getByRole("button", { name: "Undo" })).toBeEnabled(); // ...as one history step
 });
 

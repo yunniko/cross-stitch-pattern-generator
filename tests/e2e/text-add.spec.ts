@@ -2,6 +2,7 @@ import { test, expect, type Page, type Request } from "@playwright/test";
 import { pickTool, saveButton } from "./helpers/app";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { clickSelectionAction, selectionFinish } from "./helpers/selection";
 
 /**
  * G-081 M4: Add puts the lettering on the chart as a piece in hand, as Paste does -- it is stitches and nothing else, it
@@ -72,10 +73,10 @@ test("Add puts the lettering on the chart as a piece in hand, three stitches in 
   await add(page).click();
   // The Select tool is in hand, with the lettering as the piece: it can be applied, and nothing is on the chart until it is.
   await expect(page.getByRole("button", { name: "Select", exact: true })).toHaveAttribute("aria-pressed", "true");
-  await expect(page.getByRole("button", { name: "Apply here" })).toBeEnabled();
+  await expect(selectionFinish(page, "Apply here")).toBeEnabled();
   expect(stitched(await savedCells(page))).toEqual([]);
 
-  await page.getByRole("button", { name: "Apply here" }).click();
+  await selectionFinish(page, "Apply here").click();
   const cells = await savedCells(page);
   expect(stitched(cells), "exactly the lettering's stitches").toHaveLength(ink);
   expect(box(cells)).toEqual({ x0: 3, y0: 3, x1: 3 + width - 1, y1: 3 + height - 1 });
@@ -83,15 +84,13 @@ test("Add puts the lettering on the chart as a piece in hand, three stitches in 
   expect(new Set(stitched(cells).map((i) => cells[i])).size).toBe(1);
 });
 
-test("Add puts Text down: its tab goes, the panel is back on the tab last chosen, and picking Text again applies the piece", async ({
-  page,
-}) => {
+test("Add puts Text down: its tab goes, Select brings its Selection tab, and picking Text again applies the piece", async ({ page }) => {
   await blankChart(page, 1);
   await type(page, "Hi", 12);
   await add(page).click();
-  // Select is in hand with the piece; Text's tab went with the tool, and Threads, chosen last, is shown.
+  // Select is in hand with the piece; Text's tab went with the tool, and Select's own tab is shown (D333).
   await expect(page.getByRole("tab", { name: "Text" })).toHaveCount(0);
-  await expect(page.getByRole("tab", { name: "Threads" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("tab", { name: "Selection" })).toHaveAttribute("aria-selected", "true");
 
   // Picking Text again applies what is in hand, as leaving Select for any drawing tool does; what was typed is still there.
   await pickTool(page, "Text");
@@ -113,14 +112,14 @@ test("a press on the chart with Text in hand puts the lettering down with its co
   const cell = frame.width / WIDTH;
   await page.mouse.click(frame.x + 30.5 * cell, frame.y + 10.5 * cell);
   await expect(page.getByRole("button", { name: "Select", exact: true })).toHaveAttribute("aria-pressed", "true");
-  await page.getByRole("button", { name: "Apply here" }).click();
+  await selectionFinish(page, "Apply here").click();
   const cells = await savedCells(page);
   expect(box(cells)).toEqual({ x0: 30, y0: 10, x1: 30 + width - 1, y1: 10 + height - 1 });
 
   // Pressed where it would overhang, it is brought back inside the chart.
   await pickTool(page, "Text");
   await page.mouse.click(frame.x + (WIDTH - 0.5) * cell, frame.y + (HEIGHT - 0.5) * cell);
-  await page.getByRole("button", { name: "Apply here" }).click();
+  await selectionFinish(page, "Apply here").click();
   const both = await savedCells(page);
   expect(box(both).x1).toBe(WIDTH - 1);
   expect(box(both).y1).toBe(HEIGHT - 1);
@@ -142,13 +141,13 @@ test("the piece behaves as any selection: cancel, undo, and Fill selection fill 
   // Cancelled with Escape: gone, and nothing was put on the chart.
   await add(page).click();
   await page.keyboard.press("Escape");
-  await expect(page.getByRole("button", { name: "Apply here" })).toBeDisabled();
+  await expect(selectionFinish(page, "Apply here")).toBeDisabled();
   expect(stitched(await savedCells(page))).toEqual([]);
 
   // Applied, then undone: gone again.
   await pickTool(page, "Text");
   await add(page).click();
-  await page.getByRole("button", { name: "Apply here" }).click();
+  await selectionFinish(page, "Apply here").click();
   expect(stitched(await savedCells(page))).toHaveLength(ink);
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   expect(stitched(await savedCells(page))).toEqual([]);
@@ -158,8 +157,8 @@ test("the piece behaves as any selection: cancel, undo, and Fill selection fill 
   await add(page).click();
   await page.getByRole("tab", { name: "Threads" }).click();
   await page.locator('[data-testid="legend-color-row"]').nth(1).click();
-  await page.getByRole("button", { name: "Fill selection", exact: true }).click();
-  await page.getByRole("button", { name: "Apply here" }).click();
+  await clickSelectionAction(page, "Fill selection");
+  await selectionFinish(page, "Apply here").click();
   const cells = await savedCells(page);
   expect(stitched(cells)).toHaveLength(ink);
   expect(new Set(stitched(cells).map((i) => cells[i]))).toEqual(new Set([1]));
@@ -213,7 +212,7 @@ test("nothing about the font or the text leaves the browser", async ({ page, con
   const phrase = "Zebra 77";
   await type(page, phrase, 12);
   await add(page).click();
-  await page.getByRole("button", { name: "Apply here" }).click();
+  await selectionFinish(page, "Apply here").click();
   expect(stitched(await savedCells(page)).length).toBeGreaterThan(30);
 
   // Whatever the page asked for during all of that, it asked for with GET, and none of it names the font or the text.

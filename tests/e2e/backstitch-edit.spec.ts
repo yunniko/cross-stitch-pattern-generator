@@ -10,6 +10,7 @@ import {
   exportLines,
   pickThread,
 } from "./helpers/backstitch";
+import { selectionFinish } from "./helpers/selection";
 
 /**
  * G-073 M3: editing backstitch, with one tool (D229).
@@ -214,7 +215,7 @@ test("a cell selection carries a line whose ends are both inside it", async ({ p
   await dragCells(page, [2, 2], [13, 7]);
   await dragCells(page, [7, 4], [7, 9]);
   // The cell selection bar calls its merge button "Apply here".
-  await page.getByRole("button", { name: "Apply here" }).click();
+  await selectionFinish(page, "Apply here").click();
 
   expect(asEndpoints(await exportLines(page))).toEqual(["4,9-10,9"]);
 });
@@ -226,7 +227,7 @@ test("a cell selection leaves a line with one end outside it alone", async ({ pa
   // Cells 2..6 reach corner 7: the far end of the line, at corner 10, is outside.
   await dragCells(page, [2, 2], [6, 7]);
   await dragCells(page, [4, 4], [4, 9]);
-  await page.getByRole("button", { name: "Apply here" }).click();
+  await selectionFinish(page, "Apply here").click();
 
   expect(asEndpoints(await exportLines(page))).toEqual(["4,4-10,4"]);
 });

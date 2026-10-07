@@ -459,3 +459,4 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | D330 | 04-editing | selection modes |
 | D331 | 04-editing | selection modes; the Invert selection row |
 | D332 | 04-editing | the Magic wand row |
+| D333 | 04-editing | the selection's actions (where they sit: docs/interface-placement.md) |

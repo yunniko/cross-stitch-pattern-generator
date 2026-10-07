@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { pickTool, waitForAutosave } from "./helpers/app";
 import { at, blankChart, dragStitch, EMPTY, HEIGHT, saved, selectionMode, stitchPoint, WIDTH } from "./helpers/blank-chart";
+import { clickSelectionAction, selectionAction, selectionFinish } from "./helpers/selection";
 
 /**
  * Selection modes and Invert (G-116 M2): what a new area does to the selection, read back from the chart. Each case fills
@@ -22,9 +23,9 @@ const sorted = (cells: Iterable<string>) => [...new Set(cells)].sort();
 
 /** Fills the selection with the thread in hand, applies it, and returns the stitched cells as "x,y". */
 async function selectedCells(page: Page): Promise<string[]> {
-  await page.getByRole("button", { name: "Fill selection", exact: true }).click();
+  await clickSelectionAction(page, "Fill selection");
   await page.keyboard.press("Enter");
-  await expect(page.getByRole("button", { name: "Apply here" })).toBeDisabled();
+  await expect(selectionFinish(page, "Apply here")).toBeDisabled();
   const { cells } = await saved(page);
   const out: string[] = [];
   for (let y = 0; y < HEIGHT; y++) for (let x = 0; x < WIDTH; x++) if (cells[at(x, y)] !== EMPTY) out.push(`${x},${y}`);
@@ -42,11 +43,13 @@ test.beforeEach(async ({ page }) => {
   await pickTool(page, "Select");
 });
 
-test("the bar carries the three modes and Invert, and no longer the piece's size or a hint", async ({ page }) => {
+test("the bar carries the three modes, the Selection tab carries Invert, and the bar no longer shows the piece's size or a hint", async ({
+  page,
+}) => {
   await expect(selectionMode(page, "Select")).toHaveAttribute("aria-checked", "true");
   await expect(selectionMode(page, "Select +")).toHaveAttribute("aria-checked", "false");
   await expect(selectionMode(page, "Select −")).toHaveAttribute("aria-checked", "false");
-  await expect(page.getByRole("button", { name: "Invert selection" })).toBeEnabled();
+  await expect(selectionAction(page, "Invert selection")).toBeEnabled();
   await dragStitch(page, [2, 2], [5, 4]);
   const bar = page.getByTestId("selection-bar");
   await expect(bar).not.toContainText(/\d+ × \d+ at/);
@@ -108,18 +111,18 @@ test("the lasso adds and subtracts under the same modes, and Select and Lasso sh
 
 test("Invert selects everything else, and inverting twice gives the selection back", async ({ page }) => {
   await dragStitch(page, [0, 0], [1, 1]);
-  await page.getByRole("button", { name: "Invert selection" }).click();
+  await clickSelectionAction(page, "Invert selection");
   const corner = new Set(box(0, 0, 1, 1));
   expect(await selectedCells(page)).toEqual(sorted(box(0, 0, WIDTH - 1, HEIGHT - 1).filter((c) => !corner.has(c))));
 });
 
 test("Invert twice is the selection itself; with nothing selected Invert takes the whole chart", async ({ page }) => {
   await dragStitch(page, [3, 3], [4, 4]);
-  await page.getByRole("button", { name: "Invert selection" }).click();
-  await page.getByRole("button", { name: "Invert selection" }).click();
+  await clickSelectionAction(page, "Invert selection");
+  await clickSelectionAction(page, "Invert selection");
   expect(await selectedCells(page)).toEqual(sorted(box(3, 3, 4, 4)));
   // Nothing in hand now: inverting nothing is everything.
-  await page.getByRole("button", { name: "Invert selection" }).click();
+  await clickSelectionAction(page, "Invert selection");
   expect(await selectedCells(page)).toHaveLength(WIDTH * HEIGHT);
 });
 
