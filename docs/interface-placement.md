@@ -136,7 +136,8 @@ not edited by hand.
 |  | Move tool | V | A chart, in Edit |
 |  | Pan tool | H | A chart |
 |  | Zoom tool | Z | A chart |
-| Selection | Copy the piece | Ctrl+C | A piece in hand |
+| Selection | Invert the selection | — | Select or Lasso in hand |
+|  | Copy the piece | Ctrl+C | A piece in hand |
 |  | Paste the copied piece | Ctrl+V | Select or Lasso in hand; a piece was copied |
 |  | Duplicate the piece | Ctrl+D | A piece in hand |
 |  | Fill the piece with the colour in hand | — | A piece and a colour in hand |

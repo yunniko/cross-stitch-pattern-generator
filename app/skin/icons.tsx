@@ -282,6 +282,33 @@ export const INTERFACE_ICONS = {
       <path d="M8.5 12.5 11 15l4.5-5.5" />
     </>
   ),
+  // The selection modes (G-116): the selection's dashed box alone, or with what a new area does to it.
+  "select-replace": outline("h-3.5 w-3.5", 1.8, <rect x="4" y="4" width="16" height="16" rx="1" strokeDasharray="4 3" />),
+  "select-add": outline(
+    "h-3.5 w-3.5",
+    1.8,
+    <>
+      <rect x="3" y="3" width="13" height="13" rx="1" strokeDasharray="3.5 2.5" />
+      <path d="M18.5 14v8M14.5 18h8" />
+    </>
+  ),
+  "select-subtract": outline(
+    "h-3.5 w-3.5",
+    1.8,
+    <>
+      <rect x="3" y="3" width="13" height="13" rx="1" strokeDasharray="3.5 2.5" />
+      <path d="M14.5 18.5h8" />
+    </>
+  ),
+  /** Everything but the selection: the chart's edge solid, the selection's dashed box inside it hollow. */
+  "invert-selection": outline(
+    "h-4 w-4",
+    1.6,
+    <>
+      <path d="M3 3h18v18H3z M8 8v8h8V8z" fill="currentColor" fillOpacity={0.3} fillRule="evenodd" />
+      <rect x="8" y="8" width="8" height="8" strokeDasharray="2.5 2" />
+    </>
+  ),
 } as const satisfies Record<string, IconComponent>;
 
 export type InterfaceIconName = keyof typeof INTERFACE_ICONS;

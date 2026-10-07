@@ -74,10 +74,11 @@ export interface ChartRendererInputs {
 }
 
 export type SelectDragFrame =
-  | { kind: "rect"; base: StitchPattern; rect: CellRect }
+  /** `kept`: the selection a new area is being added to or taken from (G-116), outlined while it is drawn. */
+  | { kind: "rect"; base: StitchPattern; rect: CellRect; kept?: FloatingSelection | null }
   | { kind: "piece"; base: StitchPattern; piece: FloatingSelection }
   /** Lasso (G-072): the path drawn so far, outlined over the chart until the pointer comes up. */
-  | { kind: "lasso"; base: StitchPattern; path: readonly CellPoint[]; stroke?: string };
+  | { kind: "lasso"; base: StitchPattern; path: readonly CellPoint[]; stroke?: string; kept?: FloatingSelection | null };
 
 export type ChartRenderer = ReturnType<typeof useChartRenderer>;
 
@@ -538,9 +539,9 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
   function previewSelect(frame: SelectDragFrame) {
     gestureRef.current =
       frame.kind === "rect"
-        ? { kind: "select-rect", base: frame.base, rect: frame.rect }
+        ? { kind: "select-rect", base: frame.base, rect: frame.rect, kept: frame.kept }
         : frame.kind === "lasso"
-          ? { kind: "select-lasso", base: frame.base, path: frame.path, stroke: frame.stroke }
+          ? { kind: "select-lasso", base: frame.base, path: frame.path, stroke: frame.stroke, kept: frame.kept }
           : { kind: "select-piece", base: frame.base, piece: frame.piece };
     const scene = currentScene();
     const canvas = canvasRef.current;

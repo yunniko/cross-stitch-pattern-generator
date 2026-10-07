@@ -43,7 +43,6 @@ test("the start screen's own bar replaces the selection bar, and the chart can b
   // And going back puts the selection back exactly as it was, rather than quietly dropping it.
   await page.getByRole("button", { name: /^Back to / }).click();
   await expect(page.getByRole("button", { name: "Apply here" })).toBeEnabled();
-  await expect(page.getByText(/^\d+ × \d+ at \d+, \d+$/)).toBeVisible();
   expect(errors).toEqual([]);
 });
 
@@ -61,5 +60,4 @@ test("a chart started from the start screen keeps none of the previous selection
   await expect(page.getByText(/30 × 20, 0 stitches, 0 colors/)).toBeVisible();
   // Select is still the tool, so its bar is here — but holding nothing: the old chart's piece did not come along.
   await expect(page.getByRole("button", { name: "Apply here" })).toBeDisabled();
-  await expect(page.getByText("Drag a rectangle on the chart to select it.")).toBeVisible();
 });

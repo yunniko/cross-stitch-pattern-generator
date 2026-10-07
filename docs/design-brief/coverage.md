@@ -457,3 +457,4 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | D328 | internal | |
 | D329 | 04-editing | the Fill row; the Magic wand row |
 | D330 | 04-editing | selection modes |
+| D331 | 04-editing | selection modes; the Invert selection row |

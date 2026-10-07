@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { SkinIcon } from "../skin/skin";
+import { SELECTION_MODES, type SelectionMode } from "@/lib/editor/selection-area";
 import { BRUSH_SIZES, DEFAULT_BRUSH_SHAPE, DEFAULT_BRUSH_SIZE, type BrushShape, type BrushSize } from "@/lib/editor/brush-stamp";
 import type { ShapeFill } from "@/lib/editor/shape-raster";
 import { STITCH_KIND_LABELS, type StitchKind } from "@/lib/editor/stitch-kind";
@@ -124,6 +126,24 @@ export const FILL_COLOR_ONLY: ToolOption<"on" | "off"> = {
   ],
 };
 
+/**
+ * What a new area does to the selection (G-116, D331): replaces it, is added to it, or is taken out of it. One choice for
+ * Select, Lasso and the Magic wand, so it is one option, kept once.
+ */
+export const SELECTION_MODE: ToolOption<SelectionMode> = {
+  id: "selectionMode",
+  group: "Mode",
+  label: "Selection mode",
+  control: "icons",
+  values: SELECTION_MODES,
+  defaultValue: "replace",
+  choices: [
+    { value: "replace", label: <SkinIcon name="select-replace" />, title: "Select: a new area replaces the selection" },
+    { value: "add", label: <SkinIcon name="select-add" />, title: "Select +: a new area is added to the selection" },
+    { value: "subtract", label: <SkinIcon name="select-subtract" />, title: "Select −: a new area is taken out of the selection" },
+  ],
+};
+
 /** Which way a left press of the Zoom tool zooms; a right press zooms the other way (G-115, D324). */
 export const ZOOM_DIRECTION: ToolOption<"in" | "out"> = {
   id: "zoomDirection",
@@ -145,6 +165,8 @@ export const BRUSH_OPTIONS = [BRUSH_SIZE, BRUSH_SHAPE] as const;
 export const STITCH_OPTIONS = [STITCH_KIND] as const;
 /** Fill's: the stitch type, and how its region is found (G-115). */
 export const FILL_OPTIONS = [STITCH_KIND, FILL_DIAGONAL, FILL_COLOR_ONLY] as const;
+/** Select's and Lasso's: what a new area does to the selection (G-116). */
+export const SELECTION_OPTIONS = [SELECTION_MODE] as const;
 /** For the tools that lay stitches with the brush: Brush and Line. */
 export const LAYING_OPTIONS = [...BRUSH_OPTIONS, STITCH_KIND] as const;
 /** For the shapes that enclose something, whose outline is as thick as the brush. */

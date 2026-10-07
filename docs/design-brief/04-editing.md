@@ -85,6 +85,16 @@ Choosing any tool other than Pan or Zoom drops the frame without changing the ch
 
 Choosing a region with Select or Lasso (or pasting, or placing lettering from `07`) puts a **piece in hand**: it floats over the chart, which is unchanged underneath until the piece is applied.
 
+**Selection mode** (one choice for every selection tool, kept between visits; default Select):
+
+| Mode | A new area… |
+|---|---|
+| **Select** | replaces the selection. Pressing on the piece moves it instead |
+| **Select +** | is added to the selection, cells and backstitch lines alike |
+| **Select −** | is taken out of the selection, even when drawn inside it |
+
+Under Select + and Select − a press always starts a new area. A piece that has been moved, flipped or turned is applied where it sits before a new area is added to it or taken from it; the selection is then the area on the chart.
+
 | Action | Available when | Effect |
 |---|---|---|
 | **Move** (drag the piece) | A piece is in hand | Repositions it; stitches under it are not lost until it is applied |
@@ -97,7 +107,7 @@ Choosing a region with Select or Lasso (or pasting, or placing lettering from `0
 | **Crop to selection** | A piece | Cuts the chart down to the piece's rectangle, discarding everything outside it (the piece is applied first); the photo behind keeps its alignment |
 | **Apply here** (Enter) | A piece | Merges the piece into the chart where it sits |
 | **Cancel** (Escape) | A piece | Puts the chart back as it was when this selection started, discarding the piece and its changes |
-| Selection readout | A piece | "*w* × *h* at *x*, *y*"; with none, "Drag a rectangle on the chart to select it." (Select) or "Draw around the stitches you want." (Lasso) |
+| **Invert selection** | Select or Lasso | Selects every cell and backstitch line the selection leaves out (the piece is applied first); with nothing selected, the whole chart. Inverting twice gives the same selection |
 
 A lasso piece is a **shape**: stitches outside the shape inside its box are not in the piece, are never stamped, vacated or filled; copy, move, flip and rotate carry the shape. A backstitch line is taken by a rectangle or lasso only when **both** its ends are inside.
 

@@ -108,9 +108,10 @@ export function drawSymmetryGuides(ctx: CanvasRenderingContext2D, width: number,
 export type GesturePreview =
   | { kind: "brush"; base: StitchPattern; cells: Uint8Array; kinds: Uint8Array; ops: BrushOp[] }
   | { kind: "move"; base: StitchPattern; dx: number; dy: number }
-  | { kind: "select-rect"; base: StitchPattern; rect: CellRect }
+  /** `kept`: the selection a new area is being added to or taken from (G-116), outlined while the area is drawn. */
+  | { kind: "select-rect"; base: StitchPattern; rect: CellRect; kept?: FloatingSelection | null }
   | { kind: "select-piece"; base: StitchPattern; piece: FloatingSelection }
-  | { kind: "select-lasso"; base: StitchPattern; path: readonly CellPoint[]; stroke?: string }
+  | { kind: "select-lasso"; base: StitchPattern; path: readonly CellPoint[]; stroke?: string; kept?: FloatingSelection | null }
   /** The backstitch a gesture is placing (G-073): the segment being drawn, or the run being dragged. */
   | { kind: "backstitch-line"; base: StitchPattern; lines: readonly BackstitchLine[] };
 
@@ -423,6 +424,7 @@ function drawGestureContent(
       if (!baseDrawn) drawScene(ctx, gesture.base, scene, rect);
       ctx.save();
       clipTo(ctx, rect);
+      if (gesture.kept) drawSelectionOutline(ctx, gesture.kept, scene.cellSize, gesture.kept.mask);
       drawSelectionOutline(ctx, gesture.rect, scene.cellSize);
       ctx.restore();
       return;
@@ -430,6 +432,7 @@ function drawGestureContent(
       if (!baseDrawn) drawScene(ctx, gesture.base, scene, rect);
       ctx.save();
       clipTo(ctx, rect);
+      if (gesture.kept) drawSelectionOutline(ctx, gesture.kept, scene.cellSize, gesture.kept.mask);
       drawLassoPath(ctx, gesture.path, scene.cellSize, gesture.stroke);
       ctx.restore();
       return;

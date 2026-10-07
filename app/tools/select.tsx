@@ -1,20 +1,51 @@
 import { SelectionBar } from "../components/panels";
 import { LassoIcon, SelectIcon } from "./icons";
+import { SELECTION_MODE, SELECTION_OPTIONS } from "./options";
 import { act, inputsFrom } from "./shared";
 import type { EditorApi, ToolModule, ToolRuntime } from "./types";
 import { useCallback, useRef, useState } from "react";
 import { lassoRegion, maskedCell } from "@/lib/editor/lasso";
 import { type CellPoint } from "@/lib/editor/shape-raster";
-import { flipSelectionHorizontal, flipSelectionVertical, liftSelection, mergeSelection, moveSelection, duplicateSelection, fillSelection, rotateSelectionClockwise, rotateSelectionAnticlockwise, cropToSelection } from "@/lib/editor/floating-selection";
+import {
+  flipSelectionHorizontal,
+  flipSelectionVertical,
+  mergeSelection,
+  moveSelection,
+  duplicateSelection,
+  fillSelection,
+  rotateSelectionClockwise,
+  rotateSelectionAnticlockwise,
+  cropToSelection,
+} from "@/lib/editor/floating-selection";
+import {
+  areaFromBox,
+  combineAreas,
+  emptyArea,
+  invertArea,
+  liftArea,
+  pieceArea,
+  type SelectionArea,
+  type SelectionMode,
+} from "@/lib/editor/selection-area";
 import { STITCH_WHOLE } from "@/lib/editor/stitch-kind";
 import type { CellRect, FloatingSelection, StitchPattern } from "@/lib/types";
 import { clampedCellFromEvent, pointInRect, rectFromCorners, releaseCapture } from "../editor-geometry";
 import { type CanvasToolInputs, type PointerLike } from "./shared";
 
+/**
+ * What a new area is drawn against (G-116, D330): the selection it will be combined with, already applied to the chart, and
+ * how. `kept` is that selection lifted, for its outline while the new area is drawn; null when the new area replaces it.
+ */
+interface Combining {
+  base: SelectionArea;
+  combine: SelectionMode;
+  kept: FloatingSelection | null;
+}
+
 type SelectDrag =
-  | { pointerId: number; mode: "drawing"; basePattern: StitchPattern; startX: number; startY: number; rect: CellRect }
+  | ({ pointerId: number; mode: "drawing"; basePattern: StitchPattern; startX: number; startY: number; rect: CellRect } & Combining)
   /** Lasso (G-072): the cells the pointer has passed over, in order; the region is computed on release. */
-  | { pointerId: number; mode: "lasso"; basePattern: StitchPattern; path: CellPoint[] }
+  | ({ pointerId: number; mode: "lasso"; basePattern: StitchPattern; path: CellPoint[] } & Combining)
   | {
       pointerId: number;
       mode: "moving";
@@ -26,13 +57,21 @@ type SelectDrag =
       lastDy: number;
     };
 
-/** What a finished drag leaves in hand: a rectangle, a lassoed shape, or the piece that was being moved. */
+/**
+ * What a finished drag leaves in hand: the piece that was being moved, or the area drawn (a rectangle or a lassoed shape)
+ * combined with the selection by the mode, lifted (D330).
+ */
 function nextSelection(drag: SelectDrag): FloatingSelection | null {
-  if (drag.mode === "drawing") return liftSelection(drag.basePattern, drag.rect);
   if (drag.mode === "moving") return moveSelection(drag.selection, drag.lastDx, drag.lastDy);
-  const region = lassoRegion(drag.path, drag.basePattern.width, drag.basePattern.height);
-  // A lasso entirely off the chart selects nothing, which is a no-op rather than an empty piece.
-  return region && liftSelection(drag.basePattern, region.rect, region.mask);
+  let drawn: SelectionArea;
+  if (drag.mode === "drawing") {
+    drawn = areaFromBox(drag.basePattern, drag.rect);
+  } else {
+    const region = lassoRegion(drag.path, drag.basePattern.width, drag.basePattern.height);
+    // A lasso entirely off the chart draws nothing: the selection stays as it was.
+    drawn = region ? areaFromBox(drag.basePattern, region.rect, region.mask) : emptyArea(drag.basePattern);
+  }
+  return liftArea(drag.basePattern, combineAreas(drag.base, drawn, drag.combine));
 }
 
 /**
@@ -52,7 +91,8 @@ function pointInSelection(x: number, y: number, selection: FloatingSelection): b
  */
 export function useSelectTool(
   { frameRef, rendererRef, pattern, cellSize, commit, lockTransparency: locked = false, stitchKind = STITCH_WHOLE }: CanvasToolInputs,
-  tool: "select" | "lasso"
+  tool: "select" | "lasso",
+  selectionMode: SelectionMode = "replace"
 ) {
   const [selection, setSelection] = useState<FloatingSelection | null>(null);
   const [clipboard, setClipboard] = useState<FloatingSelection | null>(null);
@@ -64,9 +104,9 @@ export function useSelectTool(
     const renderer = rendererRef.current;
     if (!drag || !renderer) return;
     if (drag.mode === "drawing") {
-      renderer.previewSelect({ kind: "rect", base: drag.basePattern, rect: drag.rect });
+      renderer.previewSelect({ kind: "rect", base: drag.basePattern, rect: drag.rect, kept: drag.kept });
     } else if (drag.mode === "lasso") {
-      renderer.previewSelect({ kind: "lasso", base: drag.basePattern, path: drag.path });
+      renderer.previewSelect({ kind: "lasso", base: drag.basePattern, path: drag.path, kept: drag.kept });
     } else {
       renderer.previewSelect({ kind: "piece", base: drag.basePattern, piece: moveSelection(drag.selection, drag.lastDx, drag.lastDy) });
     }
@@ -84,6 +124,27 @@ export function useSelectTool(
     setSelection(null);
   }
 
+  /**
+   * Applies the piece in hand where it sits and says what a new area meets: the piece's area on the chart, or nothing when
+   * the new area replaces it. A moved or turned piece is put down first, so areas combine on the chart (decision (a), D330).
+   */
+  function settle(chart: StitchPattern, combine: SelectionMode): { working: StitchPattern } & Combining {
+    if (!selection) return { working: chart, base: emptyArea(chart), combine, kept: null };
+    const working = mergeSelection(chart, selection);
+    commit(working);
+    setSelection(null);
+    if (combine === "replace") return { working, base: emptyArea(working), combine, kept: null };
+    const base = pieceArea(working, selection);
+    return { working, base, combine, kept: liftArea(working, base) };
+  }
+
+  /** Selects everything the selection leaves out, backstitch included; with nothing selected, the whole chart (G-116). */
+  function invert() {
+    if (!pattern) return;
+    const { working, base } = settle(pattern, "add");
+    setSelection(liftArea(working, invertArea(working, base)));
+  }
+
   /** Drops the selection, and the copied cells whose palette indices belong to it, without merging -- for when the pattern is replaced. */
   function clear() {
     setClipboard(null);
@@ -94,7 +155,8 @@ export function useSelectTool(
   function onPointerDown(e: PointerLike, frame: HTMLElement) {
     if (!pattern) return;
     const { x, y } = clampedCellFromEvent(e, frame, cellSize, pattern.width, pattern.height);
-    if (selection && pointInSelection(x, y, selection)) {
+    // A press on the piece moves it; with + or − in force it starts a new area instead, which may lie inside the piece.
+    if (selectionMode === "replace" && selection && pointInSelection(x, y, selection)) {
       beginDrag(frame, {
         pointerId: e.pointerId,
         mode: "moving",
@@ -107,24 +169,20 @@ export function useSelectTool(
       });
       return;
     }
-    // Pressing outside the current selection merges it first, then starts a new rectangle.
-    let workingPattern = pattern;
-    if (selection) {
-      workingPattern = mergeSelection(pattern, selection);
-      commit(workingPattern);
-      setSelection(null);
-    }
+    // Anywhere else the piece is applied first, then the new area is drawn against it.
+    const { working, ...combining } = settle(pattern, selectionMode);
     if (tool === "lasso") {
-      beginDrag(frame, { pointerId: e.pointerId, mode: "lasso", basePattern: workingPattern, path: [{ x, y }] });
+      beginDrag(frame, { pointerId: e.pointerId, mode: "lasso", basePattern: working, path: [{ x, y }], ...combining });
       return;
     }
     beginDrag(frame, {
       pointerId: e.pointerId,
       mode: "drawing",
-      basePattern: workingPattern,
+      basePattern: working,
       startX: x,
       startY: y,
       rect: { x, y, width: 1, height: 1 },
+      ...combining,
     });
   }
 
@@ -176,6 +234,7 @@ export function useSelectTool(
     release: () => setSelection(null),
     /** Forgets copied cells after the palette is renumbered (a merge), since their indices now name other colors. */
     invalidateClipboard: () => setClipboard(null),
+    invert,
     copy: () => selection && setClipboard(selection),
     /**
      * Puts a ready-made piece in hand, as Paste does (G-081): whatever is floating is applied first, never discarded.
@@ -238,6 +297,7 @@ export const selectModule = {
       key: "s",
       group: 1,
       shares: ["colours", "lock"],
+      options: SELECTION_OPTIONS,
       Icon: SelectIcon,
       piece: true,
       cursor: "cross",
@@ -249,12 +309,14 @@ export const selectModule = {
       key: "q",
       group: 1,
       shares: ["colours", "lock"],
+      options: SELECTION_OPTIONS,
       Icon: LassoIcon,
       piece: true,
       cursor: "cross",
     },
   ],
   commands: [
+    { id: "selection.invert", name: "Invert the selection", group: "Selection", when: "Select or Lasso in hand" },
     { id: "selection.copy", name: "Copy the piece", group: "Selection", when: "A piece in hand", keys: ["Mod+C"], onHeld: true },
     {
       id: "selection.paste",
@@ -276,7 +338,7 @@ export const selectModule = {
   ],
   useRuntime(api: EditorApi): ToolRuntime {
     const mode = api.activeTool === "lasso" ? "lasso" : "select";
-    const select = useSelectTool(inputsFrom(api), mode);
+    const select = useSelectTool(inputsFrom(api), mode, api.option(SELECTION_MODE));
     const inHand = api.activeTool === "select" || api.activeTool === "lasso";
     const held = inHand && select.selection !== null;
     const colour = api.activeColorIndex;
@@ -285,6 +347,7 @@ export const selectModule = {
       onPointerMove: select.onPointerMove,
       onPointerUp: select.onPointerUp,
       commands: {
+        "selection.invert": act(inHand && api.pattern !== null, select.invert),
         "selection.copy": act(held, select.copy),
         "selection.paste": act(inHand && select.clipboard !== null, select.paste),
         // Ctrl+D is the browser's bookmark key: with a selection tool in hand it is kept from the browser even with no piece.
@@ -314,10 +377,9 @@ export const selectModule = {
       quick:
         inHand && api.pattern && !api.startingNew ? (
           <SelectionBar
-            tool={mode}
             hasSelection={select.selection !== null}
             hasClipboard={select.clipboard !== null}
-            selection={select.selection}
+            onInvert={select.invert}
             onCopy={select.copy}
             onPaste={select.paste}
             onDuplicate={select.duplicate}

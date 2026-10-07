@@ -366,3 +366,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D328 — A dither pattern is declared once, in Rust, and written out for the app — active
 - D329 — Fill and the Magic wand find a region with one function — active
 - D330 — The selection is an area of the chart, combined by mode — active
+- D331 — One selection mode, shared by every selection tool — active

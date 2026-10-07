@@ -67,8 +67,8 @@ test("Fill then Apply leaves one flat block in the chart, and Undo takes it back
 
   // The chart's own counts do not move -- filling stitches with a thread the chart already uses changes neither --
   // so this reads the cells themselves out of the exported file.
-  const rect = (await page.getByText(/^\d+ × \d+ at \d+, \d+$/).innerText()).match(/(\d+) × (\d+) at (\d+), (\d+)/)!;
-  const [w, h, x, y] = rect.slice(1).map(Number);
+  // `generateAndSelect` drags from stitch (2, 2) to (9, 6).
+  const [w, h, x, y] = [8, 5, 2, 2];
 
   await page.getByRole("button", { name: "Fill selection", exact: true }).click();
   await page.keyboard.press("Enter");
@@ -95,7 +95,6 @@ test("Duplicate leaves the original and puts a copy in hand, which Paste can rep
   // A piece is still in hand -- the copy -- and the clipboard now holds it, so Paste is live without a Copy press.
   await expect(page.getByRole("button", { name: "Apply here" })).toBeEnabled();
   await expect(page.getByRole("button", { name: "Paste" })).toBeEnabled();
-  await expect(page.getByText(/^\d+ × \d+ at \d+, \d+$/)).toBeVisible();
 
   await page.keyboard.press("Enter");
   await expect(page.getByRole("button", { name: "Apply here" })).toBeDisabled();

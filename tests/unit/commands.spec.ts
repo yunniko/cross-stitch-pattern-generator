@@ -63,6 +63,7 @@ describe("the command table", () => {
       "tool.move [V]",
       "tool.pan [H]",
       "tool.zoom [Z]",
+      "selection.invert",
       "selection.copy [Ctrl+C]",
       "selection.paste [Ctrl+V]",
       "selection.duplicate [Ctrl+D]",

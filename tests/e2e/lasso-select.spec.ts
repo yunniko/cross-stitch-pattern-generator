@@ -43,8 +43,9 @@ test("a lasso selects a shape, and the piece behaves like any other", async ({ p
   await drawLasso(page, DIAMOND);
 
   await expect(page.getByRole("button", { name: "Apply here" })).toBeEnabled();
-  // The bounding box of the diamond above, which is what the status bar reports.
-  await expect(page.getByText(/^9 × 9 at 6, 4$/)).toBeVisible();
+  // The piece is the diamond's box: cropping to it leaves 9 × 9 (the bar no longer shows the size, G-116).
+  await page.getByRole("button", { name: "Crop to selection" }).click();
+  await expect(header(page)).toHaveText(/^9 × 9, /);
 });
 
 test("cropping to a lasso gives its bounding box, as one undo step", async ({ page }) => {
@@ -71,7 +72,7 @@ test("Escape drops a lasso selection, as it drops a shape", async ({ page }) => 
 test("the corners of the box are not in the piece: pressing one starts a new selection", async ({ page }) => {
   await openSmallChart(page);
   const { box, cell } = await drawLasso(page, DIAMOND);
-  await expect(page.getByText(/^9 × 9 at 6, 4$/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Apply here" })).toBeEnabled();
 
   // (6,4) is the top-left of the bounding box and well outside the diamond. Pressing there must begin a fresh
   // lasso rather than pick the piece up — the difference between a mask and a rectangle, from the user's side.
@@ -83,7 +84,9 @@ test("the corners of the box are not in the piece: pressing one starts a new sel
   await page.mouse.move(ex, ey, { steps: 6 });
   await page.mouse.up();
 
-  await expect(page.getByText(/^9 × 9 at 6, 4$/)).toBeHidden();
+  // A new, smaller piece: cropping to it no longer gives the diamond's 9 × 9 box.
+  await page.getByRole("button", { name: "Crop to selection" }).click();
+  await expect(header(page)).not.toHaveText(/^(9 × 9|50 × \d+), /);
 });
 
 test("a rectangle selection is still a rectangle", async ({ page }) => {

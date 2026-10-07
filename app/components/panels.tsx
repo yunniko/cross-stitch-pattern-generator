@@ -74,11 +74,9 @@ export const PINNED_END = "sticky right-0 z-10 flex shrink-0 items-center gap-1.
 
 export interface SelectionBarProps {
   hasSelection: boolean;
-  /** Which selection tool is in hand: the empty-bar hint tells you how to use *that* one (G-072). */
-  tool: "select" | "lasso";
   hasClipboard: boolean;
-  /** The floating piece, for 1b's "12 x 9 at 14, 6" readout; null before one is drawn. */
-  selection: { x: number; y: number; width: number; height: number } | null;
+  /** Selects everything the selection leaves out; with nothing selected, the whole chart (G-116). */
+  onInvert: () => void;
   onCopy: () => void;
   onPaste: () => void;
   onDuplicate: () => void;
@@ -189,7 +187,6 @@ export function BackstitchBar({
 export function SelectionBar({
   hasSelection,
   hasClipboard,
-  selection,
   onCopy,
   onPaste,
   onDuplicate,
@@ -202,12 +199,19 @@ export function SelectionBar({
   onCrop,
   onCancel,
   onDeselect,
-  tool,
+  onInvert,
 }: SelectionBarProps) {
   const fillTitle = canFill
     ? "Paint the whole selected area in the brush's colour"
     : "Pick a thread in the list first \u2014 there is no colour to fill with";
   const actions = [
+    [
+      "Invert selection",
+      "Select everything the selection leaves out, backstitch included; with nothing selected, the whole chart",
+      <SkinIcon key="i" name="invert-selection" />,
+      onInvert,
+      false,
+    ],
     ["Copy", "Copy the selected piece", <SkinIcon key="i" name="copy" />, onCopy, !hasSelection],
     ["Paste", "Paste the copied piece as a new floating selection", <SkinIcon key="i" name="paste" />, onPaste, !hasClipboard],
     [
@@ -271,19 +275,9 @@ export function SelectionBar({
 
   return (
     // The piece in hand, and what can be done to it. It adds to the bar of tool options (G-095): Undo and Redo are the
-    // bar above's, and wait there while a piece is in hand.
+    // bar above's, and wait there while a piece is in hand. The selection mode is an option, drawn before it; the piece's
+    // size and the hint that once opened the bar are gone (Owner, 2026-10-07).
     <div className="flex min-w-max flex-1 items-center gap-2.5" data-testid="selection-bar">
-      <span className="text-[11px] font-medium tracking-wider text-muted uppercase">Selection</span>
-      {selection ? (
-        <span className="font-mono text-xs text-muted">
-          {selection.width} × {selection.height} at {selection.x}, {selection.y}
-        </span>
-      ) : (
-        <span className="text-xs text-muted">
-          {tool === "lasso" ? "Draw around the stitches you want." : "Drag a rectangle on the chart to select it."}
-        </span>
-      )}
-
       <div className="ml-auto flex items-center gap-1">{actions.slice(0, -2).map(action)}</div>
       {/* Apply and Cancel stay in view however narrow the window: the rest scrolls beneath them. */}
       <div className={PINNED_END}>{actions.slice(-2).map(action)}</div>
