@@ -47,6 +47,8 @@ export interface Tools {
   documentReplaced: () => void;
   /** A tool's own controls for what it holds, drawn after the options of the tool in hand. */
   quick: ReactNode;
+  /** Those controls in less room, when the tool offers a compact form of them. */
+  quickCompact: ReactNode;
   /** The shared drawing options the tool in hand reads. */
   shares: readonly SharedOption[];
   overlay: ReactNode;
@@ -158,6 +160,7 @@ export function useTools(inputs: ToolsInputs): Tools {
     commands,
     documentReplaced: () => runtimes.forEach((runtime) => runtime.onDocumentReplaced?.()),
     quick: runtimes.find((runtime) => runtime.quick)?.quick ?? null,
+    quickCompact: runtimes.find((runtime) => runtime.quick)?.quickCompact ?? null,
     shares: definition.shares ?? [],
     overlay: runtimes.find((runtime) => runtime.overlay)?.overlay ?? null,
     piece,

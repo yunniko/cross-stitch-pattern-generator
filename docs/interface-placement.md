@@ -34,6 +34,9 @@ seen to find it".
 8. **Q shows controls, not names** (Owner, 2026-10-07, G-118, D339): no tool name, no group headings and no thread names on
    it; each control carries its name for a screen reader and as a title. What commits the tool's work (Apply here, Cancel,
    Crop's pair, Deselect) sits in Q's end, after the options and never over them. Panels and tabs keep their headings.
+9. **Q fits its width, it does not wrap** (G-118, D340, D341): when the window is too narrow, the least important group
+   becomes compact first (one button showing its current choice, opening the whole control), then groups move to More.
+   The tool's controls for what it holds give way last, then its options; neither they nor the two colours go to More.
 
 ## Every control, by scope
 

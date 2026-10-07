@@ -1,4 +1,4 @@
-import { CropBar } from "../components/crop-bar";
+import { CropBar, type CropBarProps } from "../components/crop-bar";
 import { CropOverlay } from "../components/crop-overlay";
 import { CropIcon } from "./icons";
 import { act } from "./shared";
@@ -92,6 +92,22 @@ export const cropModule = {
   useRuntime(api: EditorApi): ToolRuntime {
     const crop = useCropTool(api.pattern, api.commit);
     const shown = crop.open && api.pattern !== null && !api.startingNew && !api.viewOnly;
+    const bar: CropBarProps | undefined =
+      shown && crop.size && api.pattern
+        ? {
+            width: api.pattern.width,
+            height: api.pattern.height,
+            insets: crop.insets,
+            size: crop.size,
+            error: crop.error,
+            changed: crop.changed,
+            aidaCount: api.options.aidaCount,
+            sizeUnit: api.options.sizeUnit,
+            onEdgeChange: crop.setEdge,
+            onApply: crop.apply,
+            onCancel: crop.reset,
+          }
+        : undefined;
     return {
       commands: {
         "crop.apply": act(shown && crop.changed && crop.error === null, crop.apply),
@@ -103,22 +119,8 @@ export const cropModule = {
       },
       // The frame starts again over the new chart; the tool stays in hand if it was.
       onDocumentReplaced: crop.clearFrame,
-      quick:
-        shown && crop.size && api.pattern ? (
-          <CropBar
-            width={api.pattern.width}
-            height={api.pattern.height}
-            insets={crop.insets}
-            size={crop.size}
-            error={crop.error}
-            changed={crop.changed}
-            aidaCount={api.options.aidaCount}
-            sizeUnit={api.options.sizeUnit}
-            onEdgeChange={crop.setEdge}
-            onApply={crop.apply}
-            onCancel={crop.reset}
-          />
-        ) : undefined,
+      quick: bar && <CropBar {...bar} />,
+      quickCompact: bar && <CropBar {...bar} compact />,
       overlay:
         shown && api.pattern ? (
           <CropOverlay

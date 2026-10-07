@@ -10,7 +10,9 @@ import type { ToolOption } from "../tools/options";
 import type { SharedOption } from "../tools/types";
 import { ColorPair } from "./color-pair";
 import { PinnedSlotProvider } from "./pinned-end";
-import { ToolOptions } from "./tool-options";
+import { BarMenu } from "./bar-menu";
+import { FitTrack, type FitItem } from "./fit-track";
+import { toolOptionItems } from "./tool-options";
 import { DISABLED_ICON } from "./ui";
 import { lockedNote } from "@/lib/features/features";
 import { useFeature } from "../features/features-context";
@@ -33,7 +35,6 @@ const SYMMETRY_TOGGLES: Array<{ axis: SymmetryAxis; label: string; title: string
 ];
 
 const HEADING = "shrink-0 text-[11px] font-medium tracking-wider text-muted uppercase";
-const DIVIDER = <div className="at-divider h-5 w-px shrink-0 bg-line" aria-hidden="true" />;
 
 export interface QuickBarProps {
   pattern: StitchPattern | null;
@@ -47,6 +48,8 @@ export interface QuickBarProps {
     valueOf: (option: ToolOption) => OptionValue;
     onChange: (option: ToolOption, value: OptionValue) => void;
     quick: ReactNode;
+    /** The same controls in less room, when the tool has a compact form of them. */
+    quickCompact?: ReactNode;
   };
   /** The loaded photo, shown before a chart exists. */
   photo: { isLoading: boolean; hasSource: boolean };
@@ -70,6 +73,109 @@ export function QuickBar({ pattern, workspace, tool, photo, colours, symmetry, l
   const { startingNew, photoDrop, onBackToChart } = start;
   const shares = (option: SharedOption) => tool.shares.includes(option);
   const [pinnedSlot, setPinnedSlot] = useState<HTMLElement | null>(null);
+
+  // What the bar fits to its width (D340), in the order it is drawn: the colours, the tool's own options, symmetry, the lock,
+  // then the tool's controls for what it holds. Those are kept whole longest, then the tool's options; neither they nor the
+  // colours ever leave the bar.
+  const items: FitItem[] = [];
+  if (shares("colours")) {
+    items.push({
+      id: "colours",
+      importance: 2,
+      stays: true,
+      divided: true,
+      name: "Drawing colours",
+      full: <ColorPair pattern={pattern!} slots={colours.slots} onActivate={colours.onActivate} onSwap={colours.onSwap} />,
+    });
+  }
+  items.push(...toolOptionItems(tool.options, tool.valueOf, tool.onChange));
+  if (shares("symmetry") && symmetryFeature.shown) {
+    const toggles = (
+      <div role="group" aria-label="Symmetry — mirrored drawing" className="flex shrink-0 items-center gap-1.5">
+        {SYMMETRY_TOGGLES.map(({ axis, label, title }) => {
+          const needsSquare = (axis === "diagonal" || axis === "antidiagonal") && !symmetry.squareCanvas;
+          return (
+            <button
+              key={axis}
+              type="button"
+              onClick={() => symmetry.onToggle(axis)}
+              disabled={needsSquare || !symmetryFeature.usable}
+              data-feature-locked={symmetryFeature.usable ? undefined : "chart.symmetry"}
+              title={!symmetryFeature.usable ? lockedNote("Symmetry axes") : needsSquare ? `${title}. Needs a square canvas.` : title}
+              aria-label={label}
+              aria-pressed={symmetry.axes[axis]}
+              className={`flex h-6 w-6 items-center justify-center rounded-md border transition-colors ${DISABLED_ICON} ${
+                symmetry.axes[axis] ? "border-accent bg-accent/15 text-ink" : "border-line text-muted enabled:hover:bg-raised"
+              }`}
+            >
+              <SkinIcon name={`axis-${axis}`} />
+            </button>
+          );
+        })}
+      </div>
+    );
+    const on = SYMMETRY_TOGGLES.filter(({ axis }) => symmetry.axes[axis]);
+    items.push({
+      id: "symmetry",
+      importance: 1,
+      divided: true,
+      name: "Symmetry",
+      full: toggles,
+      // One button: the axis that is on (or the first, greyed, when none is), and how many are; it opens the four.
+      compact: (
+        <BarMenu
+          label={`Symmetry — mirrored drawing: ${on.length === 0 ? "off" : on.map(({ label }) => label).join(", ")}`}
+          trigger={
+            <span className={`flex items-center gap-0.5 ${on.length > 0 ? "text-accent" : ""}`}>
+              <SkinIcon name={`axis-${on[0]?.axis ?? "vertical"}`} />
+              {on.length > 1 && <span className="font-mono text-[11px]">{on.length}</span>}
+              <SkinIcon name="chevron-down" />
+            </span>
+          }
+        >
+          {() => toggles}
+        </BarMenu>
+      ),
+    });
+  }
+  if (shares("lock") && lockFeature.shown) {
+    items.push({
+      id: "lock",
+      importance: 1,
+      name: "Lock transparency",
+      full: (
+        <button
+          type="button"
+          onClick={() => lock.onChange(!lock.on)}
+          disabled={!lockFeature.usable}
+          data-feature-locked={lockFeature.usable ? undefined : "command.chart.lock-transparency"}
+          aria-pressed={lock.on}
+          aria-label="Lock transparency"
+          title={
+            lock.on
+              ? "Transparency locked: drawing and filling cannot turn empty stitches into colour, or colour into empty. Fill selected paints only stitches that are not empty. Click to unlock."
+              : "Lock transparency: stop drawing and filling from turning empty stitches into colour, or colour into empty."
+          }
+          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border transition-colors ${
+            lock.on ? "border-accent bg-accent/15 text-accent" : "border-line text-muted hover:bg-raised hover:text-ink"
+          }`}
+        >
+          <SkinIcon name={lock.on ? "lock" : "lock-open"} />
+        </button>
+      ),
+    });
+  }
+  if (tool.quick) {
+    items.push({
+      id: "tool-quick",
+      importance: 4,
+      stays: true,
+      divided: true,
+      name: tool.label,
+      full: tool.quick,
+      compact: tool.quickCompact ?? undefined,
+    });
+  }
 
   return (
     <div className="flex h-11 shrink-0 items-center gap-3 border-b border-line bg-surface px-4" data-testid="quick-bar">
@@ -121,86 +227,7 @@ export function QuickBar({ pattern, workspace, tool, photo, colours, symmetry, l
             )}
             {workspace === "export" && <span className="shrink-0 text-xs text-muted">Choose what to make on the right.</span>}
 
-            {workspace === "edit" && (
-              <>
-                {shares("colours") && (
-                  <>
-                    {DIVIDER}
-                    <ColorPair pattern={pattern} slots={colours.slots} onActivate={colours.onActivate} onSwap={colours.onSwap} />
-                  </>
-                )}
-
-                {/* What the tool in hand offers, drawn from what the tool declares (G-093); nothing, for a tool with no options. */}
-                {tool.options.length > 0 && (
-                  <>
-                    {DIVIDER}
-                    <ToolOptions options={tool.options} valueOf={tool.valueOf} onChange={tool.onChange} />
-                  </>
-                )}
-
-                {shares("symmetry") && symmetryFeature.shown && (
-                  <>
-                    {DIVIDER}
-                    <div role="group" aria-label="Symmetry — mirrored drawing" className="flex shrink-0 items-center gap-1.5">
-                      {SYMMETRY_TOGGLES.map(({ axis, label, title }) => {
-                        const needsSquare = (axis === "diagonal" || axis === "antidiagonal") && !symmetry.squareCanvas;
-                        return (
-                          <button
-                            key={axis}
-                            type="button"
-                            onClick={() => symmetry.onToggle(axis)}
-                            disabled={needsSquare || !symmetryFeature.usable}
-                            data-feature-locked={symmetryFeature.usable ? undefined : "chart.symmetry"}
-                            title={
-                              !symmetryFeature.usable
-                                ? lockedNote("Symmetry axes")
-                                : needsSquare
-                                  ? `${title}. Needs a square canvas.`
-                                  : title
-                            }
-                            aria-label={label}
-                            aria-pressed={symmetry.axes[axis]}
-                            className={`flex h-6 w-6 items-center justify-center rounded-md border transition-colors ${DISABLED_ICON} ${
-                              symmetry.axes[axis] ? "border-accent bg-accent/15 text-ink" : "border-line text-muted enabled:hover:bg-raised"
-                            }`}
-                          >
-                            <SkinIcon name={`axis-${axis}`} />
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </>
-                )}
-
-                {shares("lock") && lockFeature.shown && (
-                  <button
-                    type="button"
-                    onClick={() => lock.onChange(!lock.on)}
-                    disabled={!lockFeature.usable}
-                    data-feature-locked={lockFeature.usable ? undefined : "command.chart.lock-transparency"}
-                    aria-pressed={lock.on}
-                    aria-label="Lock transparency"
-                    title={
-                      lock.on
-                        ? "Transparency locked: drawing and filling cannot turn empty stitches into colour, or colour into empty. Fill selected paints only stitches that are not empty. Click to unlock."
-                        : "Lock transparency: stop drawing and filling from turning empty stitches into colour, or colour into empty."
-                    }
-                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border transition-colors ${
-                      lock.on ? "border-accent bg-accent/15 text-accent" : "border-line text-muted hover:bg-raised hover:text-ink"
-                    }`}
-                  >
-                    <SkinIcon name={lock.on ? "lock" : "lock-open"} />
-                  </button>
-                )}
-
-                {tool.quick && (
-                  <>
-                    {DIVIDER}
-                    {tool.quick}
-                  </>
-                )}
-              </>
-            )}
+            {workspace === "edit" && <>{items.length > 0 && <FitTrack items={items} />}</>}
           </div>
           <div ref={setPinnedSlot} className="flex shrink-0 items-center gap-1.5 empty:hidden" data-testid="quick-bar-end" />
         </PinnedSlotProvider>

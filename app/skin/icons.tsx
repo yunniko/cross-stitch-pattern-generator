@@ -364,6 +364,18 @@ export const INTERFACE_ICONS = {
       <path d="M14 16 L22 16 L22 8 Z" fill="currentColor" />
     </>
   ),
+  /** A compact control on the quick bar opens its choices (G-118). */
+  "chevron-down": outline("h-3 w-3", 2, <path d="m6 9 6 6 6-6" />),
+  /** The quick bar's More: what did not fit (G-118). */
+  more: outline(
+    "h-4 w-4",
+    2,
+    <>
+      <circle cx="5" cy="12" r="0.9" fill="currentColor" />
+      <circle cx="12" cy="12" r="0.9" fill="currentColor" />
+      <circle cx="19" cy="12" r="0.9" fill="currentColor" />
+    </>
+  ),
   /** Swap the two drawing colours (X). */
   "swap-colours": outline("h-3.5 w-3.5", 1.8, <path d="M7 4 4 7l3 3M4 7h11a4 4 0 0 1 4 4v1M17 20l3-3-3-3M20 17H9a4 4 0 0 1-4-4v-1" />),
 } as const satisfies Record<string, IconComponent>;

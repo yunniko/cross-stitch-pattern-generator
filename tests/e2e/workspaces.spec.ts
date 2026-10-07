@@ -114,7 +114,8 @@ test("a shared drawing option is shown with the tools that read it, and with no 
   await openSmallChart(page);
   const bar = page.getByTestId("quick-bar");
   const colours = bar.getByRole("group", { name: "Drawing colours" });
-  const symmetry = bar.getByRole("group", { name: /^Symmetry/ });
+  // Whole (four switches) or compact (one button opening them), as the bar's width allows (G-118, D341).
+  const symmetry = bar.getByRole("group", { name: /^Symmetry/ }).or(bar.getByRole("button", { name: /^Symmetry/ }));
   const lock = bar.getByRole("button", { name: "Lock transparency" });
   const shown = async () => [(await colours.count()) > 0, (await symmetry.count()) > 0, (await lock.count()) > 0];
 
@@ -150,7 +151,7 @@ test("a tool's own controls add to the bar of options: with Select, Crop and BS 
   await expect(bar.getByRole("button", { name: "Lock transparency" })).toBeVisible();
   await pickTool(page, "BS edit");
   await expect(bar.getByTestId("backstitch-bar")).toBeVisible();
-  await expect(bar.getByRole("group", { name: /^Symmetry/ })).toBeVisible();
+  await expect(bar.getByRole("group", { name: /^Symmetry/ }).or(bar.getByRole("button", { name: /^Symmetry/ }))).toBeVisible();
   await pickTool(page, "Crop");
   await expect(bar.getByTestId("crop-bar")).toBeVisible();
   // The crop frame stays behind a tool that only moves the view, as it always has.

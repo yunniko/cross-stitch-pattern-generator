@@ -576,6 +576,7 @@ export default function Workspace({ account }: WorkspaceProps) {
                     updateOption(written.key, written.value as never);
                   },
                   quick: tools.quick,
+                  quickCompact: tools.quickCompact,
                 }}
                 photo={{ isLoading: source.isLoading, hasSource: source.hasPhoto }}
                 colours={{ slots: colours.slots, onActivate: colours.setActiveSlot, onSwap: colours.swap }}

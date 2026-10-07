@@ -12,15 +12,16 @@ import { PinnedEnd } from "./pinned-end";
  * (D278). Typing moves the frame as the characters arrive; dragging the frame changes the numbers.
  */
 
-const FIELDS: Array<{ edge: CropEdge; label: string }> = [
-  { edge: "top", label: "Top" },
-  { edge: "right", label: "Right" },
-  { edge: "bottom", label: "Bottom" },
-  { edge: "left", label: "Left" },
+const FIELDS: Array<{ edge: CropEdge; label: string; letter: string }> = [
+  { edge: "top", label: "Top", letter: "T" },
+  { edge: "right", label: "Right", letter: "R" },
+  { edge: "bottom", label: "Bottom", letter: "B" },
+  { edge: "left", label: "Left", letter: "L" },
 ];
 
 function InsetField({
   label,
+  letter,
   value,
   onCommit,
   onEscape,
@@ -28,6 +29,8 @@ function InsetField({
   onValidity,
 }: {
   label: string;
+  /** Written instead of the label in the compact form; the label stays the field's name and its title. */
+  letter: string | null;
   value: number;
   onCommit: (value: number) => void;
   onEscape: () => void;
@@ -44,8 +47,8 @@ function InsetField({
   const typed = draft === null ? null : parseInset(draft);
   const shown = draft !== null && (typed === null || typed === value) ? draft : null;
   return (
-    <label className="flex items-center gap-1.5 font-mono text-[11px] text-muted">
-      {label}
+    <label className="flex items-center gap-1.5 font-mono text-[11px] text-muted" title={letter ? label : undefined}>
+      {letter ?? label}
       <input
         type="text"
         inputMode="numeric"
@@ -85,7 +88,7 @@ function InsetField({
             e.currentTarget.blur();
           }
         }}
-        className={`w-14 rounded-md border bg-sunken px-1.5 py-1 text-right font-mono text-xs text-ink ${
+        className={`${letter ? "w-11" : "w-14"} rounded-md border bg-sunken px-1.5 py-1 text-right font-mono text-xs text-ink ${
           shown !== null && parseInset(shown) === null ? "border-danger-bright" : "border-line"
         }`}
       />
@@ -106,6 +109,8 @@ export interface CropBarProps {
   onEdgeChange: (edge: CropEdge, value: number) => void;
   onApply: () => void;
   onCancel: () => void;
+  /** Its compact form (G-118): the readout gives only the new size, with the rest on hover. */
+  compact?: boolean;
 }
 
 export function CropBar({
@@ -120,6 +125,7 @@ export function CropBar({
   onEdgeChange,
   onApply,
   onCancel,
+  compact = false,
 }: CropBarProps) {
   // Fields whose text is not a usable number: Apply waits for them, since it would apply the last number that was (QA 2026-10-04).
   const [unusable, setUnusable] = useState<ReadonlySet<CropEdge>>(new Set());
@@ -131,15 +137,18 @@ export function CropBar({
       else next.add(edge);
       return next;
     });
+  const full = `${width} × ${height} → ${size.width} × ${size.height} · ${formatFinishedSize(size.width, size.height, aidaCount, sizeUnit)}`;
   return (
-    <div className="flex min-w-max flex-1 items-center gap-3" data-testid="crop-bar">
+    // Both forms are this one component, so the bar changing form while a number is typed keeps the field and its focus.
+    <div className="flex items-center gap-3" data-testid="crop-bar" data-form={compact ? "compact" : "full"}>
       {/* The numbers and the readout scroll with the bar of options in a narrow window; Apply and Cancel stay in view (as D213). */}
       <div className="flex shrink-0 items-center gap-3">
         <div className="flex shrink-0 items-center gap-2.5" role="group" aria-label="Crop, stitches cut from each edge">
-          {FIELDS.map(({ edge, label }) => (
+          {FIELDS.map(({ edge, label, letter }) => (
             <InsetField
               key={edge}
               label={label}
+              letter={compact ? letter : null}
               value={insets[edge]}
               onCommit={(value) => onEdgeChange(edge, value)}
               onEscape={onCancel}
@@ -151,13 +160,9 @@ export function CropBar({
         <span
           className={`shrink-0 font-mono text-xs whitespace-nowrap ${error ? "text-danger" : "text-muted"}`}
           data-testid="crop-readout"
-          title="Positive cuts stitches off that edge; negative adds empty stitches"
+          title={`${error ?? `${full}. `}Positive cuts stitches off that edge; negative adds empty stitches`}
         >
-          {error ?? (
-            <>
-              {width} × {height} → {size.width} × {size.height} · {formatFinishedSize(size.width, size.height, aidaCount, sizeUnit)}
-            </>
-          )}
+          {error ?? (compact ? `→ ${size.width} × ${size.height}` : full)}
         </span>
       </div>
       <PinnedEnd>

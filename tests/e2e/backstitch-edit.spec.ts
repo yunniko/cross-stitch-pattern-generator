@@ -32,6 +32,10 @@ async function oneLine(page: Page) {
 
 const useEdit = (page: Page) => pickTool(page, "BS edit");
 
+// These specs are about editing lines, so the window is wide enough for the bar to draw the actions whole, with their
+// words; the compact form and when it is used are quick-bar-fit's (G-118).
+test.use({ viewport: { width: 1920, height: 900 } });
+
 test("the bar counts what is in hand, and pressing off the line lets go", async ({ page }) => {
   await oneLine(page);
   await useEdit(page);

@@ -375,3 +375,5 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D337 — The database publishes a host port only in `docker-compose.dev.yml`; production's password comes from `.env` — active
 - D338 — The Prisma CLI's remaining dev-dependency advisories are accepted rather than downgrading to Prisma 6 — active
 - D339 — The quick bar shows controls, not names; committing controls sit in a slot after its track — active
+- D340 — The quick bar fits by compacting the least important group first, then moving groups to More — active
+- D341 — A compact group is one button opening its whole form; More holds what still does not fit — active

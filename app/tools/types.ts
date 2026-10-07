@@ -167,6 +167,8 @@ export interface ToolRuntime {
    * bar and replace nothing in it: Undo, the views and the other tools' places stay where they are (G-095, D297).
    */
   quick?: ReactNode;
+  /** The same controls in less room, for a quick bar that cannot fit `quick` whole (G-118, D340). */
+  quickCompact?: ReactNode;
   /** What its tab holds, for a tool whose definition declares one. */
   panel?: (shell: ToolShell) => ReactNode;
   /** Drawn over the chart. */

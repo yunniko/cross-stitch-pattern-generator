@@ -1,4 +1,4 @@
-import { BackstitchBar } from "../components/panels";
+import { BackstitchBar, type BackstitchBarProps } from "../components/panels";
 import { BackstitchSelectIcon } from "./icons";
 import { act, inputsFrom } from "./shared";
 import type { EditorApi, ToolModule, ToolRuntime } from "./types";
@@ -260,6 +260,24 @@ export const backstitchEditModule = {
     const edit = useBackstitchEditTool({ ...inputsFrom(api), colorForPointer: api.colorForPointer });
     const inHand = api.activeTool === "backstitch-edit";
     const some = inHand && edit.selected.length > 0;
+    const bar: BackstitchBarProps | undefined =
+      inHand && api.pattern && !api.startingNew
+        ? {
+            selectedCount: edit.selected.length,
+            hasClipboard: edit.hasClipboard,
+            onCopy: edit.copy,
+            onPaste: edit.paste,
+            onDuplicate: edit.duplicate,
+            onMirrorHorizontal: edit.mirrorHorizontal,
+            onMirrorVertical: edit.mirrorVertical,
+            onRotateClockwise: edit.rotateClockwise,
+            onRotateAnticlockwise: edit.rotateAnticlockwise,
+            onRecolour: edit.recolour,
+            canRecolour: api.activeColorIndex !== null,
+            onDelete: edit.remove,
+            onDeselect: edit.clear,
+          }
+        : undefined;
     return {
       onPointerDown: edit.onPointerDown,
       onPointerMove: edit.onPointerMove,
@@ -286,24 +304,8 @@ export const backstitchEditModule = {
       // Only while the tool is in hand: a thicker line claims "this is selected", which would be a lie once the tool that could
       // act on it has been put down.
       highlightBackstitch: inHand ? edit.isSelected : undefined,
-      quick:
-        inHand && api.pattern && !api.startingNew ? (
-          <BackstitchBar
-            selectedCount={edit.selected.length}
-            hasClipboard={edit.hasClipboard}
-            onCopy={edit.copy}
-            onPaste={edit.paste}
-            onDuplicate={edit.duplicate}
-            onMirrorHorizontal={edit.mirrorHorizontal}
-            onMirrorVertical={edit.mirrorVertical}
-            onRotateClockwise={edit.rotateClockwise}
-            onRotateAnticlockwise={edit.rotateAnticlockwise}
-            onRecolour={edit.recolour}
-            canRecolour={api.activeColorIndex !== null}
-            onDelete={edit.remove}
-            onDeselect={edit.clear}
-          />
-        ) : undefined,
+      quick: bar && <BackstitchBar {...bar} />,
+      quickCompact: bar && <BackstitchBar {...bar} compact />,
     };
   },
 } as const satisfies ToolModule;

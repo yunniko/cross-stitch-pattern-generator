@@ -134,8 +134,9 @@ body {
   display: none;
 }
 
-/* A divider parts two groups, so none opens the track: the tool's name before the first one is not drawn (G-118). */
-.at-tool-track > .sr-only:first-child + .at-divider {
+/* A divider parts two groups, so none closes the bar: a group whose only content is drawn in the bar's end (the selection's
+   Apply here and Cancel) leaves its divider with nothing after it, and it is not drawn (G-118). */
+[data-fit-id] > .at-divider:last-child {
   display: none;
 }
 
