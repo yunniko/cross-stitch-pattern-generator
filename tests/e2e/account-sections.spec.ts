@@ -30,8 +30,10 @@ test("a new account: the sections in order, Free with nothing used, and no invoi
   await expect(panel.current(page)).toHaveText("Plan");
   await expect(page.getByTestId("plan-current")).toContainText("Free");
   await expect(page.getByTestId("plan-current")).toContainText("Current");
-  await expect(page.getByText("Paid tier · not decided")).toBeVisible();
-  await expect(page.getByText("No invoices.")).toBeVisible();
+  // Buying starts hidden (D372), so nothing is offered and nothing is billed.
+  await expect(page.getByText("Paid plans are not on sale yet.")).toBeVisible();
+  await expect(page.getByTestId("plan-offer")).toHaveCount(0);
+  await expect(page.getByText("Nothing billed on this account.")).toBeVisible();
 
   await section(page, "Usage").click();
   await expect(page).toHaveURL(/\/account\/usage$/);
@@ -74,7 +76,7 @@ test("a tier an admin gave is the plan shown, in the section and the sidebar", a
   await page.goto("/account/plan");
   await expect(page.getByTestId("plan-current")).toContainText(tier);
   await expect(page.getByTestId("account-plan")).toContainText(tier);
-  await expect(page.getByText("Paid tier · not decided")).toHaveCount(0);
+  await expect(page.getByText("Paid plans are not on sale yet.")).toHaveCount(0);
 });
 
 test("Preferences on the account are the editor's own: a change here is what the editor opens with", async ({ page }) => {
