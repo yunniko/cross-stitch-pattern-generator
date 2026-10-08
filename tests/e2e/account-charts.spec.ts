@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { openSmallChart, saveButton, saveMenuItem, waitForAutosave } from "./helpers/app";
 import { registerReader, uniqueEmail } from "./helpers/auth";
+import { panel } from "./helpers/panel";
 
 /**
  * G-108 part 1 M4: the account's Charts. The charts saved to the account are listed with the space they use against the
@@ -12,7 +13,7 @@ import { registerReader, uniqueEmail } from "./helpers/auth";
 const rows = (page: Page) => page.getByTestId("saved-chart");
 const row = (page: Page, name: string) => rows(page).filter({ has: page.getByTestId("saved-chart-name").getByText(name, { exact: true }) });
 const message = (page: Page) => page.getByTestId("account-save-message");
-const chartsTab = (page: Page) => page.getByRole("navigation", { name: "Account sections" }).getByRole("link", { name: /^Charts/ });
+const chartsTab = (page: Page) => panel.accountNav(page).getByRole("link", { name: /^Charts/ });
 const names = (page: Page) => rows(page).getByTestId("saved-chart-name").allTextContents();
 
 async function savedCharts(page: Page): Promise<{ id: string; name: string; version: number }[]> {

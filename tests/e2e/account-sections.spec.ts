@@ -14,7 +14,8 @@ const section = (page: Page, name: string) => panel.accountNav(page).getByRole("
 test("a new account: the sections in order, Free with nothing used, and no invoices", async ({ page }) => {
   await registerReader(page, uniqueEmail("sections"));
 
-  await expect(panel.accountNav(page).getByRole("link")).toHaveText(["Charts", "Plan", "Usage", "Preferences", "Profile & sign-in"]);
+  // Charts carries how many are saved (G-108 part 1 M8): none yet.
+  await expect(panel.accountNav(page).getByRole("link")).toHaveText(["Charts0", "Plan", "Usage", "Preferences", "Profile & sign-in"]);
   await expect(page.getByTestId("account-plan")).toContainText("Free");
 
   await section(page, "Plan").click();
