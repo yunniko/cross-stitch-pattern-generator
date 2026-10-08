@@ -10,7 +10,7 @@ import { paletteFileText, setFromPattern } from "@/lib/editor/palette-set";
 import { pixelArtPngBlob } from "@/lib/export/pixel-art-png";
 import type { ExportProgress } from "@/lib/export/export-progress";
 import { runServerExport } from "@/lib/export/export-server";
-import { ProcessorUnreachableError, ServerBusyError } from "@/lib/pipeline/server-errors";
+import { LimitReachedError, ProcessorUnreachableError, ServerBusyError } from "@/lib/pipeline/server-errors";
 import type { StitchPattern } from "@/lib/types";
 
 export type { ExportChoice, ExportKind };
@@ -22,6 +22,7 @@ export function paginatesAsA4(kind: ExportChoice): boolean {
 
 /** A server export fails in ways a browser one cannot, and each says what the reader can do about it (G-034 M4). */
 function messageForExport(error: unknown, fallback: string): string {
+  if (error instanceof LimitReachedError) return error.message;
   if (error instanceof ServerBusyError) return `The export service is busy. Try again in about ${error.retryAfterSeconds} seconds.`;
   if (error instanceof ProcessorUnreachableError) return "Couldn't reach the export service. Check your connection and try again.";
   // Anything with its own wording — a chart too large for one image, a refused request — is shown as it came.

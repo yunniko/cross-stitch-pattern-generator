@@ -15,11 +15,12 @@ import { decideQuota, limitsInForce, lookbackMs, refusalMessage, retryAfterSecon
  */
 
 export interface QuotaTicket {
-  /** Called once with whether the processor accepted the work. */
+  /** Called with whether the processor accepted the work; only the first call counts. */
   settle(accepted: boolean): void;
 }
 
-export type QuotaResult = { ticket: QuotaTicket } | { refused: { status: 429 | 403; message: string; retryAfter: number | null } };
+export type QuotaResult =
+  { ticket: QuotaTicket } | { refused: { status: 429 | 403; limit: string; message: string; retryAfter: number | null } };
 
 export async function takeQuota(
   action: QuotaAction,
@@ -29,7 +30,7 @@ export async function takeQuota(
 ): Promise<QuotaResult> {
   const limits = await limitsFor(userId);
   const inForce = limitsInForce(action, limits);
-  if (inForce.length === 0) return { ticket: { settle: (accepted) => accepted && recordUsage(action, userId, exportKind) } };
+  if (inForce.length === 0) return { ticket: once((accepted) => accepted && recordUsage(action, userId, exportKind)) };
   if (userId === null) return refuse(decideQuota(action, limits, false, [], now), now);
 
   const since = new Date(now.getTime() - lookbackMs(inForce));
@@ -53,13 +54,23 @@ export async function takeQuota(
   if ("decision" in outcome) return refuse(outcome.decision as Exclude<QuotaDecision, { allowed: true }>, now);
 
   return {
-    ticket: {
-      settle(accepted) {
-        if (accepted) return;
-        prisma.usageEvent.delete({ where: { id: outcome.eventId } }).catch((error: unknown) => {
-          console.error("quota give-back failed:", error);
-        });
-      },
+    ticket: once((accepted) => {
+      if (accepted) return;
+      prisma.usageEvent.delete({ where: { id: outcome.eventId } }).catch((error: unknown) => {
+        console.error("quota give-back failed:", error);
+      });
+    }),
+  };
+}
+
+/** A ticket whose first settling is the only one: a route's later `catch` cannot give back a use already kept. */
+function once(settle: (accepted: boolean) => unknown): QuotaTicket {
+  let settled = false;
+  return {
+    settle(accepted) {
+      if (settled) return;
+      settled = true;
+      settle(accepted);
     },
   };
 }
@@ -67,10 +78,12 @@ export async function takeQuota(
 async function refuse(decision: QuotaDecision, now: Date): Promise<QuotaResult> {
   if (decision.allowed) throw new Error("refuse() called with an allowed decision");
   // A guest is told to sign in (403: no waiting lifts it); a used-up limit is 429 with when to try again.
-  if (decision.reason === "sign-in") return { refused: { status: 403, message: refusalMessage(decision, now), retryAfter: null } };
+  if (decision.reason === "sign-in")
+    return { refused: { status: 403, limit: "sign-in", message: refusalMessage(decision, now), retryAfter: null } };
   return {
     refused: {
       status: 429,
+      limit: decision.use.limit.id,
       message: refusalMessage(decision, now, await plansWithMore(decision.use.limit.id, decision.use.value)),
       retryAfter: retryAfterSeconds(decision, now),
     },
@@ -84,4 +97,36 @@ async function plansWithMore(limitId: string, value: number): Promise<string[]> 
     .filter((row) => row.value === null || row.value > value)
     .map((row) => row.tier.name)
     .sort();
+}
+
+/**
+ * `takeQuota` for a route: the ticket, or the response to send instead. The refusal carries `limit` (the limit's id, or
+ * "sign-in"), which is how the browser tells a limit's refusal from any other and shows its words as they are; a limit
+ * that cannot be read refuses with 503 (Owner, 2026-10-06).
+ */
+export async function quotaForRoute(
+  action: QuotaAction,
+  userId: string | null,
+  exportKind: string | null = null
+): Promise<{ ticket: QuotaTicket } | { response: Response }> {
+  let result: QuotaResult;
+  try {
+    result = await takeQuota(action, userId, exportKind);
+  } catch (error) {
+    console.error("quota could not be read:", error);
+    return {
+      response: Response.json(
+        { error: "Your limits could not be checked just now. Try again shortly." },
+        { status: 503, headers: { "retry-after": "30" } }
+      ),
+    };
+  }
+  if ("ticket" in result) return result;
+  const { status, limit, message, retryAfter } = result.refused;
+  return {
+    response: Response.json(
+      { error: message, limit },
+      { status, headers: retryAfter === null ? undefined : { "retry-after": String(retryAfter) } }
+    ),
+  };
 }

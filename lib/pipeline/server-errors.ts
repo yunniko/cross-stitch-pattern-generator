@@ -32,6 +32,19 @@ export class PhotoExpiredError extends Error {
   }
 }
 
+/**
+ * A limit refused the request (G-109): a counted limit used up, or one that needs an account. The server words it (the
+ * limit, when the next is available, which plan gives more), so it is shown as it came.
+ */
+export class LimitReachedError extends Error {
+  /** Seconds until one more is allowed; null when waiting will not lift it (a guest, or a limit of 0). */
+  readonly retryAfterSeconds: number | null;
+  constructor(message: string, retryAfterSeconds: number | null) {
+    super(message);
+    this.name = "LimitReachedError";
+    this.retryAfterSeconds = retryAfterSeconds;
+  }
+}
 /** Turns a failed response into the most specific error we can justify from its status. */
 export async function errorFromResponse(res: Response, fallback: string): Promise<Error> {
   if (res.status === 503) {
@@ -42,7 +55,11 @@ export async function errorFromResponse(res: Response, fallback: string): Promis
   // A 502/504 is nginx or the app failing to reach the processor, which the user experiences as it being down.
   if (res.status === 502 || res.status === 504) return new ProcessorUnreachableError();
   try {
-    const body = (await res.json()) as { error?: string };
+    const body = (await res.json()) as { error?: string; limit?: string };
+    if (body.limit && body.error) {
+      const retryAfter = Number(res.headers.get("retry-after"));
+      return new LimitReachedError(body.error, Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : null);
+    }
     return new Error(body.error ?? fallback);
   } catch {
     return new Error(fallback);

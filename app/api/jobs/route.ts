@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { guardMutation, processorUnreachable, processorUrl } from "@/lib/server/request-guard";
-import { recordUsage } from "@/lib/admin/usage";
+import { quotaForRoute } from "@/lib/limits/quota-server";
 import { generationRefusal, workspaceRefusal } from "@/lib/features/request-check";
 import { featureStatesFor } from "@/lib/features/server";
 import { parseBody } from "@/lib/server/parse-body";
@@ -37,18 +37,23 @@ export async function POST(req: Request): Promise<Response> {
   const refusal = workspaceRefusal("/api/jobs", states) ?? generationRefusal(parseBody(body), states);
   if (refusal) return NextResponse.json({ error: refusal }, { status: 403 });
 
+  // The counted limits (G-109, D364): checked and counted before the processor is asked, given back if it refuses.
+  const quota = await quotaForRoute("GENERATE", userId, null);
+  if ("response" in quota) return quota.response;
+
   try {
     const upstream = await fetch(processorUrl("/jobs"), {
       method: "POST",
       headers: { "content-type": "application/json" },
       body,
     });
-    if (upstream.ok) recordUsage("GENERATE", userId);
+    quota.ticket.settle(upstream.ok);
     const headers: Record<string, string> = { "content-type": "application/json" };
     const retryAfter = upstream.headers.get("retry-after");
     if (retryAfter) headers["retry-after"] = retryAfter;
     return new NextResponse(await upstream.text(), { status: upstream.status, headers });
   } catch {
+    quota.ticket.settle(false);
     return processorUnreachable();
   }
 }

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { guardMutation, processorUnreachable, processorUrl } from "@/lib/server/request-guard";
-import { recordUsage } from "@/lib/admin/usage";
+import { quotaForRoute } from "@/lib/limits/quota-server";
 import { LIMITS } from "@/processor/job-protocol";
 import { exportRefusal, workspaceRefusal } from "@/lib/features/request-check";
 import { featureStatesFor } from "@/lib/features/server";
@@ -45,6 +45,10 @@ export async function POST(req: Request): Promise<Response> {
   const refusal = workspaceRefusal("/api/exports", states) ?? exportRefusal(parsed, states);
   if (refusal) return NextResponse.json({ error: refusal }, { status: 403 });
 
+  // The counted limits (G-109, D364): checked and counted before the processor is asked, given back if it refuses.
+  const quota = await quotaForRoute("EXPORT", userId, typeof parsed.kind === "string" ? parsed.kind : null);
+  if ("response" in quota) return quota.response;
+
   try {
     const upstream = await fetch(processorUrl("/exports"), {
       method: "POST",
@@ -52,13 +56,14 @@ export async function POST(req: Request): Promise<Response> {
       body,
     });
     // The processor accepts only kinds it knows, so an accepted request names one (G-107 M2).
-    if (upstream.ok) recordUsage("EXPORT", userId, typeof parsed.kind === "string" ? parsed.kind : null);
+    quota.ticket.settle(upstream.ok);
     const headers: Record<string, string> = { "content-type": "application/json" };
     const retryAfter = upstream.headers.get("retry-after");
     if (retryAfter) headers["retry-after"] = retryAfter;
     // 422 (a chart too large for one image) and 503 (a full queue) are the caller's to act on, so both pass through.
     return new NextResponse(await upstream.text(), { status: upstream.status, headers });
   } catch {
+    quota.ticket.settle(false);
     return processorUnreachable();
   }
 }

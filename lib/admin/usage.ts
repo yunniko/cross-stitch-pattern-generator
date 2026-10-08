@@ -4,8 +4,9 @@ import { usageWindowStarts } from "@/lib/admin/usage-windows";
 export type UsageKind = "GENERATE" | "EXPORT";
 
 /**
- * Records one generation or export (G-075 M4), with what the export was (G-107 M2), called from `app/api/jobs/route.ts`
- * and `app/api/exports/route.ts` right after the processor accepts the job. Deliberately not `async` and never
+ * Records one generation or export (G-075 M4), with what the export was (G-107 M2), right after the processor accepts the
+ * job: by `takeQuota` (`lib/limits/quota-server.ts`) when no counted limit is in force; with one in force, the quota
+ * counts the use itself, in its own transaction (G-109, D364). Deliberately not `async` and never
  * awaited by its caller: the constraint is that a slow or failed write to Postgres is never why a generate
  * or export job fails or waits, and awaiting it first would make that true only some of the time.
  */
