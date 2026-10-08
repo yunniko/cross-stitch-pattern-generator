@@ -13,11 +13,14 @@ export interface SavedChartLink {
   savedAt: string;
 }
 
+/** A saved chart's id as the server makes them (a cuid); anything else is never sent to it. */
+const ID = /^[a-z0-9]{1,64}$/;
+
 /** A link read back from storage, or undefined when there is none or it is not one. */
 export function readSavedChartLink(value: unknown): SavedChartLink | undefined {
   if (typeof value !== "object" || value === null) return undefined;
   const { id, version, savedAt } = value as Record<string, unknown>;
-  if (typeof id !== "string" || !/^[a-z0-9]{1,64}$/.test(id)) return undefined;
+  if (typeof id !== "string" || !ID.test(id)) return undefined;
   if (typeof version !== "number" || !Number.isInteger(version) || version < 1) return undefined;
   if (typeof savedAt !== "string" || Number.isNaN(Date.parse(savedAt))) return undefined;
   return { id, version, savedAt };
@@ -60,6 +63,33 @@ export function saveOutcome(status: number, body: unknown): SaveOutcome {
     return { kind: "conflict", message: CONFLICT_MESSAGE, version: data.version, savedAt: data.savedAt };
   if (status === 404) return { kind: "gone", message: GONE_MESSAGE };
   return { kind: "refused", message };
+}
+
+/** The address parameter the account's Charts open a saved chart with: `/?chart=<id>`. */
+export const OPEN_CHART_PARAM = "chart";
+
+/** The editor's address for opening a saved chart. */
+export function openChartHref(id: string): string {
+  return `/?${OPEN_CHART_PARAM}=${encodeURIComponent(id)}`;
+}
+
+/** The saved chart an address asks the editor to open, or null when it names none, or not one. */
+export function chartToOpen(search: string): string | null {
+  const id = new URLSearchParams(search).get(OPEN_CHART_PARAM);
+  return id !== null && ID.test(id) ? id : null;
+}
+
+export type OpenOutcome = { kind: "opened"; link: SavedChartLink; name: string } | { kind: "refused"; message: string };
+
+/** What the server's answer to reading a saved chart means; `header` reads one of the response's headers. */
+export function openOutcome(status: number, header: (name: string) => string | null, id: string): OpenOutcome {
+  if (status === 401) return { kind: "refused", message: "Sign in to open the charts saved to your account." };
+  if (status === 404) return { kind: "refused", message: "That chart is no longer among your saved charts." };
+  if (status !== 200) return { kind: "refused", message: "Couldn't open that chart. Try again in a moment." };
+  const link = readSavedChartLink({ id, version: Number(header("x-chart-version")), savedAt: header("x-chart-saved-at") });
+  if (!link) return { kind: "refused", message: "Couldn't open that chart. Try again in a moment." };
+  const name = header("x-chart-name");
+  return { kind: "opened", link, name: name ? decodeURIComponent(name) : "" };
 }
 
 /** "8 Oct 2026, 14:05", for saying when the chart was saved elsewhere. */

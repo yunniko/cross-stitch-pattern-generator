@@ -1,9 +1,9 @@
-import { useRef, useState } from "react";
-import type { SavedChartLink } from "@/lib/charts/saved-chart-link";
+import { useEffect, useRef, useState } from "react";
+import { chartToOpen, OPEN_CHART_PARAM, openOutcome, type SavedChartLink } from "@/lib/charts/saved-chart-link";
 import { createBlankPattern } from "@/lib/editor/blank-pattern";
 import { replaceDocument, type ReplaceEffects, type ReplaceExtras } from "@/lib/editor/document-replace-run";
 import type { ReplaceReason } from "@/lib/editor/document-replace";
-import { reportPatternLoadFailure } from "@/lib/editor/error-report";
+import { logPatternLoadFailure, reportPatternLoadFailure } from "@/lib/editor/error-report";
 import { oxsImportNotice } from "@/lib/editor/oxs";
 import { setFabric } from "@/lib/editor/pattern-edit";
 import { loadPatternFromFile } from "@/lib/editor/pattern-import";
@@ -117,6 +117,54 @@ export function useChartLifecycle({
     (restored, savedSymmetry, link) => void open(restored, restored.name ?? DEFAULT_CHART_NAME, savedSymmetry, "restore", link)
   );
   const autosaveStatus = useProjectAutosave(pattern, restore.restored, getProjectStore(), symmetry, savedChart);
+
+  /**
+   * Opens a chart saved to the account (G-108), read as an opened file is. It is read before anything is asked: when it
+   * cannot be, the open chart stays and the message says why; when it can, the confirmation comes as for any new chart.
+   */
+  async function openSaved(id: string) {
+    try {
+      setOpenError(null);
+      setOpenNotice(null);
+      const response = await fetch(`/api/charts/${encodeURIComponent(id)}`, { cache: "no-store" });
+      const outcome = openOutcome(response.status, (name) => response.headers.get(name), id);
+      if (outcome.kind === "refused") {
+        setOpenError(outcome.message);
+        return;
+      }
+      const fallbackName = outcome.name || DEFAULT_CHART_NAME;
+      const file = new File([await response.text()], `${fallbackName}.json`, { type: "application/json" });
+      const { pattern: loaded, symmetry: savedSymmetry } = await loadPatternFromFile(file);
+      startNewChart(
+        () =>
+          void replace(
+            "open-saved",
+            { ...loaded, name: loaded.name ?? fallbackName },
+            { symmetry: savedSymmetry, fallbackName, savedChart: outcome.link }
+          )
+      );
+    } catch (err) {
+      logPatternLoadFailure({ source: "open-saved", error: err });
+      setOpenError("Couldn't open that chart. Try again in a moment.");
+    }
+  }
+
+  // A saved chart asked for by the address (the account's Charts link to `/?chart=<id>`), once the autosave is back so the
+  // confirmation can name what it replaces. The parameter is taken off the address, so a reload does not ask again.
+  const askedFor = useRef(false);
+  useEffect(() => {
+    if (!restore.restored || askedFor.current) return;
+    askedFor.current = true;
+    const id = chartToOpen(window.location.search);
+    if (new URLSearchParams(window.location.search).has(OPEN_CHART_PARAM)) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete(OPEN_CHART_PARAM);
+      window.history.replaceState(window.history.state, "", url);
+    }
+    if (id === null || (pattern && savedChart?.id === id)) return;
+    // Deferred a microtask: a synchronous setState in an effect body is flagged by react-hooks/set-state-in-effect.
+    queueMicrotask(() => void openSaved(id));
+  });
 
   /**
    * Reaching the start screen costs nothing; choosing a card is what replaces the one autosaved chart, so that is where the

@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { formatSavedAt, readSavedChartLink, saveOutcome, saveRequest } from "@/lib/charts/saved-chart-link";
-import { CONFLICT_MESSAGE, SAVE_TO_ACCOUNT_FEATURE } from "@/lib/charts/saved-charts";
+import {
+  chartToOpen,
+  formatSavedAt,
+  openChartHref,
+  openOutcome,
+  readSavedChartLink,
+  saveOutcome,
+  saveRequest,
+} from "@/lib/charts/saved-chart-link";
+import { chartSpace, CONFLICT_MESSAGE, SAVE_TO_ACCOUNT_FEATURE } from "@/lib/charts/saved-charts";
+import { BYTES_PER_MB } from "@/lib/limits/limits";
 import { featureById } from "../../app/features/registry";
 
 /** G-108 part 1 M3 (D355): which saved chart the open one is, and what the server's answer to a save means. */
@@ -65,6 +74,46 @@ describe("saveOutcome", () => {
     expect(saveOutcome(500, null)).toMatchObject({ kind: "refused", message: expect.stringContaining("save to a file") });
     // A 409 that is not a version conflict is a refusal, not a prompt.
     expect(saveOutcome(409, { error: "Busy" })).toEqual({ kind: "refused", message: "Busy" });
+  });
+});
+
+describe("opening a saved chart (M4)", () => {
+  it("the account links to the editor with the id, and the editor reads back only an id it could have made", () => {
+    expect(openChartHref("ckabc123")).toBe("/?chart=ckabc123");
+    expect(chartToOpen("?chart=ckabc123")).toBe("ckabc123");
+    expect(chartToOpen("?other=1&chart=ckabc123")).toBe("ckabc123");
+    expect(chartToOpen("")).toBeNull();
+    expect(chartToOpen("?chart=")).toBeNull();
+    expect(chartToOpen("?chart=..%2Fadmin")).toBeNull();
+    expect(chartToOpen("?chart=ABC")).toBeNull();
+  });
+
+  it("a read chart becomes the link, with its version, time and name from the headers", () => {
+    const headers: Record<string, string> = {
+      "x-chart-version": "4",
+      "x-chart-saved-at": LINK.savedAt,
+      "x-chart-name": encodeURIComponent("Rose garden ✿"),
+    };
+    expect(openOutcome(200, (name) => headers[name] ?? null, "ckabc123")).toEqual({
+      kind: "opened",
+      link: { id: "ckabc123", version: 4, savedAt: LINK.savedAt },
+      name: "Rose garden ✿",
+    });
+    // Headers missing: not taken as opened.
+    expect(openOutcome(200, () => null, "ckabc123").kind).toBe("refused");
+  });
+
+  it("a chart gone, signed out, or a server error each says so", () => {
+    const none = () => null;
+    expect(openOutcome(404, none, "ckabc123")).toEqual({ kind: "refused", message: "That chart is no longer among your saved charts." });
+    expect(openOutcome(401, none, "ckabc123")).toMatchObject({ message: expect.stringContaining("Sign in") });
+    expect(openOutcome(503, none, "ckabc123")).toMatchObject({ kind: "refused" });
+  });
+
+  it("the space is said against the limit, or against unlimited", () => {
+    expect(chartSpace(0, 50)).toBe("0 MB of 50 MB");
+    expect(chartSpace(1.25 * BYTES_PER_MB, 50)).toBe("1.3 MB of 50 MB");
+    expect(chartSpace(BYTES_PER_MB, "unlimited")).toBe("1 MB of Unlimited");
   });
 });
 

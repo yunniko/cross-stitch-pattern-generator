@@ -114,6 +114,16 @@ describe("what each way of replacing the chart resets", () => {
     expect(opened.calls[0]).toBe("savedChart:none");
   });
 
+  it("a chart opened from the account is opened like a file, but Save goes back to it (G-108 M4)", async () => {
+    const link = { id: "c1", version: 3, savedAt: "2026-10-08T10:00:00.000Z" };
+    const extras = { symmetry: AXES, fallbackName: "file", savedChart: link };
+    const asFile = recorder();
+    const asSaved = recorder();
+    await replaceDocument("open", chart(), asFile.effects, extras);
+    await replaceDocument("open-saved", chart(), asSaved.effects, extras);
+    expect(asSaved.calls).toEqual(asFile.calls.map((call) => (call === "savedChart:none" ? "savedChart:c1" : call)));
+  });
+
   it("an opened file with no photo puts the sliders in the middle too, and one with no set resets the set", async () => {
     const { calls, effects } = recorder();
     await replaceDocument("open", chart(), effects, { fallbackName: "file" });

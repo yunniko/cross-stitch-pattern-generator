@@ -5,7 +5,8 @@
  * downloading are separate so auto-restore can offer the download on a click instead of on page load (D101).
  */
 
-export type PatternLoadSource = "open-file" | "auto-restore";
+/** `open-saved`: a chart saved to the account (G-108), logged only: it is on the server, so there is no file to report. */
+export type PatternLoadSource = "open-file" | "auto-restore" | "open-saved";
 
 export interface PatternLoadFailure {
   source: PatternLoadSource;

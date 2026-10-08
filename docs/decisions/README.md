@@ -391,3 +391,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D353 — Limits are set per layer, not inside feature sets, and resolve as feature states do — active
 - D354 — A saved chart is its editable file, kept whole by an id of the server's, private to its owner — active
 - D355 — Save is a menu of account and file; which saved chart is open lives beside the chart, not in it — active
+- D356 — A saved chart opens by its address, read before anything is asked — active

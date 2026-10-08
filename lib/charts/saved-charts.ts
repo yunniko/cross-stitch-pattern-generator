@@ -76,6 +76,11 @@ export function formatMegabytes(bytes: number): string {
   return `${mb >= 100 ? Math.round(mb) : Math.max(0.1, Math.round(mb * 10) / 10)} MB`;
 }
 
+/** The space saved charts use, against what the person is allowed: "1.2 MB of 50 MB", "0 MB of Unlimited". */
+export function chartSpace(used: number, allowed: LimitValue): string {
+  return `${formatMegabytes(used)} of ${formatLimit(limitById(CHART_STORAGE_LIMIT)!, allowed)}`;
+}
+
 /** The version a browser says it last saved or opened, from the request; null when it sent none or a malformed one. */
 export function parseVersion(value: string | null): number | null {
   if (value === null || !/^\d{1,9}$/.test(value)) return null;

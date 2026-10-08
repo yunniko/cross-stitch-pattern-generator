@@ -15,6 +15,8 @@ export type ReplaceReason =
   | "photo"
   /** A file was opened. */
   | "open"
+  /** A chart saved to the account was opened (G-108): an open whose Save goes back to that chart. */
+  | "open-saved"
   /** The autosaved chart brought back when the page loads: an open that keeps the view the browser kept (G-110). */
   | "restore"
   /** An empty grid was created. */
@@ -100,6 +102,21 @@ export const REPLACE_PLANS: Record<ReplaceReason, ReplacePlan> = {
     forgetAutosave: false,
     recommendColorCount: false,
     savedChart: "forget",
+  },
+  "open-saved": {
+    history: "reset",
+    view: "full",
+    chartView: "reset",
+    symmetry: "from-file",
+    paletteSet: "from-file",
+    photoAdjust: "neutral",
+    workspace: "edit",
+    clearMessages: true,
+    leaveStart: true,
+    adoptPhoto: true,
+    forgetAutosave: false,
+    recommendColorCount: false,
+    savedChart: "given",
   },
   restore: {
     history: "reset",

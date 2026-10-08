@@ -490,3 +490,4 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | D353 | out of scope (accounts and admin) | |
 | D354 | out of scope (accounts and admin) | |
 | D355 | 08-exports-and-files | |
+| D356 | 08-exports-and-files | the account's Charts list itself is out of scope (accounts and admin) |
