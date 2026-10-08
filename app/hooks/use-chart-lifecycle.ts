@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { chartToOpen, OPEN_CHART_PARAM, openOutcome, type SavedChartLink } from "@/lib/charts/saved-chart-link";
+import { chartToOpen, NEW_CHART_PARAM, OPEN_CHART_PARAM, openOutcome, type SavedChartLink } from "@/lib/charts/saved-chart-link";
 import { createBlankPattern } from "@/lib/editor/blank-pattern";
 import { replaceDocument, type ReplaceEffects, type ReplaceExtras } from "@/lib/editor/document-replace-run";
 import type { ReplaceReason } from "@/lib/editor/document-replace";
@@ -150,19 +150,27 @@ export function useChartLifecycle({
   }
 
   // A saved chart asked for by the address (the account's Charts link to `/?chart=<id>`), once the autosave is back so the
-  // confirmation can name what it replaces. The parameter is taken off the address, so a reload does not ask again.
+  // confirmation can name what it replaces; or the start screen (`/?new`, the account's New chart), which costs nothing.
+  // The parameters are taken off the address, so a reload does not ask again.
   const askedFor = useRef(false);
   useEffect(() => {
     if (!restore.restored || askedFor.current) return;
     askedFor.current = true;
     const id = chartToOpen(window.location.search);
-    if (new URLSearchParams(window.location.search).has(OPEN_CHART_PARAM)) {
+    const params = new URLSearchParams(window.location.search);
+    const startNew = params.has(NEW_CHART_PARAM);
+    if (params.has(OPEN_CHART_PARAM) || startNew) {
       const url = new URL(window.location.href);
       url.searchParams.delete(OPEN_CHART_PARAM);
+      url.searchParams.delete(NEW_CHART_PARAM);
       window.history.replaceState(window.history.state, "", url);
     }
-    if (id === null || (pattern && savedChart?.id === id)) return;
     // Deferred a microtask: a synchronous setState in an effect body is flagged by react-hooks/set-state-in-effect.
+    if (id === null) {
+      if (startNew) queueMicrotask(() => setStartingNew(true));
+      return;
+    }
+    if (pattern && savedChart?.id === id) return;
     queueMicrotask(() => void openSaved(id));
   });
 

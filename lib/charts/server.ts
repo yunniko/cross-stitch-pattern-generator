@@ -5,8 +5,10 @@ import { featureUsable } from "@/lib/features/features";
 import { limitsFor } from "@/lib/limits/server";
 import { limitValue, type LimitValue } from "@/lib/limits/limits";
 import { prisma } from "@/lib/prisma";
+import { THREAD_BRANDS, type ThreadBrand } from "@/lib/threads/thread-brands";
 import { chartAllowed, type ChartAction } from "./access";
 import { chartPreviewPng } from "./preview";
+import { FULL_RANGE, type SavedChartCard } from "./chart-cards";
 import {
   CHART_STORAGE_LIMIT,
   CONFLICT_MESSAGE,
@@ -208,6 +210,15 @@ export async function renameChart(userId: string, id: string, name: unknown): Pr
   });
 }
 
+/** Pins or unpins a saved chart. Not a save: the version and the save time stay, so the editor's next Save asks nothing. */
+export async function pinChart(userId: string, id: string, pinned: boolean): Promise<{ id: string; pinned: boolean }> {
+  await prisma.$transaction(async (tx) => {
+    await ownedChart(tx, id, userId, "write");
+    await tx.$executeRaw`UPDATE "SavedChart" SET "pinned" = ${pinned} WHERE "id" = ${id}`;
+  });
+  return { id, pinned };
+}
+
 export async function deleteChart(userId: string, id: string): Promise<void> {
   await prisma.$transaction(async (tx) => {
     await ownedChart(tx, id, userId, "write");
@@ -215,18 +226,39 @@ export async function deleteChart(userId: string, id: string): Promise<void> {
   });
 }
 
-/** The person's saved charts, newest first, without their files; with the space they use and are allowed. */
-export async function listCharts(userId: string) {
+/** The thread brand's name for the list, or "Full range" for none (or one this version does not know). */
+function paletteName(brand: string | null): string {
+  return (brand && THREAD_BRANDS[brand as ThreadBrand]?.label) || FULL_RANGE;
+}
+
+/** How many charts the person has saved, for the count beside Charts in the account's sidebar. */
+export function countCharts(userId: string): Promise<number> {
+  return prisma.savedChart.count({ where: { userId } });
+}
+
+/** The person's saved charts, pinned first, then newest, without their files; with the space they use and are allowed. */
+export async function listCharts(userId: string): Promise<{ charts: SavedChartCard[]; used: number; allowed: LimitValue }> {
   const [charts, limits] = await Promise.all([
     prisma.savedChart.findMany({
       where: { userId },
-      orderBy: { updatedAt: "desc" },
-      select: { id: true, name: true, bytes: true, width: true, height: true, colors: true, version: true, updatedAt: true },
+      orderBy: [{ pinned: "desc" }, { updatedAt: "desc" }],
+      select: {
+        id: true,
+        name: true,
+        bytes: true,
+        width: true,
+        height: true,
+        colors: true,
+        brand: true,
+        pinned: true,
+        version: true,
+        updatedAt: true,
+      },
     }),
     limitsFor(userId),
   ]);
   return {
-    charts: charts.map(({ updatedAt, ...chart }) => ({ ...chart, savedAt: updatedAt.toISOString() })),
+    charts: charts.map(({ updatedAt, brand, ...chart }) => ({ ...chart, palette: paletteName(brand), savedAt: updatedAt.toISOString() })),
     used: charts.reduce((sum, chart) => sum + chart.bytes, 0),
     allowed: limitValue(limits, CHART_STORAGE_LIMIT),
   };

@@ -6,11 +6,14 @@ import { registerReader, uniqueEmail } from "./helpers/auth";
  * G-108 part 1 M4: the account's Charts. The charts saved to the account are listed with the space they use against the
  * limit; each is renamed or deleted in place, and opens in the editor as one more way a chart arrives, after the
  * confirmation when a chart is open, with Save going back to that chart. Each shows the server's preview of it (M6).
+ * M8 (D358) draws them as the design does: cards searched and put in order, pinned ones first, the count beside Charts.
  */
 
 const rows = (page: Page) => page.getByTestId("saved-chart");
 const row = (page: Page, name: string) => rows(page).filter({ has: page.getByTestId("saved-chart-name").getByText(name, { exact: true }) });
 const message = (page: Page) => page.getByTestId("account-save-message");
+const chartsTab = (page: Page) => page.getByRole("navigation", { name: "Account sections" }).getByRole("link", { name: /^Charts/ });
+const names = (page: Page) => rows(page).getByTestId("saved-chart-name").allTextContents();
 
 async function savedCharts(page: Page): Promise<{ id: string; name: string; version: number }[]> {
   return (await (await page.request.get("/api/charts")).json()).charts;
@@ -28,7 +31,8 @@ test("the account lists its saved charts with the space used; one is renamed, on
 
   await page.goto("/account/charts");
   await expect(page.getByTestId("saved-charts-empty")).toBeVisible();
-  await expect(page.getByTestId("chart-space")).toContainText("0 MB of 50 MB");
+  await expect(page.getByTestId("chart-space")).toHaveText("0 charts · 0 MB of 50 MB");
+  await expect(chartsTab(page)).toHaveText("Charts0");
 
   // Two charts: the sample, and a copy of it.
   await openSmallChart(page);
@@ -42,14 +46,26 @@ test("the account lists its saved charts with the space used; one is renamed, on
 
   await page.goto("/account/charts");
   await expect(rows(page)).toHaveCount(2);
-  await expect(page.getByTestId("chart-space")).toContainText(/\d MB of 50 MB/);
-  await expect(rows(page).first()).toContainText("50 × 31 stitches");
+  await expect(page.getByTestId("chart-space")).toContainText(/^2 charts · [\d.]+ MB of 50 MB$/);
+  await expect(chartsTab(page)).toHaveText("Charts2");
+  await expect(rows(page).first()).toContainText(/50 × 31 · \d+ colours · /);
+  await expect(rows(page).first().getByTestId("saved-chart-when")).toHaveText("Just now");
   // The preview: one pixel per stitch, loaded.
   const picture = rows(page).first().getByTestId("saved-chart-preview");
   await expect(picture).toHaveAttribute("src", `/api/charts/${copy.id}/preview?v=${copy.version}`);
   await expect
     .poll(() => picture.evaluate((img: HTMLImageElement) => [img.complete, img.naturalWidth, img.naturalHeight]))
     .toEqual([true, 50, 31]);
+
+  // Pinned: the older chart goes first, without being saved again; unpinned, it goes back.
+  await rows(page).nth(1).getByRole("button", { name: "Pin" }).click();
+  await expect(rows(page).first()).toHaveAttribute("data-chart-id", first.id);
+  await expect(rows(page).first().getByRole("button", { name: "Pin" })).toHaveAttribute("aria-pressed", "true");
+  expect((await savedCharts(page)).find((c) => c.id === first.id)).toMatchObject({ version: first.version });
+  await page.reload();
+  await expect(rows(page).first()).toHaveAttribute("data-chart-id", first.id);
+  await rows(page).first().getByRole("button", { name: "Pin" }).click();
+  await expect(rows(page).first()).toHaveAttribute("data-chart-id", copy.id);
 
   // Renamed in place: Escape gives up, Save name keeps it.
   const newest = rows(page).first();
@@ -63,6 +79,16 @@ test("the account lists its saved charts with the space used; one is renamed, on
   await expect(row(page, "Spare roses")).toHaveCount(1);
   expect((await savedCharts(page)).find((c) => c.id === copy.id)).toMatchObject({ name: "Spare roses" });
 
+  // Searched by name, and put in order by name: "sample" before "Spare roses", whatever the case.
+  await page.getByRole("button", { name: "Name", exact: true }).click();
+  expect(await names(page)).toEqual(["sample", "Spare roses"]);
+  await page.getByLabel("Search charts").fill("ROSES");
+  expect(await names(page)).toEqual(["Spare roses"]);
+  await page.getByLabel("Search charts").fill("tulip");
+  await expect(page.getByTestId("saved-charts-none-found")).toBeVisible();
+  await page.getByLabel("Search charts").fill("");
+  await expect(rows(page)).toHaveCount(2);
+
   // Deleted after asking; Keep it changes nothing.
   await row(page, "Spare roses").getByRole("button", { name: "Delete…" }).click();
   await row(page, "Spare roses").getByRole("button", { name: "Keep it" }).click();
@@ -71,9 +97,10 @@ test("the account lists its saved charts with the space used; one is renamed, on
   await row(page, "Spare roses").getByRole("button", { name: "Delete chart" }).click();
   await expect(rows(page)).toHaveCount(1);
   expect((await savedCharts(page)).map((c) => c.id)).toEqual([first.id]);
+  await expect(chartsTab(page)).toHaveText("Charts1");
 
   // Opened: the copy is still open in the editor (deleted since), so the editor asks first.
-  await rows(page).first().getByRole("link", { name: "Open" }).click();
+  await rows(page).first().getByTestId("saved-chart-name").click();
   const confirm = page.getByRole("dialog", { name: "Start a new chart?" });
   await expect(confirm).toBeVisible();
   await confirm.getByRole("button", { name: "Start new chart" }).click();
@@ -99,6 +126,14 @@ test("the account lists its saved charts with the space used; one is renamed, on
   await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 30_000 });
   await expect(confirm).toHaveCount(0);
   await expect(page).toHaveURL(/\/$/);
+
+  // New chart: the editor's start screen, which costs nothing; the open chart is still there to go back to.
+  await page.goto("/account/charts");
+  await page.getByRole("link", { name: "New chart" }).click();
+  await expect(page.getByRole("button", { name: /^Choose a photo/ })).toBeEnabled({ timeout: 30_000 });
+  await expect(page).toHaveURL(/\/$/);
+  await page.getByRole("button", { name: /^Back to / }).click();
+  await expect(page.getByTestId("chart-name")).toHaveText("sample");
 });
 
 test("a chart that is gone, or someone else's, is not opened, and the open chart stays", async ({ page, browser }) => {

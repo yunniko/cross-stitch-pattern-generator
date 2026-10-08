@@ -282,6 +282,10 @@ model SavedChart {
   width     Int
   height    Int
   colors    Int
+  /// The thread brand every colour is from (`StitchPattern.threadBrand`), or null for a mix or custom colours.
+  brand     String?
+  /// Kept first in the account's list (M8). Not a save: it changes neither the version nor the save time.
+  pinned    Boolean  @default(false)
   /// The chart in its own colours, one pixel per stitch, as a PNG drawn by the server at every save (D357). Null for a
   /// chart saved before previews, until it is first asked for.
   preview   Bytes?

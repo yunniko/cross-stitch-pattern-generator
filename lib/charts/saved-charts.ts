@@ -37,6 +37,8 @@ export interface SavedChartSummary {
   width: number;
   height: number;
   colors: number;
+  /** The thread brand every colour is from, or null. */
+  brand: string | null;
 }
 
 /**
@@ -48,7 +50,13 @@ export function readChartUpload(text: string): { pattern: StitchPattern; summary
     const { pattern } = parsePatternDocument(text);
     return {
       pattern,
-      summary: { name: savedChartName(pattern.name), width: pattern.width, height: pattern.height, colors: pattern.palette.length },
+      summary: {
+        name: savedChartName(pattern.name),
+        width: pattern.width,
+        height: pattern.height,
+        colors: pattern.palette.length,
+        brand: pattern.threadBrand ?? null,
+      },
     };
   } catch {
     return { error: "That is not a chart this editor can open, so it was not saved." };

@@ -79,6 +79,12 @@ export function chartToOpen(search: string): string | null {
   return id !== null && ID.test(id) ? id : null;
 }
 
+/** The address parameter that opens the editor at its start screen: the account's New chart (G-108 part 1 M8). */
+export const NEW_CHART_PARAM = "new";
+
+/** The editor's address for starting a new chart; choosing a card there is what replaces the open chart, after asking. */
+export const NEW_CHART_HREF = `/?${NEW_CHART_PARAM}`;
+
 export type OpenOutcome = { kind: "opened"; link: SavedChartLink; name: string } | { kind: "refused"; message: string };
 
 /** What the server's answer to reading a saved chart means; `header` reads one of the response's headers. */

@@ -221,6 +221,15 @@ export const INTERFACE_ICONS = {
       <path d="M7 7l1 12h8l1-12" />
     </>
   ),
+  /** A saved chart's new name (the account's Charts). */
+  rename: outline(
+    "h-3.5 w-3.5",
+    1.7,
+    <>
+      <path d="M4 20h4L19 9l-4-4L4 16z" />
+      <path d="M13 7l4 4" />
+    </>
+  ),
   copy: outline(
     "h-4 w-4",
     1.6,

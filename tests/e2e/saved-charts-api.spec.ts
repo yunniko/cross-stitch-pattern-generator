@@ -6,10 +6,12 @@ import { featuresDb } from "./helpers/features";
  * G-108 part 1 M2 (D354): the saved-chart routes against the real database, through a signed-in browser's own requests.
  * A chart is made with an id of the server's, overwritten by that id at the version last seen, refused on a stale one,
  * renamed, deleted; anyone else is answered as if it did not exist; the space limit refuses by name; the charts go with
- * the account. Each save stores a preview drawn by the server (M6, D357), its owner's alone.
+ * the account. Each save stores a preview drawn by the server (M6, D357), its owner's alone. A chart is pinned without
+ * being saved again, and listed with its thread brand's name (M8, D358).
  */
 
-function chart(name: string, cells = 4): string {
+/** A chart of one red; with a brand, that red is the brand's thread 403, so every colour is from it. */
+function chart(name: string, cells = 4, threadBrand?: string): string {
   const side = Math.ceil(Math.sqrt(cells));
   return JSON.stringify({
     formatVersion: 7,
@@ -17,8 +19,9 @@ function chart(name: string, cells = 4): string {
     height: side,
     isLandscape: false,
     cellPalette: new Array(side * side).fill(0),
-    palette: [{ rgb: [200, 30, 40], symbol: "A", name: "Red" }],
+    palette: [{ rgb: [200, 30, 40], symbol: "A", name: "Red", ...(threadBrand ? { source: { brand: threadBrand, code: "403" } } : {}) }],
     name,
+    ...(threadBrand ? { threadBrand } : {}),
   });
 }
 
@@ -36,6 +39,7 @@ function api(page: Page) {
         headers: headers({ "content-type": "application/json", ...(version ? { "x-chart-version": String(version) } : {}) }),
       }),
     rename: (id: string, name: string) => page.request.patch(`/api/charts/${id}`, { data: { name }, headers: headers() }),
+    pin: (id: string, pinned: unknown) => page.request.patch(`/api/charts/${id}`, { data: { pinned }, headers: headers() }),
     remove: (id: string) => page.request.delete(`/api/charts/${id}`, { headers: headers() }),
     preview: (id: string, version?: number) => page.request.get(`/api/charts/${id}/preview${version ? `?v=${version}` : ""}`),
   };
@@ -119,6 +123,16 @@ test("a chart is saved by an id of the server's, overwritten at its version, ren
   );
   expect(kept.rows[0]).toEqual({ drawn: true, updatedAt: before.rows[0].updatedAt });
 
+  // Pinned: kept first, and not a save -- the version and the save time stay. Anything but true or false is refused.
+  const saved = (await (await charts.list()).json()).charts[0];
+  expect(saved).toMatchObject({ pinned: false, palette: "Full range" });
+  expect(await (await charts.pin(first.id, true)).json()).toEqual({ id: first.id, pinned: true });
+  expect((await (await charts.list()).json()).charts[0]).toMatchObject({ pinned: true, version: 4, savedAt: saved.savedAt });
+  expect((await charts.pin(first.id, "yes")).status()).toBe(400);
+  // Listed by its thread brand when every colour is from one.
+  expect((await charts.overwrite(first.id, chart("Rose bed", 9, "anchor"), 4)).status()).toBe(200);
+  expect((await (await charts.list()).json()).charts[0]).toMatchObject({ palette: "Anchor", pinned: true, version: 5 });
+
   // Someone else: every request answered as if the chart did not exist.
   const otherEmail = uniqueEmail("stranger");
   const other = await browser.newContext();
@@ -126,8 +140,9 @@ test("a chart is saved by an id of the server's, overwritten at its version, ren
   await registerReader(otherPage, otherEmail);
   const theirs = api(otherPage);
   expect((await theirs.read(first.id)).status()).toBe(404);
-  expect((await theirs.preview(first.id, 4)).status()).toBe(404);
-  expect((await theirs.overwrite(first.id, chart("Mine"), 4)).status()).toBe(404);
+  expect((await theirs.preview(first.id, 5)).status()).toBe(404);
+  expect((await theirs.overwrite(first.id, chart("Mine"), 5)).status()).toBe(404);
+  expect((await theirs.pin(first.id, false)).status()).toBe(404);
   expect((await theirs.rename(first.id, "Mine")).status()).toBe(404);
   expect((await theirs.remove(first.id)).status()).toBe(404);
   expect((await (await theirs.list()).json()).charts).toHaveLength(0);

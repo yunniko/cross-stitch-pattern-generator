@@ -393,3 +393,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D355 — Save is a menu of account and file; which saved chart is open lives beside the chart, not in it — active
 - D356 — A saved chart opens by its address, read before anything is asked — active
 - D357 — A saved chart's preview is drawn by the app server at every save, one pixel per stitch — active
+- D358 — The account's Charts are the design's card grid, with pins kept by the server and rename and delete's question kept — active
