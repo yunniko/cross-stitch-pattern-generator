@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { formatSavedAt, openChartHref } from "@/lib/charts/saved-chart-link";
+import { formatSavedAt, openChartHref, previewHref } from "@/lib/charts/saved-chart-link";
 import { formatMegabytes, SAVED_CHART_NAME_MAX } from "@/lib/charts/saved-charts";
 import { PillButton } from "@/app/components/ui";
 
 /**
  * The account's saved charts (G-108 part 1 M4): each opens in the editor, is renamed in place, or deleted after asking.
- * A rename or delete goes to the chart's own route and the page is read again, so the space shown follows.
+ * A rename or delete goes to the chart's own route and the page is read again, so the space shown follows. Each shows its
+ * preview (M6, D357), drawn by the server at the version listed.
  */
 
 export interface SavedChartRow {
@@ -19,6 +20,7 @@ export interface SavedChartRow {
   width: number;
   height: number;
   colors: number;
+  version: number;
   savedAt: string;
 }
 
@@ -75,55 +77,66 @@ function ChartRow({ chart }: { chart: SavedChartRow }) {
       data-chart-id={chart.id}
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
-        {mode === "rename" ? (
-          <form
-            className="flex min-w-0 flex-1 flex-wrap items-center gap-2"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void rename();
-            }}
-          >
-            <label className="sr-only" htmlFor={`name-${chart.id}`}>
-              Chart name
-            </label>
-            <input
-              id={`name-${chart.id}`}
-              value={name}
-              maxLength={SAVED_CHART_NAME_MAX}
-              autoFocus
-              onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Escape") {
-                  setName(chart.name);
-                  setMode("view");
-                }
-              }}
-              className="min-w-0 flex-1 rounded-md border border-line bg-app px-2 py-1 text-sm text-ink"
-            />
-            <PillButton type="submit" variant="primary" size="md" disabled={busy}>
-              Save name
-            </PillButton>
-            <PillButton
-              size="md"
-              onClick={() => {
-                setName(chart.name);
-                setMode("view");
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          {/* eslint-disable-next-line @next/next/no-img-element -- one pixel per stitch shown pixelated, private to its owner; nothing to optimise. */}
+          <img
+            src={previewHref(chart.id, chart.version)}
+            alt={`Preview of ${chart.name}`}
+            width={56}
+            height={56}
+            data-testid="saved-chart-preview"
+            className="h-14 w-14 shrink-0 rounded-sm border border-line bg-app object-contain [image-rendering:pixelated]"
+          />
+          {mode === "rename" ? (
+            <form
+              className="flex min-w-0 flex-1 flex-wrap items-center gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void rename();
               }}
             >
-              Cancel
-            </PillButton>
-          </form>
-        ) : (
-          <div className="flex min-w-0 flex-col gap-0.5">
-            <span className="truncate text-sm font-medium text-ink" data-testid="saved-chart-name">
-              {chart.name}
-            </span>
-            <span className="text-[12px] text-muted">
-              {chart.width} × {chart.height} stitches · {chart.colors} {chart.colors === 1 ? "colour" : "colours"} ·{" "}
-              {formatMegabytes(chart.bytes)} · saved {formatSavedAt(chart.savedAt)}
-            </span>
-          </div>
-        )}
+              <label className="sr-only" htmlFor={`name-${chart.id}`}>
+                Chart name
+              </label>
+              <input
+                id={`name-${chart.id}`}
+                value={name}
+                maxLength={SAVED_CHART_NAME_MAX}
+                autoFocus
+                onChange={(e) => setName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") {
+                    setName(chart.name);
+                    setMode("view");
+                  }
+                }}
+                className="min-w-0 flex-1 rounded-md border border-line bg-app px-2 py-1 text-sm text-ink"
+              />
+              <PillButton type="submit" variant="primary" size="md" disabled={busy}>
+                Save name
+              </PillButton>
+              <PillButton
+                size="md"
+                onClick={() => {
+                  setName(chart.name);
+                  setMode("view");
+                }}
+              >
+                Cancel
+              </PillButton>
+            </form>
+          ) : (
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <span className="truncate text-sm font-medium text-ink" data-testid="saved-chart-name">
+                {chart.name}
+              </span>
+              <span className="text-[12px] text-muted">
+                {chart.width} × {chart.height} stitches · {chart.colors} {chart.colors === 1 ? "colour" : "colours"} ·{" "}
+                {formatMegabytes(chart.bytes)} · saved {formatSavedAt(chart.savedAt)}
+              </span>
+            </div>
+          )}
+        </div>
         {mode === "view" && (
           <div className="flex flex-wrap items-center gap-2">
             <Link

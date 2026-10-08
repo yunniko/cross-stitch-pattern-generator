@@ -5,7 +5,7 @@ import { registerReader, uniqueEmail } from "./helpers/auth";
 /**
  * G-108 part 1 M4: the account's Charts. The charts saved to the account are listed with the space they use against the
  * limit; each is renamed or deleted in place, and opens in the editor as one more way a chart arrives, after the
- * confirmation when a chart is open, with Save going back to that chart.
+ * confirmation when a chart is open, with Save going back to that chart. Each shows the server's preview of it (M6).
  */
 
 const rows = (page: Page) => page.getByTestId("saved-chart");
@@ -44,6 +44,12 @@ test("the account lists its saved charts with the space used; one is renamed, on
   await expect(rows(page)).toHaveCount(2);
   await expect(page.getByTestId("chart-space")).toContainText(/\d MB of 50 MB/);
   await expect(rows(page).first()).toContainText("50 × 31 stitches");
+  // The preview: one pixel per stitch, loaded.
+  const picture = rows(page).first().getByTestId("saved-chart-preview");
+  await expect(picture).toHaveAttribute("src", `/api/charts/${copy.id}/preview?v=${copy.version}`);
+  await expect
+    .poll(() => picture.evaluate((img: HTMLImageElement) => [img.complete, img.naturalWidth, img.naturalHeight]))
+    .toEqual([true, 50, 31]);
 
   // Renamed in place: Escape gives up, Save name keeps it.
   const newest = rows(page).first();
@@ -80,9 +86,15 @@ test("the account lists its saved charts with the space used; one is renamed, on
   await saveToAccount(page);
   await expect(message(page)).toHaveText("Saved to your account.");
   expect(await savedCharts(page)).toEqual([expect.objectContaining({ id: first.id, version: first.version + 1 })]);
+  // The list asks for the new version's preview.
+  await waitForAutosave(page);
+  await page.goto("/account/charts");
+  await expect(rows(page).first().getByTestId("saved-chart-preview")).toHaveAttribute(
+    "src",
+    `/api/charts/${first.id}/preview?v=${first.version + 1}`
+  );
 
   // The same chart asked for again while it is open: nothing to replace, nothing asked.
-  await waitForAutosave(page);
   await page.goto(`/?chart=${first.id}`);
   await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 30_000 });
   await expect(confirm).toHaveCount(0);

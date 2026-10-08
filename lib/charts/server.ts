@@ -6,6 +6,7 @@ import { limitsFor } from "@/lib/limits/server";
 import { limitValue, type LimitValue } from "@/lib/limits/limits";
 import { prisma } from "@/lib/prisma";
 import { chartAllowed, type ChartAction } from "./access";
+import { chartPreviewPng } from "./preview";
 import {
   CHART_STORAGE_LIMIT,
   CONFLICT_MESSAGE,
@@ -15,6 +16,7 @@ import {
   readChartUpload,
   savedChartName,
   storageRefusal,
+  type SavedChartSummary,
 } from "./saved-charts";
 
 /**
@@ -58,20 +60,24 @@ async function requireSaving(userId: string): Promise<LimitValue> {
   return limitValue(await limitsFor(userId), CHART_STORAGE_LIMIT);
 }
 
-/** The body of a save, refused when it is too large or not a chart the editor can open. */
-export async function readChartBody(req: Request): Promise<{ text: string; bytes: number; summary: ReturnType<typeof summaryOf> }> {
+/**
+ * The body of a save, refused when it is too large or not a chart the editor can open; with the preview drawn from it,
+ * so every save stores a picture of what it stored (D357).
+ */
+export async function readChartBody(req: Request): Promise<{
+  text: string;
+  bytes: number;
+  summary: SavedChartSummary;
+  preview: Uint8Array<ArrayBuffer>;
+}> {
   const declared = Number(req.headers.get("content-length"));
   if (Number.isFinite(declared) && declared > SAVED_CHART_MAX_BYTES) throw tooLarge();
   const text = await req.text();
   const bytes = chartBytes(text);
   if (bytes > SAVED_CHART_MAX_BYTES) throw tooLarge();
-  return { text, bytes, summary: summaryOf(text) };
-}
-
-function summaryOf(text: string) {
   const read = readChartUpload(text);
   if ("error" in read) throw new Refused(422, read.error);
-  return read.summary;
+  return { text, bytes, summary: read.summary, preview: await chartPreviewPng(read.pattern) };
 }
 
 function tooLarge() {
@@ -108,7 +114,7 @@ export async function createChart(userId: string, body: Awaited<ReturnType<typeo
     const refusal = storageRefusal(await usedBytes(tx, userId), 0, body.bytes, allowed);
     if (refusal) throw new Refused(403, refusal, { reason: "storage" });
     const chart = await tx.savedChart.create({
-      data: { userId, document: body.text, bytes: body.bytes, ...body.summary },
+      data: { userId, document: body.text, bytes: body.bytes, ...body.summary, preview: body.preview },
       select: { id: true, name: true, version: true, updatedAt: true },
     });
     return receipt(chart);
@@ -146,7 +152,7 @@ export async function overwriteChart(
     if (refusal) throw new Refused(403, refusal, { reason: "storage" });
     const saved = await tx.savedChart.update({
       where: { id },
-      data: { document: body.text, bytes: body.bytes, ...body.summary, version: { increment: 1 } },
+      data: { document: body.text, bytes: body.bytes, ...body.summary, preview: body.preview, version: { increment: 1 } },
       select: { id: true, name: true, version: true, updatedAt: true },
     });
     return receipt(saved);
@@ -163,7 +169,27 @@ export async function readChart(userId: string, id: string) {
   return chart;
 }
 
-/** Renames a saved chart: the row and the name inside its file, so the file reopens with it. One more version. */
+/**
+ * A saved chart's preview, its owner's alone, with the version it shows. A chart saved before previews existed has none:
+ * it is drawn from the stored file on first request and kept, without counting as a save (the save time stays).
+ */
+export async function readPreview(userId: string, id: string): Promise<{ png: Uint8Array<ArrayBuffer>; version: number }> {
+  const chart = await prisma.savedChart.findUnique({ where: { id }, select: { userId: true, version: true, preview: true } });
+  if (!chart || !chartAllowed(chart, userId, "read")) throw new Refused(404, NOT_FOUND);
+  if (chart.preview) return { png: new Uint8Array(chart.preview), version: chart.version };
+  const { document } = (await prisma.savedChart.findUnique({ where: { id }, select: { document: true } })) ?? {};
+  const read = document === undefined ? null : readChartUpload(document);
+  if (!read || "error" in read) throw new Refused(404, NOT_FOUND);
+  const png = await chartPreviewPng(read.pattern);
+  // Kept only if no save overtook the drawing; a save brings its own.
+  await prisma.$executeRaw`UPDATE "SavedChart" SET "preview" = ${Buffer.from(png)} WHERE "id" = ${id} AND "version" = ${chart.version} AND "preview" IS NULL`;
+  return { png, version: chart.version };
+}
+
+/**
+ * Renames a saved chart: the row and the name inside its file, so the file reopens with it. One more version; the preview
+ * is kept, since no name is drawn in it.
+ */
 export async function renameChart(userId: string, id: string, name: unknown): Promise<SavedChartReceipt> {
   const kept = savedChartName(name);
   return prisma.$transaction(async (tx) => {

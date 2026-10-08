@@ -1,4 +1,5 @@
 import { parsePatternDocument } from "@/lib/editor/pattern-serialize";
+import type { StitchPattern } from "@/lib/types";
 import { BYTES_PER_MB, formatLimit, limitById, limitBytes, type LimitValue } from "@/lib/limits/limits";
 
 /**
@@ -40,12 +41,13 @@ export interface SavedChartSummary {
 
 /**
  * Reads a chart sent to be saved with the reader the editor opens files with, so nothing is kept that the editor could not
- * open again. Answers what the list shows of it, or the refusal.
+ * open again. Answers the chart, for drawing its preview, and what the list shows of it; or the refusal.
  */
-export function readChartUpload(text: string): { summary: SavedChartSummary } | { error: string } {
+export function readChartUpload(text: string): { pattern: StitchPattern; summary: SavedChartSummary } | { error: string } {
   try {
     const { pattern } = parsePatternDocument(text);
     return {
+      pattern,
       summary: { name: savedChartName(pattern.name), width: pattern.width, height: pattern.height, colors: pattern.palette.length },
     };
   } catch {

@@ -34,7 +34,7 @@ describe("who may use a saved chart", () => {
 describe("what is saved", () => {
   it("reads a chart with the editor's own reader, and answers what the list shows", () => {
     const text = serializePattern(createBlankPattern(30, 20, "  My   rose  "));
-    expect(readChartUpload(text)).toEqual({ summary: { name: "My rose", width: 30, height: 20, colors: 0 } });
+    expect(readChartUpload(text)).toMatchObject({ summary: { name: "My rose", width: 30, height: 20, colors: 0 } });
   });
 
   it("refuses anything the editor could not open again", () => {

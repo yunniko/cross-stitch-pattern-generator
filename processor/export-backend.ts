@@ -4,7 +4,7 @@ import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { createCanvas, GlobalFonts, loadImage } from "@napi-rs/canvas";
 import { setExportBackend, type AnyCanvas, type Canvas2D, type ExportBackend, type PixelSource } from "@/lib/export/canvas-backend";
-import { encodePng } from "./png-encode";
+import { encodePng } from "@/lib/server/png-encode";
 
 /**
  * The export environment on the server (G-034 M4).

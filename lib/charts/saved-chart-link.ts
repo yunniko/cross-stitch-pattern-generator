@@ -92,6 +92,11 @@ export function openOutcome(status: number, header: (name: string) => string | n
   return { kind: "opened", link, name: name ? decodeURIComponent(name) : "" };
 }
 
+/** A saved chart's preview, at a version: a new save asks for a new picture, an unchanged one is served from the cache. */
+export function previewHref(id: string, version: number): string {
+  return `/api/charts/${encodeURIComponent(id)}/preview?v=${version}`;
+}
+
 /** "8 Oct 2026, 14:05", for saying when the chart was saved elsewhere. */
 export function formatSavedAt(savedAt: string, locale?: string): string {
   return new Date(savedAt).toLocaleString(locale, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });

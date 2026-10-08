@@ -282,6 +282,9 @@ model SavedChart {
   width     Int
   height    Int
   colors    Int
+  /// The chart in its own colours, one pixel per stitch, as a PNG drawn by the server at every save (D357). Null for a
+  /// chart saved before previews, until it is first asked for.
+  preview   Bytes?
   /// 1 when made, one more at every overwrite or rename: a save names the version it last saw (Owner, 2026-10-06).
   version   Int      @default(1)
   createdAt DateTime @default(now())

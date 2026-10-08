@@ -6,7 +6,7 @@ import { featuresDb } from "./helpers/features";
  * G-108 part 1 M2 (D354): the saved-chart routes against the real database, through a signed-in browser's own requests.
  * A chart is made with an id of the server's, overwritten by that id at the version last seen, refused on a stale one,
  * renamed, deleted; anyone else is answered as if it did not exist; the space limit refuses by name; the charts go with
- * the account.
+ * the account. Each save stores a preview drawn by the server (M6, D357), its owner's alone.
  */
 
 function chart(name: string, cells = 4): string {
@@ -37,7 +37,16 @@ function api(page: Page) {
       }),
     rename: (id: string, name: string) => page.request.patch(`/api/charts/${id}`, { data: { name }, headers: headers() }),
     remove: (id: string) => page.request.delete(`/api/charts/${id}`, { headers: headers() }),
+    preview: (id: string, version?: number) => page.request.get(`/api/charts/${id}/preview${version ? `?v=${version}` : ""}`),
   };
+}
+
+/** A preview's size in pixels, read from its PNG header; one pixel is one stitch. */
+async function previewSize(response: { headers(): Record<string, string>; body(): Promise<Buffer> }): Promise<[number, number]> {
+  expect(response.headers()["content-type"]).toBe("image/png");
+  const png = await response.body();
+  expect(png.subarray(1, 4).toString("ascii")).toBe("PNG");
+  return [png.readUInt32BE(16), png.readUInt32BE(20)];
 }
 
 test("a chart is saved by an id of the server's, overwritten at its version, renamed and deleted, and is its owner's alone", async ({
@@ -91,6 +100,25 @@ test("a chart is saved by an id of the server's, overwritten at its version, ren
   expect(await renamed.json()).toMatchObject({ name: "Rose bed", version: 3 });
   expect(JSON.parse(await (await charts.read(first.id)).text()).name).toBe("Rose bed");
 
+  // The preview: drawn at every save, kept by a rename, kept by the browser only at the version it shows.
+  expect(await previewSize(await charts.preview(first.id, 3))).toEqual([2, 2]);
+  expect((await charts.overwrite(first.id, chart("Rose bed", 9), 3)).status()).toBe(200);
+  const redrawn = await charts.preview(first.id, 4);
+  expect(await previewSize(redrawn)).toEqual([3, 3]);
+  expect(redrawn.headers()["cache-control"]).toContain("immutable");
+  expect((await charts.preview(first.id)).headers()["cache-control"]).toBe("private, no-cache");
+  // A chart saved before previews existed: drawn on first request and kept, its save time unchanged.
+  const before = await featuresDb().query<{ updatedAt: Date }>(
+    `UPDATE "SavedChart" SET "preview" = NULL WHERE "id" = $1 RETURNING "updatedAt"`,
+    [first.id]
+  );
+  expect(await previewSize(await charts.preview(first.id, 4))).toEqual([3, 3]);
+  const kept = await featuresDb().query<{ drawn: boolean; updatedAt: Date }>(
+    `SELECT "preview" IS NOT NULL AS drawn, "updatedAt" FROM "SavedChart" WHERE "id" = $1`,
+    [first.id]
+  );
+  expect(kept.rows[0]).toEqual({ drawn: true, updatedAt: before.rows[0].updatedAt });
+
   // Someone else: every request answered as if the chart did not exist.
   const otherEmail = uniqueEmail("stranger");
   const other = await browser.newContext();
@@ -98,7 +126,8 @@ test("a chart is saved by an id of the server's, overwritten at its version, ren
   await registerReader(otherPage, otherEmail);
   const theirs = api(otherPage);
   expect((await theirs.read(first.id)).status()).toBe(404);
-  expect((await theirs.overwrite(first.id, chart("Mine"), 3)).status()).toBe(404);
+  expect((await theirs.preview(first.id, 4)).status()).toBe(404);
+  expect((await theirs.overwrite(first.id, chart("Mine"), 4)).status()).toBe(404);
   expect((await theirs.rename(first.id, "Mine")).status()).toBe(404);
   expect((await theirs.remove(first.id)).status()).toBe(404);
   expect((await (await theirs.list()).json()).charts).toHaveLength(0);
@@ -110,6 +139,7 @@ test("a chart is saved by an id of the server's, overwritten at its version, ren
   // Deleted.
   expect((await charts.remove(first.id)).status()).toBe(204);
   expect((await charts.read(first.id)).status()).toBe(404);
+  expect((await charts.preview(first.id)).status()).toBe(404);
   listed = await (await charts.list()).json();
   expect(listed).toMatchObject({ charts: [], used: 0 });
   await visitor.close();

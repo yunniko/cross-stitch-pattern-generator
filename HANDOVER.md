@@ -145,7 +145,7 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
 - **Export** (`lib/export/`): `render.ts` holds the chart layout budget and the realistic preview, streamed a strip at
   a time from `stitch-texture.ts`'s tiles (D173). A4 page drawing takes a `ChartDrawingContext`, so one code path draws
   PNG and PDF pages (`pdf-canvas-adapter.ts`, D074, D126). `export-jobs.ts` runs every export on the processor, through
-  the canvases, assets and PNG writer (`processor/png-encode.ts`, D171) that `canvas-backend.ts` hands it (D125, D153).
+  the canvases, assets and PNG writer (`lib/server/png-encode.ts`, D171) that `canvas-backend.ts` hands it (D125, D153).
   The editable JSON alone is written in the page by `use-exports.ts`, so work can be saved with the server unreachable.
 - **Editor data** (`lib/editor/`): pure mutations in `pattern-edit.ts`, the piece in hand in `floating-selection.ts`, selection areas in `selection-area.ts`, region finding in `region.ts`, validating (de)serializer in
   `pattern-serialize.ts` (D099), IndexedDB store in `project-store.ts` (D100), options in `workspace-storage.ts`. OXS

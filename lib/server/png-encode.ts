@@ -2,12 +2,11 @@ import { createDeflate } from "node:zlib";
 import type { PixelSource } from "@/lib/export/canvas-backend";
 
 /**
- * PNG encoding for the server's exports (G-047 M1, D171).
+ * PNG encoding on the server: the processor's exports (G-047 M1, D171) and the app's saved-chart previews (D357).
  *
  * The canvas library's own encoder spent about 350 ms of every 400 ms A4 page. This writer reads the canvas in strips of
  * rows through `getImageData` — the standard, unpremultiplied pixels — filters each row with PNG's Up filter and streams
- * it through zlib. The file differs from the library's, the decoded pixels do not
- * (tests/unit/png-encode.spec.ts).
+ * it through zlib. The file differs from the library's, the decoded pixels do not.
  *
  * Every chart page is opaque, so rows are written as RGB, a quarter smaller than RGBA. The first pixel that is not fully
  * opaque restarts the encode as RGBA; only the realistic preview, whose texture has soft edges, ever takes that path.
