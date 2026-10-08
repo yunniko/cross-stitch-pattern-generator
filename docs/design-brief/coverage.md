@@ -423,10 +423,10 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | G-103 | 10-features | also 01 |
 | G-104 | 04-editing | the Picker and Alt held; also 10 |
 | G-105 | 01-overview | the version and "What's new"; the notes process internal |
-| G-106 | out of scope | draft: subscriptions |
+| G-106 | out of scope | subscriptions: the billing core |
 | G-107 | out of scope | draft: the admin and account pages |
 | G-108 | not shipped (draft) | saved charts and a gallery |
-| G-109 | not shipped (draft) | limits on server actions |
+| G-109 | not shipped | limits on server actions |
 | G-110 | 03-chart-views | the view as switches |
 | G-115 | 04-editing | Fill by stitch type and its switches, the brush without a colour, the Zoom direction; also 03, 06 |
 | G-111 | not shipped (draft) | what users publish, and moderation |
@@ -436,6 +436,9 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | G-116 | 04-editing | selection modes, Invert, the Magic wand |
 | G-117 | internal | security fixes; the sign-in message is accounts (out of scope) |
 | G-124 | 02-photo-and-generation | the photo Wand, Delete, adjustments applied, the photo history |
+| G-126 | out of scope | subscriptions: payment failures and recovery |
+| G-127 | out of scope | subscriptions: the admin's controls |
+| G-128 | out of scope | ready to sell: account, VAT, terms |
 | G-118 | 04-editing | the two colours, the Region switches (where the bar shows them: docs/interface-placement.md); the quick bar fits every tool at every desktop width; M1 takes the names off it |
 | G-119 | 04-editing 10-features | Transparency as colour (M1), Save as stamp (M3), Add stamp and its gallery (M4); the account's Stamps out of scope |
 | G-120 | out of scope | draft: preferences kept with the account |
@@ -498,3 +501,5 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | D361 | 04-editing | Add stamp: threads matched by brand and code or colour, the missing ones added, refused whole |
 | D362 | out of scope (accounts and admin) | |
 | D363 | internal | |
+| D364 | out of scope (accounts and admin) | |
+| D365 | out of scope (accounts and admin) | |

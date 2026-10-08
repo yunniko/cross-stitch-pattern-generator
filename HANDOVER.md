@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-10-08 at a6c13f3, v0.20.0 deployed (previews show half stitches and backstitch; 1,545 unit; CI green on 50d05ee, e2e 664 and 24)
+Last verified: 2026-10-08 at d684649 with G-109 M1, v0.20.0 deployed at a6c13f3 (1,565 unit; CI green on 50d05ee, e2e 664 and 24)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab), live at
@@ -361,6 +361,7 @@ which the Pattern Keeper PDF shares and calls with backstitch switched off.)
 
 ## Next steps and open questions
 
+- **G-109 (counted limits) is active; M1 done:** four counted limits in `ACCOUNT_LIMITS`, all unlimited until the admin sets them, and `takeQuota` (`lib/limits/quota-server.ts`, D364, D365), not yet called by any route. Next: M2, the routes and the refusal. Then, accepted 2026-10-08: G-106, G-126, G-127, G-128 (subscriptions); their Stripe test-mode milestones wait on the Owner's test keys.
 - **G-108 part 1 is signed off (2026-10-08); its pre-deploy dumps are deleted.** Personal data: saved charts hold photos on the shared host, deleted with the account, with no retention rule or scheduled backup yet. Known: a rename from the account bumps the version, so the editor's next Save asks first (D356). Part 2 (visibility, the gallery, G-111) is not planned yet.
 
 - **G-119 is deployed in v0.18.0 and awaits the Owner's sign-off.** Personal data: stamps are user content, deleted with the account; the pre-deploy dump in `~/backups/` on the host is deleted at sign-off. Left for later (Owner): tags on stamps, and importing a stamp from a file.

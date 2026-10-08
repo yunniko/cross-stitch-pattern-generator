@@ -199,6 +199,8 @@ model UsageEvent {
 
   @@index([kind, createdAt])
   @@index([userId, createdAt])
+  /// The quota's read (G-109): one person's uses of one action in the period that ends now.
+  @@index([userId, kind, createdAt])
 }
 
 enum UsageKind {

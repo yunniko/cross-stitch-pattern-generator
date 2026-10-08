@@ -12,13 +12,27 @@ import { resolveLayers, type Layers } from "@/lib/features/resolve";
 /** A limit's value: a whole number in the limit's unit, or no limit at all. */
 export type LimitValue = number | "unlimited";
 
+/** The server's work a counted limit counts (G-109): the kinds `UsageEvent` already records. */
+export type QuotaAction = "GENERATE" | "EXPORT";
+
+/**
+ * A counted limit (G-109): how many of an action a person may have the server do in a rolling period (Owner, 2026-10-08:
+ * rolling 24 hours and 30 days, not calendar ones). A limit without this is a size.
+ */
+export interface Counted {
+  action: QuotaAction;
+  periodHours: number;
+}
+
 export interface Limit {
   /** Stable and dotted, as a feature id is: `storage.charts`. */
   id: string;
   label: string;
   /** What the admin is told about it, one sentence. */
   note: string;
-  unit: "MB" | "stamps";
+  unit: "MB" | "stamps" | "generations" | "exports";
+  /** Set for a counted limit (G-109); absent for a size. */
+  counted?: Counted;
   /** The site's value while the admin has set none. */
   siteDefault: LimitValue;
   /** The largest number the admin may type: the column holds a 32-bit integer. */
@@ -42,7 +56,49 @@ export const ACCOUNT_LIMITS: readonly Limit[] = [
     siteDefault: 100,
     max: 1_000_000,
   },
+  // The counted limits (G-109) default to unlimited: a limit the admin has not set does not apply (Owner, 2026-10-08).
+  {
+    id: "generations.24h",
+    label: "Generations in 24 hours",
+    note: "Charts generated from a photo (each try is one) in any 24 hours.",
+    unit: "generations",
+    siteDefault: "unlimited",
+    max: 1_000_000,
+    counted: { action: "GENERATE", periodHours: 24 },
+  },
+  {
+    id: "generations.30d",
+    label: "Generations in 30 days",
+    note: "Charts generated from a photo (each try is one) in any 30 days.",
+    unit: "generations",
+    siteDefault: "unlimited",
+    max: 1_000_000,
+    counted: { action: "GENERATE", periodHours: 30 * 24 },
+  },
+  {
+    id: "exports.24h",
+    label: "Exports in 24 hours",
+    note: "Exports the server makes (Export all is one) in any 24 hours. The editable file, the palette file and pixel art are made in the browser and not counted.",
+    unit: "exports",
+    siteDefault: "unlimited",
+    max: 1_000_000,
+    counted: { action: "EXPORT", periodHours: 24 },
+  },
+  {
+    id: "exports.30d",
+    label: "Exports in 30 days",
+    note: "Exports the server makes (Export all is one) in any 30 days. The editable file, the palette file and pixel art are made in the browser and not counted.",
+    unit: "exports",
+    siteDefault: "unlimited",
+    max: 1_000_000,
+    counted: { action: "EXPORT", periodHours: 30 * 24 },
+  },
 ];
+
+/** The counted limits on one action, in the list's order. */
+export function countedLimits(action: QuotaAction): Limit[] {
+  return ACCOUNT_LIMITS.filter((limit) => limit.counted?.action === action);
+}
 
 /** A megabyte as the editor counts one elsewhere (`EDITED_PHOTO_MAX_BYTES`): 1024 × 1024 bytes. */
 export const BYTES_PER_MB = 1024 * 1024;

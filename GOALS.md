@@ -311,6 +311,7 @@ What everything depends on is stated once here:
 - [ ] M4 — Records and release: HANDOVER, coverage rows, release notes, docs-lint; `npm run release`, push, deploy to `cross-stitch.craftodejnice.cz` (existing target) with every counted limit unlimited (nothing changes for anyone until the admin sets values); live check with single GET requests.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-10-08 — M1 done: the four counted limits (`generations.24h`, `generations.30d`, `exports.24h`, `exports.30d`, unlimited by default) and `countedLimits` in `lib/limits/limits.ts`; the pure rules in `lib/limits/quota.ts` (rolling use, the longest wait, guests refused, words, Retry-After); `takeQuota` in `quota-server.ts` (advisory lock, check and count in one transaction, give-back); the index migration. D364, D365. Verified: tsc, eslint, prettier, check-skin, check:brief, release notes, docs-lint; unit 1,565 (20 new in `quota.spec.ts`). `takeQuota`'s database half is exercised from M2's browser tests in CI. Removed from HANDOVER: nothing; one Next steps line added. Next: M2.
 - 2026-10-08 — Owner accepted the plan, to run through all milestones. Answers: rolling 24 hours and 30 days; a limit reached refuses (no queue); admins obey limits as everyone does. Open questions (1) to (4) are all answered.
 - 2026-10-08 — planned at the Owner's word ("go g-109 first").
 - 2026-10-06 — goal created.

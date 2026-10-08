@@ -399,3 +399,5 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D361 — A placed stamp's threads are matched by identity, the missing ones added, and a stamp that cannot fit is refused whole — active
 - D362 — Previews drawn several pixels a stitch with half stitches and backstitch; old ones dropped and redrawn on request — active
 - D363 — Release-note ids are matched and refused; developers' wording is judged and only advised — active
+- D364 — A counted limit is checked and counted in one locked transaction, and given back if the processor refuses — active
+- D365 — What one use is: a generation or try, or one server export; guests are refused, never counted — active
