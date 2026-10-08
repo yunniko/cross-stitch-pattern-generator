@@ -1,5 +1,5 @@
 import { BillingSignatureError, type BillingEventRead, type BillingGateway, type SubscriptionSnapshot } from "./contract";
-import type { BillingPolicy } from "./entitlement";
+import { isGrant, type BillingPolicy } from "./entitlement";
 import { planNotices, type NoticeSlot, type PlannedNotice } from "./notices";
 
 /**
@@ -16,6 +16,8 @@ import { planNotices, type NoticeSlot, type PlannedNotice } from "./notices";
 export interface StoredSubscription {
   id: string;
   userId: string;
+  /** "stripe", or "grant" for a tier an admin gave by hand (D379). */
+  kind: string;
   tierId: string;
   priceId: string | null;
   status: string;
@@ -33,7 +35,19 @@ export interface StoredSubscription {
 export type SubscriptionFields = Omit<StoredSubscription, "id">;
 
 export type HistoryKind =
-  "created" | "status" | "period" | "cancel" | "price" | "failure" | "ended" | "replaced" | "second" | "dispute" | "refund";
+  | "created"
+  | "status"
+  | "period"
+  | "cancel"
+  | "price"
+  | "failure"
+  | "ended"
+  | "replaced"
+  | "second"
+  | "dispute"
+  | "refund"
+  | "granted"
+  | "grant-ended";
 export type HistorySource = "webhook" | "reconcile" | "admin";
 
 /** One line of a subscription's history (`SubscriptionEvent`). */
@@ -85,8 +99,12 @@ const HOLDS_THE_PLACE: ReadonlySet<string> = new Set(["trialing", "active", "pas
 export const FINAL_STATUSES = ["canceled", "incomplete_expired"] as const;
 const FINAL: ReadonlySet<string> = new Set(FINAL_STATUSES);
 
-export function holdsThePlace(subscription: { status: string; endedAt: Date | null }): boolean {
-  return subscription.endedAt === null && HOLDS_THE_PLACE.has(subscription.status);
+/**
+ * Whether a subscription bought at the provider stands in the way of another: a tier given by hand never does, so a
+ * person who pays while one lasts takes their paid subscription in its place (D379).
+ */
+export function holdsThePlace(subscription: { kind?: string; status: string; endedAt: Date | null }): boolean {
+  return !isGrant(subscription) && subscription.endedAt === null && HOLDS_THE_PLACE.has(subscription.status);
 }
 
 export function isFinal(subscription: { status: string; endedAt: Date | null }): boolean {
@@ -117,6 +135,7 @@ const text = (value: Date | boolean | string | null): string | null =>
 function fieldsOf(snapshot: SubscriptionSnapshot, userId: string, price: { id: string; tierId: string }): SubscriptionFields {
   return {
     userId,
+    kind: "stripe",
     tierId: price.tierId,
     priceId: price.id,
     status: snapshot.status,
@@ -196,13 +215,16 @@ export function planSync({ snapshot, byProviderId, byUser, userId, price }: Sync
       cancelAtPeriodEnd: snapshot.id,
     };
   }
-  // The person's stored subscription gives nothing any more and a new one is live: the new one takes the row, and the
-  // old one, if the provider could still revive it, is ended.
+  // The person's stored subscription gives nothing any more, or is a tier given by hand, and a new one is live: the new
+  // one takes the row, and the old one, if the provider could still revive it, is ended.
   return {
     kind: "save",
     id: byUser.id,
     fields,
-    history: [{ kind: "replaced", before: byUser.stripeSubscriptionId, after: snapshot.id }, ...historyOf(byUser, fields)],
+    history: [
+      { kind: "replaced", before: isGrant(byUser) ? "grant" : byUser.stripeSubscriptionId, after: snapshot.id },
+      ...historyOf(byUser, fields),
+    ],
     cancelNow: byUser.stripeSubscriptionId && !isFinal(byUser) ? byUser.stripeSubscriptionId : null,
   };
 }

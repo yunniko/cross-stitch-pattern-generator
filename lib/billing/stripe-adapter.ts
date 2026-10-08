@@ -130,5 +130,26 @@ export function createStripeGateway(settings: { secretKey: string; webhookSecret
         const list = await stripe.prices.list({ active: true, type: "recurring", limit: 100, expand: ["data.product"] });
         return list.data.map(priceFromStripe);
       }),
+
+    createPrice: ({ productId, productName, tierId, amount, currency, interval, requestKey }) =>
+      call("make a price", async () => {
+        // Whether the amount includes VAT (`tax_behavior`) is left to the account's default: the Owner's to settle (G-128).
+        const price = await stripe.prices.create(
+          {
+            currency,
+            unit_amount: amount,
+            recurring: { interval: interval === "MONTH" ? "month" : "year" },
+            metadata: { tierId },
+            ...(productId ? { product: productId } : { product_data: { name: productName, metadata: { tierId } } }),
+          },
+          { idempotencyKey: `price-${requestKey}` }
+        );
+        return { priceId: price.id, productId: typeof price.product === "string" ? price.product : price.product.id };
+      }),
+
+    setPriceActive: (priceId, active) =>
+      call("change a price", async () => {
+        await stripe.prices.update(priceId, { active });
+      }),
   };
 }

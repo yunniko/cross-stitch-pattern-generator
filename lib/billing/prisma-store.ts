@@ -26,9 +26,11 @@ import {
 
 const TRANSACTION_TIMEOUT_MS = 60_000;
 
-const STORED_SELECT = {
+/** The fields of a stored subscription (`StoredSubscription`), as the sync and the admin's grants read them. */
+export const STORED_SELECT = {
   id: true,
   userId: true,
+  kind: true,
   tierId: true,
   priceId: true,
   status: true,

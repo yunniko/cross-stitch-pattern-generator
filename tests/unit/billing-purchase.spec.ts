@@ -17,7 +17,8 @@ const DAY = 24 * 3_600_000;
 const POLICY = { graceDays: 14 };
 
 describe("checkoutRefusal (G-106 M3)", () => {
-  const open = { billingOn: true, buyingUsable: true, price: { current: true }, stored: null };
+  const open = { billingOn: true, buyingUsable: true, price: { current: true }, stored: null, now: NOW };
+  const bought = (status: string, endedAt: Date | null) => ({ kind: "stripe", status, currentPeriodEnd: null, endedAt });
 
   it("lets Checkout start for a current price and no subscription", () => {
     expect(checkoutRefusal(open)).toBeNull();
@@ -32,10 +33,22 @@ describe("checkoutRefusal (G-106 M3)", () => {
 
   it("refuses while a subscription holds the place, and allows it once that one is final or ended", () => {
     for (const status of ["trialing", "active", "past_due"])
-      expect(checkoutRefusal({ ...open, stored: { status, endedAt: null } })).toBe(CHECKOUT_REFUSED.live);
+      expect(checkoutRefusal({ ...open, stored: bought(status, null) })).toBe(CHECKOUT_REFUSED.live);
     for (const status of ["canceled", "incomplete_expired", "unpaid", "incomplete"])
-      expect(checkoutRefusal({ ...open, stored: { status, endedAt: null } })).toBeNull();
-    expect(checkoutRefusal({ ...open, stored: { status: "active", endedAt: NOW } })).toBeNull();
+      expect(checkoutRefusal({ ...open, stored: bought(status, null) })).toBeNull();
+    expect(checkoutRefusal({ ...open, stored: bought("active", NOW) })).toBeNull();
+  });
+
+  it("refuses while a tier given by hand lasts, and allows it once the grant has ended or been taken back (D379)", () => {
+    const grant = (status: string, days: number) => ({
+      kind: "grant",
+      status,
+      currentPeriodEnd: new Date(NOW.getTime() + days * DAY),
+      endedAt: null,
+    });
+    expect(checkoutRefusal({ ...open, stored: grant("active", 3) })).toBe(CHECKOUT_REFUSED.given);
+    expect(checkoutRefusal({ ...open, stored: grant("active", -1) })).toBeNull();
+    expect(checkoutRefusal({ ...open, stored: grant("canceled", 3) })).toBeNull();
   });
 });
 

@@ -63,6 +63,22 @@ export interface ProviderPrice {
   productName: string | null;
 }
 
+/** A price the admin makes for a tier (G-127, D380). */
+export interface NewPrice {
+  /** The provider's product of the tier; null for the tier's first price, which makes the product. */
+  productId: string | null;
+  /** The tier's name, for a product made now. */
+  productName: string;
+  /** Our tier's id, kept in the provider's metadata so its dashboard can be read back to the tier. */
+  tierId: string;
+  /** In the currency's minor unit. */
+  amount: number;
+  currency: string;
+  interval: BillingInterval;
+  /** One key per admin's form: the same form sent twice makes one price. */
+  requestKey: string;
+}
+
 export interface CheckoutInput {
   /** The provider's price id (`Price.stripePriceId`). */
   priceId: string;
@@ -108,4 +124,8 @@ export interface BillingGateway {
   chargeCustomer(chargeId: string): Promise<string | null>;
   /** The provider's recurring prices, for the admin to attach to tiers (G-127). */
   listPrices(): Promise<ProviderPrice[]>;
+  /** Makes a recurring price, and the tier's product with its first one (G-127, D380). */
+  createPrice(input: NewPrice): Promise<{ priceId: string; productId: string }>;
+  /** Offers a price for new subscriptions or stops offering it; subscriptions already on it keep it either way. */
+  setPriceActive(priceId: string, active: boolean): Promise<void>;
 }

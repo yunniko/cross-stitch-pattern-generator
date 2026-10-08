@@ -93,12 +93,14 @@ model VerificationToken {
 /// rather than a hardcoded enum, since the tiers/limits themselves are not decided yet. Nothing reads
 /// or writes this table in G-075 — it exists only so that goal is a data migration, not a schema rework.
 model Tier {
-  id           String   @id @default(cuid())
-  name         String   @unique
+  id              String   @id @default(cuid())
+  name            String   @unique
   /// The feature set a person on this tier gets (G-102); null means the site's states alone.
-  featureSetId String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  featureSetId    String?
+  /// The provider's product this tier's prices belong to (G-127): made with the tier's first price.
+  stripeProductId String?  @unique
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   subscriptions Subscription[]
   featureSet    FeatureSet?    @relation(fields: [featureSetId], references: [id])
@@ -199,6 +201,9 @@ model FeatureSetEntry {
 model Subscription {
   id                   String    @id @default(cuid())
   userId               String    @unique
+  /// "stripe" for a subscription bought at the provider; "grant" for one an admin gives by hand (G-127, D379), with no
+  /// provider id, ending at `currentPeriodEnd`.
+  kind                 String    @default("stripe")
   tierId               String
   /// The price subscribed to; null for a row not made through Checkout (tests, and G-127's grants by hand).
   priceId              String?
@@ -232,8 +237,6 @@ model Subscription {
   @@index([stripeCustomerId])
 }
 
-/// A Stripe event already handled (G-106): its id is recorded once, so a second delivery changes nothing. The payload
-/// is not kept.
 /// The messages a failing renewal sends (G-126 M2, D377): queued in the sync's transaction, sent after it. One row per
 /// failure and slot, so each is sent once however often the subscription is synced.
 model BillingNotice {
@@ -257,6 +260,8 @@ model BillingNotice {
   @@index([sentAt, createdAt])
 }
 
+/// A Stripe event already handled (G-106): its id is recorded once, so a second delivery changes nothing. The payload
+/// is not kept.
 model BillingEvent {
   /// Stripe's event id ("evt_...").
   id         String   @id

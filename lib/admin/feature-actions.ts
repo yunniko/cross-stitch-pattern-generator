@@ -157,6 +157,7 @@ export async function createTierAction(name: string): Promise<ActionResult> {
     const tier = await prisma.tier.create({ data: { name: trimmed } });
     await logChange(admin, "TIER", tier.id, `tier "${trimmed}" made`);
     revalidatePath("/admin/features");
+    revalidatePath("/admin/billing");
     revalidatePath("/admin/changes");
   });
 }

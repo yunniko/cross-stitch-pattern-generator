@@ -34,7 +34,14 @@ test("the admin area: its mark, its sections, and the ways to the account and th
   await expect(page).toHaveURL(/\/admin\/overview$/);
 
   await expect(panel.header(page).getByText("Admin", { exact: true })).toBeVisible();
-  await expect(panel.adminNav(page).getByRole("link")).toHaveText(["Overview", /^Users[\d ]+$/, "Features", "Settings", "Change log"]);
+  await expect(panel.adminNav(page).getByRole("link")).toHaveText([
+    "Overview",
+    /^Users[\d ]+$/,
+    "Features",
+    "Billing",
+    "Settings",
+    "Change log",
+  ]);
   await expect(panel.current(page)).toHaveText("Overview");
 
   await panel.adminNav(page).getByRole("link", { name: "Features" }).click();

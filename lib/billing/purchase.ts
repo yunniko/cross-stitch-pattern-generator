@@ -1,5 +1,5 @@
 import type { BillingInterval } from "./contract";
-import { entitlement, type BillingPolicy, type EntitlementInput } from "./entitlement";
+import { entitlement, isGrant, type BillingPolicy, type EntitlementInput } from "./entitlement";
 import { formatDay } from "./notices";
 import { holdsThePlace } from "./sync";
 
@@ -16,28 +16,39 @@ export const CHECKOUT_REFUSED = {
   hidden: "Plans are not on sale.",
   price: "That price is no longer offered. Please choose again.",
   live: "You already have a plan. Change or cancel it under Manage billing.",
+  given: "Your plan was given to you by the site. A plan can be bought once it ends.",
   unavailable: "The payment page could not be opened just now. Please try again in a few minutes.",
 } as const;
 
 export interface StoredForCheckout {
+  kind: string;
   status: string;
+  currentPeriodEnd: Date | null;
   endedAt: Date | null;
+}
+
+/** Whether the person's subscription stops them buying one now: a bought one still live, or a tier given by hand still lasting. */
+export function hasPlanInPlace(stored: StoredForCheckout | null, now: Date): boolean {
+  if (!stored) return false;
+  return isGrant(stored) ? entitlement({ ...stored, firstFailedAt: null }, { graceDays: 0 }, now).tier : holdsThePlace(stored);
 }
 
 /**
  * Why Checkout is refused, or null when it may start. A subscription that still holds the person's place — trialing,
- * active or past due, not ended — refuses a second one (Acceptance 6; a second made anyway is D370's).
+ * active or past due, not ended — refuses a second one (Acceptance 6; a second made anyway is D370's), and so does a
+ * tier given by hand while it lasts (D379).
  */
 export function checkoutRefusal(facts: {
   billingOn: boolean;
   buyingUsable: boolean;
   price: { current: boolean } | null;
   stored: StoredForCheckout | null;
+  now: Date;
 }): string | null {
   if (!facts.billingOn) return CHECKOUT_REFUSED.off;
   if (!facts.buyingUsable) return CHECKOUT_REFUSED.hidden;
   if (!facts.price?.current) return CHECKOUT_REFUSED.price;
-  if (facts.stored && holdsThePlace(facts.stored)) return CHECKOUT_REFUSED.live;
+  if (hasPlanInPlace(facts.stored, facts.now)) return isGrant(facts.stored) ? CHECKOUT_REFUSED.given : CHECKOUT_REFUSED.live;
   return null;
 }
 
@@ -88,6 +99,8 @@ export function planStatusLine(stored: StoredForStatus | null, policy: BillingPo
   if (!stored) return null;
   const given = entitlement(stored, policy, now);
   const periodEnd = stored.currentPeriodEnd ? formatDay(stored.currentPeriodEnd) : null;
+  if (isGrant(stored))
+    return given.tier ? `Given to you by the site until ${formatDay(given.until)}.` : "The plan the site gave you has ended.";
   if (given.tier) {
     if (given.status === "past_due") return "A renewal payment failed and is being retried. Update your card under Manage billing.";
     if (stored.cancelAtPeriodEnd && periodEnd) return `Cancelled: your plan lasts until ${periodEnd} and will not renew.`;
@@ -106,6 +119,8 @@ export function planStatusLine(stored: StoredForStatus | null, policy: BillingPo
       return "Your paid plan stopped because a renewal could not be paid.";
     case "paused":
       return "Your paid plan is paused.";
+    case "given-ended":
+      return "The plan the site gave you has ended.";
     case "period-ended":
     case "no-period-recorded":
     case "unknown-status":

@@ -3,6 +3,7 @@ import {
   type BillingGateway,
   type BillingInterval,
   type CheckoutInput,
+  type NewPrice,
   type ProviderPrice,
   type SubscriptionSnapshot,
 } from "./contract";
@@ -43,6 +44,9 @@ export class FakeBilling implements BillingGateway {
   unavailable = false;
 
   private readonly prices = new Map<string, ProviderPrice>();
+  /** Prices made through the contract, by the request's key: the same key makes no second price, as at Stripe. */
+  private readonly madePrices = new Map<string, { priceId: string; productId: string }>();
+  private readonly products = new Map<string, string>();
   private readonly subscriptions = new Map<string, FakeSubscription>();
   private readonly sessions = new Map<string, CheckoutInput>();
   /** Each paid invoice's charge, by id, with its customer and subscription. */
@@ -163,6 +167,31 @@ export class FakeBilling implements BillingGateway {
   async listPrices(): Promise<ProviderPrice[]> {
     this.reachable();
     return [...this.prices.values()];
+  }
+
+  async createPrice(input: NewPrice): Promise<{ priceId: string; productId: string }> {
+    this.reachable();
+    const made = this.madePrices.get(input.requestKey);
+    if (made) return made;
+    const productId = input.productId ?? this.nextId("prod");
+    this.products.set(productId, input.productName);
+    const price = this.addPrice({
+      amount: input.amount,
+      currency: input.currency,
+      interval: input.interval,
+      productName: input.productName,
+    });
+    const result = { priceId: price.id, productId };
+    this.madePrices.set(input.requestKey, result);
+    return result;
+  }
+
+  async setPriceActive(priceId: string, active: boolean): Promise<void> {
+    this.reachable();
+    const price = this.prices.get(priceId);
+    // A price the fake does not hold in memory is one made before the server restarted: the database's row is the one
+    // the fake sells by (`resolvePrice`), so there is nothing here to change.
+    if (price) this.prices.set(priceId, { ...price, active });
   }
 
   // --- Driving the fake, as Stripe and the person would ---

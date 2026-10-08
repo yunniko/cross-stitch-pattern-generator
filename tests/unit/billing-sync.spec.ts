@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { BillingUnavailableError } from "../../lib/billing/contract";
 import { entitlement, hasTier } from "../../lib/billing/entitlement";
 import { FakeBilling, type SignedEvent } from "../../lib/billing/fake";
+import { grantRow } from "../../lib/billing/grants";
 import { FAKE_WEBHOOK_SECRET } from "../../lib/billing/settings";
 import { UnknownPriceError, handleWebhook, planSync, reconcile } from "../../lib/billing/sync";
 import { MemoryBillingStore } from "./helpers/memory-billing-store";
@@ -105,6 +106,7 @@ describe("a subscription stored from the webhook", () => {
     expect(answers.map((answer) => answer.status)).toEqual([200, 200, 200]);
     expect(stored(world.store)).toEqual({
       userId: "user_1",
+      kind: "stripe",
       tierId: PRICE_ROW.tierId,
       priceId: PRICE_ROW.id,
       status: "active",
@@ -318,6 +320,22 @@ describe("one live subscription a person", () => {
     expect(world.store.row("user_1")).toMatchObject({ stripeSubscriptionId: renewed.id, status: "active" });
     expect(world.store.historyOf("user_1").find((entry) => entry.kind === "replaced")).toMatchObject({ before: old.id, after: renewed.id });
     expect(await world.fake.fetchSubscription(old.id)).toMatchObject({ status: "canceled" });
+  });
+
+  it("lets a bought subscription take the row of a tier given by hand, which it then decides alone (D379)", async () => {
+    const world = setUp();
+    const grant = grantRow(null, { userId: "user_1", tierId: "tier_given", tierName: "Given", until: new Date(T0.getTime() + 60 * DAY) });
+    world.store.state.subscriptions.push({ id: "row_grant", ...grant.fields });
+    const bought = await world.checkout();
+    await world.deliver(world.fresh());
+    expect(world.store.row("user_1")).toMatchObject({
+      id: "row_grant",
+      kind: "stripe",
+      tierId: PRICE_ROW.tierId,
+      stripeSubscriptionId: bought.id,
+      status: "active",
+    });
+    expect(world.store.historyOf("user_1").find((entry) => entry.kind === "replaced")).toMatchObject({ before: "grant", after: bought.id });
   });
 });
 

@@ -7,11 +7,14 @@
 export const ACCOUNT_SCOPE = "ACCOUNT";
 /** A site setting changed by an admin (G-126 M2, D374). */
 export const SETTING_SCOPE = "SETTING";
+/** A price, or a tier given by hand (G-127 M1). The subject is the tier for a price, the person for a grant. */
+export const BILLING_SCOPE = "BILLING";
 
 export const CHANGE_GROUPS = [
   { id: "users", label: "Users", scopes: [ACCOUNT_SCOPE, "USER"] },
   { id: "features", label: "Features", scopes: ["SITE", "SET", "AUDIENCE"] },
   { id: "tiers", label: "Tiers", scopes: ["TIER"] },
+  { id: "billing", label: "Billing", scopes: [BILLING_SCOPE] },
   { id: "settings", label: "Settings", scopes: [SETTING_SCOPE] },
 ] as const;
 
@@ -32,9 +35,9 @@ export function groupLabelOf(scope: string): string {
   return CHANGE_GROUPS.find((group) => (group.scopes as readonly string[]).includes(scope))?.label ?? scope;
 }
 
-/** The scopes of the switches, which the Features page's own Changes tab shows: every one but a role, a login or a setting. */
+/** The scopes of the switches, which the Features page's own Changes tab shows: every one but a role, a login, billing or a setting. */
 export const FEATURE_SCOPES: readonly string[] = CHANGE_GROUPS.flatMap((group) => group.scopes).filter(
-  (scope) => scope !== ACCOUNT_SCOPE && scope !== SETTING_SCOPE
+  (scope) => scope !== ACCOUNT_SCOPE && scope !== SETTING_SCOPE && scope !== BILLING_SCOPE
 );
 
 /** "2026-10-07 16:58", in UTC, as the log lists a change. */

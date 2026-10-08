@@ -2,10 +2,18 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { FREE_PLAN, planName } from "@/lib/account/plan";
-import { ENTITLEMENT_SELECT } from "@/lib/billing/entitlement";
+import { ENTITLEMENT_SELECT, isGrant } from "@/lib/billing/entitlement";
 import { currentBillingSettings } from "@/lib/billing/gateway";
-import { BUYING_FEATURE, formatPrice, offeredTiers, paymentNotice, planStatusLine, type PriceRow } from "@/lib/billing/purchase";
-import { holdsThePlace } from "@/lib/billing/sync";
+import {
+  BUYING_FEATURE,
+  CHECKOUT_REFUSED,
+  formatPrice,
+  hasPlanInPlace,
+  offeredTiers,
+  paymentNotice,
+  planStatusLine,
+  type PriceRow,
+} from "@/lib/billing/purchase";
 import { featureUsable } from "@/lib/features/features";
 import { featureStatesFor } from "@/lib/features/server";
 import { billingPolicy } from "@/lib/settings/server";
@@ -65,7 +73,7 @@ export default async function AccountPlanPage({ searchParams }: { searchParams: 
   const status = payment ? null : planStatusLine(stored, policy, now);
   const billingOn = currentBillingSettings().on;
   const offered = billingOn && featureUsable(states, BUYING_FEATURE) ? offeredTiers(prices.map(toPriceRow)) : [];
-  const live = stored !== null && holdsThePlace(stored);
+  const live = hasPlanInPlace(stored, now);
   const notice = checkout ? RETURN_NOTICES[checkout] : undefined;
 
   return (
@@ -134,7 +142,11 @@ export default async function AccountPlanPage({ searchParams }: { searchParams: 
                 </div>
               ) : null
             )}
-            {live && <p className="m-0 text-[13px] text-muted">You have a plan. Change or cancel it under Manage billing.</p>}
+            {live && (
+              <p className="m-0 text-[13px] text-muted">
+                {isGrant(stored) ? CHECKOUT_REFUSED.given : "You have a plan. Change or cancel it under Manage billing."}
+              </p>
+            )}
           </div>
         ))}
         {offered.length === 0 && plan === FREE_PLAN && (

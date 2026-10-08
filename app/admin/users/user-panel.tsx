@@ -1,12 +1,15 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { planName } from "@/lib/account/plan";
-import { ENTITLEMENT_SELECT } from "@/lib/billing/entitlement";
+import { isGrant } from "@/lib/billing/entitlement";
+import { grantRefusal } from "@/lib/billing/grants";
+import { STORED_SELECT } from "@/lib/billing/prisma-store";
 import { billingPolicy } from "@/lib/settings/server";
 import { signInMethods } from "@/lib/account/sign-in-methods";
 import { ownStatesSummary } from "@/lib/admin/users-filter";
 import { groupThousands, isoDay, lastSeen } from "@/lib/panel/format";
 import { UserRowActions } from "./user-row-actions";
+import { GrantForm } from "./grant-form";
 
 /** The day "last seen" began to be kept (G-107 M3): an account not seen since shows this. */
 const SEEN_KEPT_SINCE = "7 Oct 2026";
@@ -19,7 +22,7 @@ const TERM = "text-muted";
  * naming no account says so rather than failing the page.
  */
 export async function UserPanel({ userId, own, closeHref }: { userId: string; own: boolean; closeHref: string }) {
-  const [user, counts, policy] = await Promise.all([
+  const [user, counts, policy, tiers] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -33,11 +36,12 @@ export async function UserPanel({ userId, own, closeHref }: { userId: string; ow
         passwordHash: true,
         accounts: { select: { provider: true } },
         features: { select: { featureId: true, state: true } },
-        subscription: { select: { ...ENTITLEMENT_SELECT, tier: { select: { name: true } } } },
+        subscription: { select: { ...STORED_SELECT, tier: { select: { name: true } } } },
       },
     }),
     prisma.usageEvent.groupBy({ by: ["kind"], where: { userId }, _count: { _all: true } }),
     billingPolicy(),
+    prisma.tier.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
   ]);
 
   const close = (
@@ -55,6 +59,12 @@ export async function UserPanel({ userId, own, closeHref }: { userId: string; ow
     );
   }
 
+  const now = new Date();
+  const stored = user.subscription;
+  const givenUntil =
+    stored && isGrant(stored) && stored.status === "active" && stored.currentPeriodEnd && stored.currentPeriodEnd > now
+      ? isoDay(stored.currentPeriodEnd)
+      : null;
   const count = (kind: "GENERATE" | "EXPORT") => counts.find((row) => row.kind === kind)?._count._all ?? 0;
   const methods = signInMethods({
     email: user.email,
@@ -90,7 +100,7 @@ export async function UserPanel({ userId, own, closeHref }: { userId: string; ow
         <dd className="m-0 font-mono text-ink">{isoDay(user.createdAt)}</dd>
         <dt className={TERM}>Last seen</dt>
         <dd className="m-0 font-mono text-ink" data-testid="admin-user-seen">
-          {lastSeen(user.lastSeenAt, new Date(), SEEN_KEPT_SINCE)}
+          {lastSeen(user.lastSeenAt, now, SEEN_KEPT_SINCE)}
         </dd>
         <dt className={TERM}>Sign-in</dt>
         <dd className="m-0 text-ink">{methods.length === 0 ? "None" : methods.map((method) => method.name).join(", ")}</dd>
@@ -105,6 +115,11 @@ export async function UserPanel({ userId, own, closeHref }: { userId: string; ow
           <span className="font-mono text-lg font-medium text-ink">{groupThousands(count("EXPORT"))}</span>
           <span className="text-[11px] text-muted">exports</span>
         </div>
+      </div>
+
+      <div className="flex flex-col gap-1.5 border-t border-line pt-3.5">
+        <span className="text-[11px] font-medium tracking-[0.08em] text-muted uppercase">Tier given by hand</span>
+        <GrantForm userId={user.id} tiers={tiers} givenUntil={givenUntil} refusal={grantRefusal(stored)} />
       </div>
 
       <div className="flex flex-col gap-1.5 border-t border-line pt-3.5">

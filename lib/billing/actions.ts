@@ -31,7 +31,10 @@ export async function startCheckoutAction(_prev: BillingActionState, formData: F
     billingGateway(),
     featureStatesFor(userId),
     priceId ? prisma.price.findUnique({ where: { id: priceId }, select: { stripePriceId: true, current: true } }) : null,
-    prisma.subscription.findUnique({ where: { userId }, select: { status: true, endedAt: true, stripeCustomerId: true } }),
+    prisma.subscription.findUnique({
+      where: { userId },
+      select: { kind: true, status: true, currentPeriodEnd: true, endedAt: true, stripeCustomerId: true },
+    }),
   ]);
   const settings = currentBillingSettings();
   const refusal = checkoutRefusal({
@@ -39,6 +42,7 @@ export async function startCheckoutAction(_prev: BillingActionState, formData: F
     buyingUsable: featureUsable(states, BUYING_FEATURE),
     price,
     stored,
+    now: new Date(),
   });
   if (refusal || !gateway || !settings.on || !price) return { error: refusal ?? CHECKOUT_REFUSED.off };
 

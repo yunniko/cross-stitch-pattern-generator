@@ -39,6 +39,8 @@ const DAY_MS = 24 * 3_600_000;
 
 /** The stored fields the rule reads: what a query selects for it (`ENTITLEMENT_SELECT`). */
 export interface EntitlementInput {
+  /** "grant" for a tier an admin gives by hand (G-127, D379); anything else, or absent, is a subscription bought. */
+  kind?: string;
   status: string;
   currentPeriodEnd: Date | null;
   /** The first failed attempt of the invoice now open, kept while the subscription stays failing (D375). */
@@ -46,7 +48,7 @@ export interface EntitlementInput {
 }
 
 /** The Prisma `select` for a subscription the rule will read. */
-export const ENTITLEMENT_SELECT = { status: true, currentPeriodEnd: true, firstFailedAt: true } as const;
+export const ENTITLEMENT_SELECT = { kind: true, status: true, currentPeriodEnd: true, firstFailedAt: true } as const;
 
 export type FreeReason =
   | "no-subscription"
@@ -55,6 +57,7 @@ export type FreeReason =
   | "period-ended"
   | "no-period-recorded"
   | "grace-ended"
+  | "given-ended"
   | "unpaid"
   | "canceled"
   | "paused"
@@ -85,8 +88,26 @@ function untilGraceEnds(subscription: EntitlementInput, policy: BillingPolicy, n
   return { tier: true, until: graceEnd < byPeriod.until ? graceEnd : byPeriod.until, status: "past_due" };
 }
 
+/** A subscription an admin gave by hand (G-127, D379). */
+export const GRANT_KIND = "grant";
+
+export function isGrant(subscription: { kind?: string } | null | undefined): boolean {
+  return subscription?.kind === GRANT_KIND;
+}
+
+/**
+ * A tier given by hand lasts until its end date exactly: no payment record can arrive late, so the allowance for one
+ * does not apply. An admin ending it early writes the status "canceled". See D379.
+ */
+function untilGrantEnds(subscription: EntitlementInput, now: Date): Entitlement {
+  if (subscription.status !== "active" || !subscription.currentPeriodEnd || now >= subscription.currentPeriodEnd)
+    return free("given-ended", subscription.status);
+  return { tier: true, until: subscription.currentPeriodEnd, status: "active" };
+}
+
 export function entitlement(subscription: EntitlementInput | null | undefined, policy: BillingPolicy, now: Date): Entitlement {
   if (!subscription) return free("no-subscription", null);
+  if (isGrant(subscription)) return untilGrantEnds(subscription, now);
   const { status } = subscription;
   if (!isSubscriptionStatus(status)) return free("unknown-status", status);
   switch (status) {

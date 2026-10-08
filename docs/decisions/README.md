@@ -415,3 +415,5 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D376 — A change of price is taken only from a subscription in good standing — active
 - D377 — Failure notices are an outbox, one row per failure and slot, queued in the sync's transaction — active
 - D378 — A renewal needing the bank's confirmation is read from its payment's intent — active
+- D379 — A tier given by hand is the person's one subscription row, of kind "grant" — active
+- D380 — The admin makes prices through the billing contract, never edits one — active
