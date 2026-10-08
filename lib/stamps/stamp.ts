@@ -167,3 +167,22 @@ export function countRefusal(kept: number, allowed: LimitValue): string | null {
   if (allowed === "unlimited" || kept < allowed) return null;
   return `You keep ${kept} ${kept === 1 ? "stamp" : "stamps"}, as many as your account allows. Delete a stamp to save another.`;
 }
+
+/** "12 stamps", "1 stamp". */
+export function stampCount(count: number): string {
+  return `${count} ${count === 1 ? "stamp" : "stamps"}`;
+}
+
+/** The stamps whose name holds every word searched for, in the order given (the server's: pinned first, then newest). */
+export function stampsShown<T extends { name: string }>(stamps: readonly T[], query: string): T[] {
+  const words = query.toLocaleLowerCase().split(/\s+/).filter(Boolean);
+  return stamps.filter((stamp) => {
+    const name = stamp.name.toLocaleLowerCase();
+    return words.every((word) => name.includes(word));
+  });
+}
+
+/** A stamp's preview, at the version shown, so a rename's new version is fetched afresh and the rest come from the cache. */
+export function stampPreviewHref(id: string, version: number): string {
+  return `/api/stamps/${encodeURIComponent(id)}/preview?v=${version}`;
+}

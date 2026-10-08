@@ -7,6 +7,7 @@ import { logoutAction } from "@/lib/auth/actions";
 import { ACCOUNT_SECTIONS } from "@/lib/account/sections";
 import { planName } from "@/lib/account/plan";
 import { countCharts } from "@/lib/charts/server";
+import { countStamps } from "@/lib/stamps/server";
 import { PanelHeader } from "@/app/components/panel/panel-header";
 import { SectionNav } from "@/app/components/panel/section-nav";
 import { PillButton } from "@/app/components/ui";
@@ -24,8 +25,9 @@ export default async function AccountLayout({ children }: { children: ReactNode 
   });
   // Deleted (from another tab, say) after the session cookie was issued: there is nothing to show.
   if (!user) redirect("/login");
-  // Beside Charts, how many are saved (G-108 part 1 M8); a save, rename or delete reads the page, and so this, again.
-  const charts = await countCharts(session.user.id);
+  // Beside Charts and Stamps, how many are kept (G-108 part 1 M8, G-119); a save, rename or delete reads the page, and so
+  // this, again.
+  const [charts, stamps] = await Promise.all([countCharts(session.user.id), countStamps(session.user.id)]);
 
   return (
     <div className="flex min-h-screen flex-col bg-app">
@@ -36,7 +38,12 @@ export default async function AccountLayout({ children }: { children: ReactNode 
             <span className="text-lg font-semibold text-ink">Your account</span>
             <span className="truncate text-[13px] text-muted">{user.email}</span>
           </div>
-          <SectionNav sections={ACCOUNT_SECTIONS} badges={{ charts: String(charts) }} look="bar" label="Account sections" />
+          <SectionNav
+            sections={ACCOUNT_SECTIONS}
+            badges={{ charts: String(charts), stamps: String(stamps) }}
+            look="bar"
+            label="Account sections"
+          />
           <div className="flex flex-col gap-2 border-t border-line pt-4" data-testid="account-plan">
             <span className="text-[11px] font-medium tracking-[0.08em] text-muted uppercase">Plan</span>
             <div className="flex items-baseline justify-between gap-2">

@@ -21,9 +21,12 @@ export interface WorkspaceNoticesProps {
   /** What a Save to the account came to (G-108): that it was saved, or why not. */
   accountSaveMessage: AccountSaveMessage | null;
   onDismissAccountSaveMessage: () => void;
+  /** What a Save as stamp came to (G-119). */
+  stampMessage: AccountSaveMessage | null;
+  onDismissStampMessage: () => void;
 }
 
-/** The strips under the bar of tool options: a failed auto-restore (D101), open and export errors, and what a Save to the account came to. */
+/** The strips under the bar of tool options: a failed auto-restore (D101), open and export errors, and what a Save to the account or as a stamp came to. */
 export function WorkspaceNotices({
   restoreFailure,
   onDownloadRestoreReport,
@@ -36,6 +39,8 @@ export function WorkspaceNotices({
   onDismissExportError,
   accountSaveMessage,
   onDismissAccountSaveMessage,
+  stampMessage,
+  onDismissStampMessage,
 }: WorkspaceNoticesProps) {
   return (
     <>
@@ -79,6 +84,13 @@ export function WorkspaceNotices({
         <NoticeBar key={accountSaveMessage.text} tone={accountSaveMessage.tone} onDismiss={onDismissAccountSaveMessage}>
           <span data-testid="account-save-message" data-tone={accountSaveMessage.tone}>
             {accountSaveMessage.text}
+          </span>
+        </NoticeBar>
+      )}
+      {stampMessage && (
+        <NoticeBar key={stampMessage.text} tone={stampMessage.tone} onDismiss={onDismissStampMessage}>
+          <span data-testid="stamp-message" data-tone={stampMessage.tone}>
+            {stampMessage.text}
           </span>
         </NoticeBar>
       )}

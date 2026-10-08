@@ -7,7 +7,10 @@ import {
   serializeStamp,
   stampFacts,
   stampFromPiece,
+  stampCount,
   stampName,
+  stampPreviewHref,
+  stampsShown,
   STAMP_COUNT_LIMIT,
   UNTITLED_STAMP,
 } from "@/lib/stamps/stamp";
@@ -143,5 +146,17 @@ describe("names, facts and the limit", () => {
     expect(countRefusal(100, 100)).toMatch(/You keep 100 stamps, as many as your account allows/);
     expect(countRefusal(0, 0)).toMatch(/You keep 0 stamps/);
     expect(countRefusal(5000, "unlimited")).toBeNull();
+  });
+});
+
+describe("the account's Stamps", () => {
+  it("counts, searches by every word in the name, and asks for a preview at its version", () => {
+    expect(stampCount(1)).toBe("1 stamp");
+    expect(stampCount(0)).toBe("0 stamps");
+    const kept = [{ name: "Rose border" }, { name: "Little rose" }, { name: "Tulip" }];
+    expect(stampsShown(kept, "  ROSE ").map((s) => s.name)).toEqual(["Rose border", "Little rose"]);
+    expect(stampsShown(kept, "rose bor").map((s) => s.name)).toEqual(["Rose border"]);
+    expect(stampsShown(kept, "")).toHaveLength(3);
+    expect(stampPreviewHref("a b", 3)).toBe("/api/stamps/a%20b/preview?v=3");
   });
 });

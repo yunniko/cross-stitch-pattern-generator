@@ -1,8 +1,10 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { GROUP_LABEL, PillButton } from "./ui";
 import { PinnedEnd } from "./pinned-end";
 import { SkinIcon } from "../skin/skin";
 import type { InterfaceIconName } from "../skin/icons";
+import { STAMPS_FEATURE } from "@/lib/stamps/stamp";
 
 /**
  * What can be done to the selection, for Select, Lasso and the Magic wand alike (G-116, D333): declared once, drawn twice.
@@ -27,6 +29,8 @@ export interface SelectionActionsProps {
   onRotateClockwise: () => void;
   onRotateAnticlockwise: () => void;
   onCrop: () => void;
+  /** Keeping the piece with the account as a stamp (G-119): null while the feature is hidden. */
+  saveStamp: { run: () => void; locked?: string; signedIn: boolean; busy: boolean } | null;
   onCancel: () => void;
   onDeselect: () => void;
 }
@@ -37,10 +41,12 @@ interface Action {
   icon: InterfaceIconName;
   onClick: () => void;
   disabled: boolean;
+  /** The feature this action is under, when it is greyed because the feature is locked for this person (G-102). */
+  lockedFeature?: string;
 }
 
 /** The actions in their groups, in the order the tab draws them; the last group is the committing pair. */
-function groups(p: SelectionActionsProps): ReadonlyArray<{ name: string; actions: readonly Action[] }> {
+function groups(p: SelectionActionsProps): ReadonlyArray<{ name: string; note?: ReactNode; actions: readonly Action[] }> {
   const none = !p.hasSelection;
   return [
     {
@@ -135,6 +141,30 @@ function groups(p: SelectionActionsProps): ReadonlyArray<{ name: string; actions
         },
       ],
     },
+    ...(p.saveStamp
+      ? [
+          {
+            name: "Stamps",
+            // Signed out, the greyed button says why on hover; the note says it where it can be read and followed.
+            note: !p.saveStamp.signedIn && p.saveStamp.locked === undefined ? <SignInNote /> : undefined,
+            actions: [
+              {
+                label: "Save as stamp",
+                title:
+                  p.saveStamp.locked ??
+                  (!p.saveStamp.signedIn ? "Sign in to keep stamps with your account" : null) ??
+                  (none
+                    ? "Select a piece first, then keep it with your account to place in other charts"
+                    : "Keep this piece with your account, to place in other charts"),
+                icon: "stamp" as const,
+                onClick: p.saveStamp.run,
+                disabled: none || p.saveStamp.locked !== undefined || !p.saveStamp.signedIn || p.saveStamp.busy,
+                lockedFeature: p.saveStamp.locked !== undefined ? STAMPS_FEATURE : undefined,
+              },
+            ],
+          },
+        ]
+      : []),
     {
       name: "Finish",
       actions: [
@@ -165,6 +195,7 @@ function ActionButton({ action, wide }: { action: Action; wide: boolean }): Reac
       title={action.title}
       onClick={action.onClick}
       disabled={action.disabled}
+      data-feature-locked={action.lockedFeature}
       className={`flex items-center gap-1.5 px-2.5 whitespace-nowrap ${wide ? "justify-start" : ""}`}
     >
       <SkinIcon name={action.icon} />
@@ -189,7 +220,7 @@ export function SelectionFinish(props: SelectionActionsProps) {
 export function SelectionPanel(props: SelectionActionsProps) {
   return (
     <div className="flex flex-col gap-5 p-4" data-testid="selection-panel">
-      {groups(props).map(({ name, actions }) => (
+      {groups(props).map(({ name, note, actions }) => (
         <section key={name} className="flex flex-col gap-2" aria-label={name}>
           <span className={GROUP_LABEL}>{name}</span>
           <div className="grid grid-cols-2 gap-1.5">
@@ -197,8 +228,20 @@ export function SelectionPanel(props: SelectionActionsProps) {
               <ActionButton key={action.label} action={action} wide />
             ))}
           </div>
+          {note}
         </section>
       ))}
     </div>
+  );
+}
+
+function SignInNote() {
+  return (
+    <p className="m-0 text-[12px] leading-[17px] text-muted" data-testid="stamp-sign-in-note">
+      <Link href="/login" className="text-accent underline-offset-2 hover:underline">
+        Sign in
+      </Link>{" "}
+      to keep pieces as stamps and place them in other charts.
+    </p>
   );
 }

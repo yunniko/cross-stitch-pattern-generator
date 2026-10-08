@@ -16,7 +16,8 @@ export type SelectionActionName =
   | "Flip vertical"
   | "Rotate right"
   | "Rotate left"
-  | "Crop to selection";
+  | "Crop to selection"
+  | "Save as stamp";
 
 /** Apply here or Cancel, on the top bar. */
 export const selectionFinish = (page: Page, name: "Apply here" | "Cancel") =>

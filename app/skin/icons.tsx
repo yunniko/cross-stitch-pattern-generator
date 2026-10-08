@@ -274,6 +274,16 @@ export const INTERFACE_ICONS = {
       <path d="M3 7h14v14.5" />
     </>
   ),
+  /** A rubber stamp: a piece kept with the account, to be placed in other charts (G-119). */
+  stamp: outline(
+    "h-4 w-4",
+    1.6,
+    <>
+      <path d="M10 3.5h4a1 1 0 0 1 1 1V8l-1 4h-4L9 8V4.5a1 1 0 0 1 1-1z" />
+      <rect x="4" y="12" width="16" height="4.5" rx="1" />
+      <path d="M5.5 20.5h13" />
+    </>
+  ),
   cancel: outline(
     "h-4 w-4",
     1.6,

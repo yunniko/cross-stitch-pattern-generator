@@ -80,6 +80,7 @@ describe("the command table", () => {
       "selection.rotate-right",
       "selection.rotate-left",
       "selection.crop",
+      "selection.save-stamp",
       "selection.apply [Enter]",
       "selection.cancel [Escape]",
       "backstitch.end-run [Escape]",

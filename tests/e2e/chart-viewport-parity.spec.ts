@@ -221,7 +221,8 @@ async function compare(page: Page, c: Case): Promise<Result> {
     );
     const [dx, dy] = c.shift ?? [3, -2];
     const selectRect = { x: 2, y: 1, width: 7, height: 5 };
-    const piece = { ...selection, x: selection.x + 5, y: selection.y + 2 };
+    // The frozen drawing knew one way for a piece's empty stitches, covering what lies beneath: Transparency as colour on (D359).
+    const piece = { ...selection, x: selection.x + 5, y: selection.y + 2, emptyCovers: true };
     const incremental = c.viewMode === "color" || c.viewMode === "bw";
 
     const liveGesture =

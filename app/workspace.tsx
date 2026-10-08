@@ -17,6 +17,7 @@ import { useDocumentHistory } from "./hooks/use-document-history";
 import type { StitchPattern } from "@/lib/types";
 import { ConfirmNewChart } from "./components/confirm-new-chart";
 import { SaveConflict } from "./components/save-conflict";
+import { StampNameDialog } from "./components/stamp-name-dialog";
 import { AppBar } from "./components/app-bar";
 import { EditorLayout } from "./components/editor-layout";
 import { QuickBar } from "./components/quick-bar";
@@ -33,6 +34,8 @@ import { cellIndexFromEvent, chartOrigin, computeCellSize } from "./editor-geome
 import { useChartRenderer, type ChartRenderer } from "./hooks/use-chart-renderer";
 import { paginatesAsA4, useExports } from "./hooks/use-exports";
 import { useAccountSave } from "./hooks/use-account-save";
+import { useStamps } from "./hooks/use-stamps";
+import { STAMPS_FEATURE } from "@/lib/stamps/stamp";
 import { PageCuts } from "./components/page-cuts";
 import { Preferences } from "./components/preferences";
 import { longerSideFor, useGeneration } from "./hooks/use-generation";
@@ -191,6 +194,9 @@ export default function Workspace({ account }: WorkspaceProps) {
       y: Math.max(0, Math.floor((shown.top - origin.top) / cellSize)),
     };
   }
+  // The person's stamps (G-119): Save as stamp in the Selection tab, and how many they keep for Add stamp.
+  const stamps = useStamps(pattern, account !== null, featureUsable(features, STAMPS_FEATURE));
+  const stampSaving = gatedAction("selection.save-stamp", features, () => {});
   // The tools (G-092): which is in hand, and the routing of the pointer and the keys to it. What each does is in its own
   // module under `app/tools/`; this is everything a tool is allowed to touch.
   const tools = useTools({
@@ -227,6 +233,9 @@ export default function Workspace({ account }: WorkspaceProps) {
       deleteSelected: photoEdits.deleteSelected,
       deselect: photoEdits.deselect,
       invert: photoEdits.invert,
+    },
+    stamps: {
+      save: stampSaving && { run: stamps.begin, locked: stampSaving.locked, signedIn: account !== null, busy: stamps.busy },
     },
   });
   const { activeTool, switchTool, hoverOutline } = tools;
@@ -538,7 +547,11 @@ export default function Workspace({ account }: WorkspaceProps) {
   );
   // While the list is up the keys are the list's: nothing typed there reaches a tool or a view.
   // The same while the preferences are up: what is typed there is for them.
-  useKeyboardShortcuts(commands, scrollerRef, commandListOpen || preferencesOpen || everyWorkspaceOff);
+  useKeyboardShortcuts(
+    commands,
+    scrollerRef,
+    commandListOpen || preferencesOpen || stamps.naming !== null || accountSave.conflict !== null || everyWorkspaceOff
+  );
 
   /** Closing without running anything gives the focus back to the button; after a command it is left on the page, so the chart's keys act at once. */
   function closeCommandList(ran: boolean) {
@@ -586,6 +599,7 @@ export default function Workspace({ account }: WorkspaceProps) {
           onPixelArt={(file) => void lifecycle.pixelArtChosen(file)}
           photoDisabled={source.isLoading || generation.isProcessing}
         />
+        {stamps.naming && <StampNameDialog facts={stamps.naming.facts} onSave={stamps.naming.save} onCancel={stamps.naming.cancel} />}
         {accountSave.conflict && (
           <SaveConflict
             savedAt={accountSave.conflict.savedAt}
@@ -694,6 +708,8 @@ export default function Workspace({ account }: WorkspaceProps) {
                 onDismissExportError={exports.dismissExportError}
                 accountSaveMessage={accountSave.message}
                 onDismissAccountSaveMessage={accountSave.dismissMessage}
+                stampMessage={stamps.message}
+                onDismissStampMessage={stamps.dismissMessage}
               />
             }
             stage={

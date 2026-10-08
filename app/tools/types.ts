@@ -126,6 +126,22 @@ export interface EditorApi {
   text: TextSettings & { canvasColor: string; change: ChangeTextSetting };
   /** The photo in hand, for the tools of the Photo workspace (G-124). */
   photo: PhotoApi;
+  /** Keeping a piece with the account as a stamp (G-119). */
+  stamps: StampsApi;
+}
+
+/** Saving the piece in hand as a stamp (G-119): a name is asked for, then the stamp is kept with the person's account. */
+export interface StampsApi {
+  /** Null while the feature is hidden for this person: there is no control for it at all. */
+  save: {
+    run: (piece: FloatingSelection) => void;
+    /** The note while the feature is locked for this person: the control is greyed and says so. */
+    locked?: string;
+    /** Stamps are kept with an account: signed out, the control is greyed and says to sign in. */
+    signedIn: boolean;
+    /** A save is on its way. */
+    busy: boolean;
+  } | null;
 }
 
 /** What a Photo tool may read and do to the photo in hand: its selection and the edits made of it (G-124). */

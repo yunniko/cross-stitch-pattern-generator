@@ -109,6 +109,7 @@ Under Select + and Select − a press always starts a new area. A piece that has
 | **Flip horizontal / Flip vertical** | A piece | Mirrors it; half stitches swap diagonal where a mirror needs it |
 | **Rotate right / left** | A piece | A quarter turn clockwise / anticlockwise; half stitches swap diagonal |
 | **Crop to selection** | A piece | Cuts the chart down to the piece's rectangle, discarding everything outside it (the piece is applied first); the photo behind keeps its alignment |
+| **Save as stamp** | A piece, signed in | Asks for a name (**Save stamp**, or **Cancel**; an empty name is kept as "Untitled stamp"), then keeps the piece with the account as a stamp: its stitches, stitch types, shape and backstitch, and only the threads it uses. The piece stays in hand. "Saved “Rose” to your stamps." or the refusal (the count limit, `09`). Signed out it is greyed, with "Sign in to keep pieces as stamps and place them in other charts." below; switched off for someone, greyed with the feature's note |
 | **Apply here** (Enter) | A piece | Merges the piece into the chart where it sits |
 | **Cancel** (Escape) | A piece | Puts the chart back as it was when this selection started, discarding the piece and its changes |
 | **Invert selection** | Select, Lasso or Magic wand | Selects every cell and backstitch line the selection leaves out (the piece is applied first); with nothing selected, the whole chart. Inverting twice gives the same selection |

@@ -372,6 +372,13 @@ export const selectModule = {
     { id: "selection.rotate-right", name: "Turn the piece right", group: "Selection", when: "A piece in hand" },
     { id: "selection.rotate-left", name: "Turn the piece left", group: "Selection", when: "A piece in hand" },
     { id: "selection.crop", name: "Crop the chart to the piece", group: "Selection", when: "A piece in hand" },
+    {
+      id: "selection.save-stamp",
+      name: "Save the piece as a stamp",
+      group: "Selection",
+      when: "A piece in hand; signed in; not while saving",
+      feature: "stamps.account",
+    },
     { id: "selection.apply", name: "Apply the piece where it sits", group: "Selection", when: "A piece in hand", keys: ["Enter"] },
     { id: "selection.cancel", name: "Cancel the piece", group: "Selection", when: "A piece in hand", keys: ["Escape"] },
   ],
@@ -391,6 +398,7 @@ export const selectModule = {
     const inHand = api.activeTool === "select" || api.activeTool === "lasso" || api.activeTool === "wand";
     const held = inHand && select.selection !== null;
     const colour = api.activeColorIndex;
+    const saveStamp = api.stamps.save;
     const shown = inHand && api.pattern !== null && !api.startingNew;
     const actions: SelectionActionsProps = {
       hasSelection: select.selection !== null,
@@ -406,6 +414,12 @@ export const selectModule = {
       onRotateClockwise: select.rotateClockwise,
       onRotateAnticlockwise: select.rotateAnticlockwise,
       onCrop: select.crop,
+      saveStamp: saveStamp && {
+        run: () => select.selection && saveStamp.run(select.selection),
+        locked: saveStamp.locked,
+        signedIn: saveStamp.signedIn,
+        busy: saveStamp.busy,
+      },
       onCancel: select.cancel,
       onDeselect: select.merge,
     };
@@ -425,6 +439,10 @@ export const selectModule = {
         "selection.rotate-right": act(held, select.rotateClockwise),
         "selection.rotate-left": act(held, select.rotateAnticlockwise),
         "selection.crop": act(held, select.crop),
+        "selection.save-stamp": act(
+          held && saveStamp !== null && saveStamp.signedIn && !saveStamp.locked && !saveStamp.busy,
+          () => select.selection && saveStamp?.run(select.selection)
+        ),
         "selection.apply": act(held, select.merge),
         "selection.cancel": act(held, select.cancel),
       },
