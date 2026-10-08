@@ -65,6 +65,11 @@ test("the piece in hand is saved as a named stamp, listed in the account to sear
   await expect
     .poll(() => rose.getByTestId("stamp-preview").evaluate((img: HTMLImageElement) => [img.naturalWidth, img.naturalHeight]))
     .toEqual([3, 1]);
+  // Drawn large, not at one pixel a stitch: it fills its square but for a small margin.
+  const filled = await rose
+    .getByTestId("stamp-preview")
+    .evaluate((img: HTMLImageElement) => img.getBoundingClientRect().width / img.parentElement!.getBoundingClientRect().width);
+  expect(filled).toBeGreaterThan(0.85);
 
   // Searched by name.
   await page.getByRole("searchbox", { name: "Search stamps" }).fill("rose");
