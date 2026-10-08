@@ -494,3 +494,4 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | D357 | 08-exports-and-files | the preview in the account's Charts list is out of scope (accounts and admin); the picture is the pixel-art export's |
 | D358 | out of scope (accounts and admin) | |
 | D359 | 04-editing | Transparency as colour |
+| D360 | out of scope (accounts and admin) | |

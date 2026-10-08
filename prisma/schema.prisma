@@ -44,6 +44,7 @@ model User {
   features     UserFeature[]
   limits       UserLimit[]
   charts       SavedChart[]
+  stamps       Stamp[]
 
   @@index([role])
 }
@@ -293,6 +294,37 @@ model SavedChart {
   version   Int      @default(1)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, updatedAt])
+}
+
+/// A stamp (G-119, D360): a piece saved from a chart to be placed in others. Kept as an editable chart document of the
+/// piece alone, with its shape (`stampMask`), read by the reader the editor opens files with (`lib/stamps/stamp.ts`).
+/// Private to its owner, counted against `stamps.count`, and deleted with the account.
+model Stamp {
+  id         String   @id @default(cuid())
+  userId     String
+  name       String
+  /// The piece as an editable chart document, its threads only those it uses.
+  document   String
+  bytes      Int
+  width      Int
+  height     Int
+  colors     Int
+  /// The threads' colours as #rrggbb, in the stamp's palette order, for the swatches of a card.
+  swatches   String[]
+  /// True when the piece carries backstitch lines.
+  backstitch Boolean  @default(false)
+  /// Kept first in the gallery and the account's list. Not a change: the version stays.
+  pinned     Boolean  @default(false)
+  /// The piece in its own colours, one pixel per stitch, drawn by the server when saved.
+  preview    Bytes
+  /// 1 when made, one more at every rename.
+  version    Int      @default(1)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

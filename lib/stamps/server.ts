@@ -1,0 +1,174 @@
+import { NextResponse } from "next/server";
+import { auth } from "@/auth";
+import { chartPreviewPng } from "@/lib/charts/preview";
+import { Refused } from "@/lib/charts/server";
+import { featureStatesFor } from "@/lib/features/server";
+import { featureUsable } from "@/lib/features/features";
+import { limitsFor } from "@/lib/limits/server";
+import { limitValue, type LimitValue } from "@/lib/limits/limits";
+import { prisma } from "@/lib/prisma";
+import { STAMP_COUNT_LIMIT, STAMP_MAX_BYTES, STAMPS_FEATURE, countRefusal, readStampUpload, stampName, type StampSummary } from "./stamp";
+
+/**
+ * The database half of stamps (G-119, D360), for the routes under `/api/stamps`. Shaped as saved charts' (`lib/charts/
+ * server.ts`): a refusal is a `Refused`, a person's saves run one at a time (a lock on their account row) so the count
+ * check sees what the other save left, and anyone but the owner is answered as if the stamp did not exist.
+ */
+
+export { Refused };
+
+export function stampRefusedResponse(error: unknown): Response {
+  if (error instanceof Refused) return NextResponse.json({ error: error.message, ...error.extra }, { status: error.status });
+  console.error("stamps:", error);
+  return NextResponse.json({ error: "Stamps are unavailable right now. Try again in a moment." }, { status: 503 });
+}
+
+const NOT_FOUND = "That stamp is not among your stamps.";
+
+/** The signed-in requester's id; refused with 401 for a visitor. */
+export async function requireSignedIn(): Promise<string> {
+  const userId = (await auth())?.user?.id ?? null;
+  if (!userId) throw new Refused(401, "Sign in to keep stamps with your account.");
+  return userId;
+}
+
+/** Keeping a stamp is a feature: refused by name while it is locked or hidden for this person. Answers their limit. */
+async function requireStamps(userId: string): Promise<LimitValue> {
+  if (!featureUsable(await featureStatesFor(userId), STAMPS_FEATURE)) throw new Refused(403, "Stamps are not available to you.");
+  return limitValue(await limitsFor(userId), STAMP_COUNT_LIMIT);
+}
+
+/** The body of a save, refused when too large or not a stamp; with the document to keep and its preview. */
+export async function readStampBody(req: Request): Promise<{
+  document: string;
+  bytes: number;
+  summary: StampSummary;
+  preview: Uint8Array<ArrayBuffer>;
+}> {
+  const declared = Number(req.headers.get("content-length"));
+  if (Number.isFinite(declared) && declared > STAMP_MAX_BYTES) throw tooLarge();
+  const text = await req.text();
+  if (new TextEncoder().encode(text).byteLength > STAMP_MAX_BYTES) throw tooLarge();
+  const read = readStampUpload(text);
+  if ("error" in read) throw new Refused(422, read.error);
+  return {
+    document: read.document,
+    bytes: new TextEncoder().encode(read.document).byteLength,
+    summary: read.summary,
+    preview: await chartPreviewPng(read.stamp.pattern),
+  };
+}
+
+function tooLarge() {
+  return new Refused(
+    413,
+    `This piece is larger than ${STAMP_MAX_BYTES / 1024 / 1024} MB, too large to keep as a stamp. Select a smaller piece.`
+  );
+}
+
+/** A stamp as a card shows it, without its document. */
+export interface StampCard extends StampSummary {
+  id: string;
+  pinned: boolean;
+  version: number;
+  savedAt: string;
+}
+
+const CARD = {
+  id: true,
+  name: true,
+  width: true,
+  height: true,
+  colors: true,
+  swatches: true,
+  backstitch: true,
+  pinned: true,
+  version: true,
+  updatedAt: true,
+} as const;
+
+const card = ({ updatedAt, ...stamp }: { updatedAt: Date } & Omit<StampCard, "savedAt">): StampCard => ({
+  ...stamp,
+  savedAt: updatedAt.toISOString(),
+});
+
+export async function createStamp(userId: string, body: Awaited<ReturnType<typeof readStampBody>>): Promise<StampCard> {
+  const allowed = await requireStamps(userId);
+  return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT 1 FROM "User" WHERE "id" = ${userId} FOR UPDATE`;
+    const refusal = countRefusal(await tx.stamp.count({ where: { userId } }), allowed);
+    if (refusal) throw new Refused(403, refusal, { reason: "limit" });
+    const stamp = await tx.stamp.create({
+      data: { userId, document: body.document, bytes: body.bytes, ...body.summary, preview: body.preview },
+      select: CARD,
+    });
+    return card(stamp);
+  });
+}
+
+/** The stamp's owner, or refused as not found for anyone else. */
+async function ownedStamp(tx: Pick<typeof prisma, "stamp">, id: string, userId: string) {
+  const stamp = await tx.stamp.findUnique({ where: { id }, select: { userId: true } });
+  if (!stamp || stamp.userId !== userId) throw new Refused(404, NOT_FOUND);
+}
+
+/** One stamp whole, for placing. */
+export async function readStamp(userId: string, id: string) {
+  const stamp = await prisma.stamp.findUnique({ where: { id }, select: { userId: true, name: true, version: true, document: true } });
+  if (!stamp || stamp.userId !== userId) throw new Refused(404, NOT_FOUND);
+  return stamp;
+}
+
+export async function readStampPreview(userId: string, id: string): Promise<{ png: Uint8Array<ArrayBuffer>; version: number }> {
+  const stamp = await prisma.stamp.findUnique({ where: { id }, select: { userId: true, version: true, preview: true } });
+  if (!stamp || stamp.userId !== userId) throw new Refused(404, NOT_FOUND);
+  return { png: new Uint8Array(stamp.preview), version: stamp.version };
+}
+
+/** Renames a stamp: the row and the name inside its document. One more version; the preview is kept. */
+export async function renameStamp(userId: string, id: string, name: unknown): Promise<StampCard> {
+  const kept = stampName(name);
+  return prisma.$transaction(async (tx) => {
+    await ownedStamp(tx, id, userId);
+    const { document } = (await tx.stamp.findUnique({ where: { id }, select: { document: true } }))!;
+    const data = JSON.parse(document) as Record<string, unknown>;
+    data.name = kept;
+    const text = JSON.stringify(data);
+    const stamp = await tx.stamp.update({
+      where: { id },
+      data: { name: kept, document: text, bytes: new TextEncoder().encode(text).byteLength, version: { increment: 1 } },
+      select: CARD,
+    });
+    return card(stamp);
+  });
+}
+
+/** Pins or unpins a stamp. Not a change: the version and the save time stay. */
+export async function pinStamp(userId: string, id: string, pinned: boolean): Promise<{ id: string; pinned: boolean }> {
+  await prisma.$transaction(async (tx) => {
+    await ownedStamp(tx, id, userId);
+    await tx.$executeRaw`UPDATE "Stamp" SET "pinned" = ${pinned} WHERE "id" = ${id}`;
+  });
+  return { id, pinned };
+}
+
+export async function deleteStamp(userId: string, id: string): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    await ownedStamp(tx, id, userId);
+    await tx.stamp.delete({ where: { id } });
+  });
+}
+
+/** How many stamps the person keeps, for the count beside Stamps in the account's sidebar and for Add stamp. */
+export function countStamps(userId: string): Promise<number> {
+  return prisma.stamp.count({ where: { userId } });
+}
+
+/** The person's stamps, pinned first, then newest, without their documents; with how many they may keep. */
+export async function listStamps(userId: string): Promise<{ stamps: StampCard[]; allowed: LimitValue }> {
+  const [stamps, limits] = await Promise.all([
+    prisma.stamp.findMany({ where: { userId }, orderBy: [{ pinned: "desc" }, { updatedAt: "desc" }], select: CARD }),
+    limitsFor(userId),
+  ]);
+  return { stamps: stamps.map(card), allowed: limitValue(limits, STAMP_COUNT_LIMIT) };
+}

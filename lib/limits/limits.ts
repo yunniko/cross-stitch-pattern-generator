@@ -18,7 +18,7 @@ export interface Limit {
   label: string;
   /** What the admin is told about it, one sentence. */
   note: string;
-  unit: "MB";
+  unit: "MB" | "stamps";
   /** The site's value while the admin has set none. */
   siteDefault: LimitValue;
   /** The largest number the admin may type: the column holds a 32-bit integer. */
@@ -32,6 +32,14 @@ export const ACCOUNT_LIMITS: readonly Limit[] = [
     note: "The charts a person saves to their account, with their photos, may take up to this much in all.",
     unit: "MB",
     siteDefault: 50,
+    max: 1_000_000,
+  },
+  {
+    id: "stamps.count",
+    label: "Stamps kept",
+    note: "The stamps a person keeps with their account may number up to this many.",
+    unit: "stamps",
+    siteDefault: 100,
     max: 1_000_000,
   },
 ];

@@ -29,6 +29,8 @@ const SHARED_COMMAND_FEATURES: Record<string, { label: string; group: string }> 
   "view.photo": { label: "Photo under the pattern", group: "Views" },
   // The id the server checks (`SAVE_TO_ACCOUNT_FEATURE`), named here because two commands share it.
   "charts.account": { label: "Save to an account", group: "Saving" },
+  // The id the stamp routes check (`STAMPS_FEATURE`), shared by Save as stamp and Add stamp (G-119).
+  "stamps.account": { label: "Stamps", group: "Saving" },
 };
 
 function build(): Feature[] {
@@ -64,6 +66,9 @@ function build(): Feature[] {
         label: command.feature && typeof command.feature === "object" ? command.feature.label : command.name,
       });
   }
+
+  // A shared feature no command names yet is listed all the same: the server may check it.
+  for (const [id, shared] of Object.entries(SHARED_COMMAND_FEATURES)) add({ id, ...shared });
 
   for (const { kinds } of EXPORT_KIND_GROUPS)
     for (const kind of kinds) add({ id: exportKindFeature(kind), group: "Exports", label: kind.label });
