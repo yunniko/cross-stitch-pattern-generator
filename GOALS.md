@@ -96,7 +96,7 @@ What everything depends on is stated once here:
 - **Keys**: keys are set by the Owner on the host. JulAI never enters them.
 - **Visibility**: buying stays a hidden feature (G-102) in production until then.
 
-### G-106 · Subscriptions, part 1: the billing core (contract, webhook, the subscription's state, what a person gets) — DRAFT, planned 2026-10-08, awaiting acceptance
+### G-106 · Subscriptions, part 1: the billing core (contract, webhook, the subscription's state, what a person gets) — ACTIVE (accepted 2026-10-08)
 - **What:** asked by the Owner, 2026-10-06, and split on 2026-10-08 (see above).
   - A signed-in person picks a tier and a period, pays through Stripe Checkout, and manages the card, period and cancellation through Stripe's Customer Portal.
   - The app's record of the subscription is kept current from Stripe's webhooks and by a periodic reconciliation.
@@ -153,7 +153,7 @@ What everything depends on is stated once here:
 - 2026-10-08 — split from the 2026-10-06 draft and planned at the Owner's request; awaiting acceptance.
 - 2026-10-06 — goal created.
 
-### G-126 · Subscriptions, part 2: payment failures and recovery at any point in a subscription's life — DRAFT, planned 2026-10-08, awaiting acceptance
+### G-126 · Subscriptions, part 2: payment failures and recovery at any point in a subscription's life — ACTIVE (accepted 2026-10-08)
 - **What:** the Owner's requirement, 2026-10-08: "make sure that payment failures are correctly processed even after some succesfull subscription periods". A renewal can fail in any period, after any number of paid ones. When it does, the app:
   - keeps the person's tier for a grace period that the admin sets;
   - tells them, by email and on the account page, with a way to pay;
@@ -205,7 +205,7 @@ What everything depends on is stated once here:
 **Progress log** (newest first; The Company appends at every stopping point):
 - 2026-10-08 — goal created and planned at the Owner's request; awaiting acceptance.
 
-### G-127 · Subscriptions, part 3: the admin's controls (tiers, prices, people's subscriptions, grants by hand, revenue) — DRAFT, planned 2026-10-08, awaiting acceptance
+### G-127 · Subscriptions, part 3: the admin's controls (tiers, prices, people's subscriptions, grants by hand, revenue) — ACTIVE (accepted 2026-10-08)
 - **What:** from the 2026-10-06 draft. The admin:
   - makes tiers and prices them;
   - sees each person's subscription and its whole history, including failures and recoveries (G-126);
@@ -271,7 +271,7 @@ What everything depends on is stated once here:
 - **Answered (Owner, 2026-10-06, to the review's questions):** a chart is saved by hand. If the chart on the account was saved again between this browser opening it and its attempt to save, the save asks first and offers saving under another name. So the store's contract carries a version of the saved chart, and the server compares it at the save: a comparison in the browser alone could be overtaken.
 - **To settle (found by the review, besides the four above):** the Owner's duties as the host of a public gallery (reports, takedown, whose photos) deserve advice before it opens; the review can say what the app can do, not what the law asks. Backups of what this goal stores are G-114.
 
-### G-109 · Limits on server-side actions, set like feature states and given to tiers — DRAFT, planned 2026-10-08, awaiting acceptance
+### G-109 · Limits on server-side actions, set like feature states and given to tiers — ACTIVE (accepted 2026-10-08)
 - **What:** asked by the Owner, 2026-10-06. Every action the server does work for (generating a chart, a colour recommendation, an export, a photo upload, and later saving a chart, G-108) gets limits the admin sets, the way G-102 sets feature states: a value for the site, for guests and for accounts, in a **limit set** a tier points at, and for one person, resolved person > tier's set > guests' or accounts' set > site. A limit is a count over a period (e.g. 20 generations a day, 200 exports a month) or a size (e.g. the largest chart in stitches, the largest photo, saved charts kept), and "unlimited" is a value. An action is declared with its limits where it is handled, so a new one appears in the admin list without the admin page being edited, as features do. A person sees what they have used and what is left, and a refusal says which limit was reached, when it resets, and which tier lifts it.
 - **Why:** today the server's only limits are per-address bursts against abuse (`lib/server/request-guard.ts`: jobs, sign-in and predictions per minute, set by environment variables), the same for everyone; `Tier.limits` has been an unused JSON column since G-075. Tiers (G-106) need to differ by how much a person may do, not only by which features they have.
 - **Acceptance criteria (draft):** (1) `/admin/features` (or its successor from G-107) lists every limited action with its limits and the value each layer gives; (2) a limit set is made, filled and attached to a tier, as a feature set is; (3) a request over a person's limit is refused by the server with the limit named, never only hidden in the interface; counts survive a restart and are shared by every instance (kept in the database, not memory); (4) the person's account page shows used and left for the current period; (5) an action added with a declared limit appears in the admin list with no admin code touched, proven by a temporary one; (6) with every limit unlimited, the browser suite passes unchanged.
@@ -286,7 +286,7 @@ What everything depends on is stated once here:
 - **Owner, 2026-10-08:** "limits will be set up by admin, they won't apply if not set up". Every counted limit is unlimited until the admin sets it, for guests too, so nothing changes for anyone at deploy; this settles open question (1) and the consequence above, which applies only once the admin sets guests to 0.
 - **Owner, 2026-10-08:** "go g-109 first": G-109 is built before the subscription goals (G-106 (a)).
 - **Plan (2026-10-08), the acceptance restated:**
-  1. **The counted limits** are entries in `ACCOUNT_LIMITS`, beside the two size limits: generations a day, generations a month, server exports a day, server exports a month. Each declares its action and its period. Every entry defaults to unlimited, so the site behaves as today until the admin sets values; the values are the Owner's, set in the admin area (open question 1).
+  1. **The counted limits** are entries in `ACCOUNT_LIMITS`, beside the two size limits: generations in 24 hours, generations in 30 days, server exports in 24 hours, server exports in 30 days. Each declares its action and its period; periods are rolling (Owner, 2026-10-08), so the refusal says when the oldest counted use drops out. Every entry defaults to unlimited, so the site behaves as today until the admin sets values; the values are the Owner's, set in the admin area (open question 1).
   2. **What is counted.** Only what the server does: a generation (each try is one) and an export made by the processor (`/api/jobs`, `/api/exports`; "Export all" is one export). The editable file, the palette file and pixel art are made in the browser and stay unlimited, since a browser-only limit would be a hidden button, not a limit.
   3. **One quota routine:** "may this person do this now, and count it" (`lib/limits/quota.ts`). It is awaited before the processor is asked and checks and counts in one transaction, under a per-person lock, so two requests at once cannot both pass the last unit. If the processor then refuses the job (its queue is full, or it cannot be reached), the count is given back. An unlimited action counts as statistics only, as today. `UsageEvent` gets an index by person, kind and time.
   4. **Guests.** A guest's value is either 0 ("sign in to generate") or unlimited. No number is counted for a guest, so nothing is stored about one (Owner, 2026-10-06).
@@ -301,13 +301,14 @@ What everything depends on is stated once here:
      - with every limit unlimited, the rest of the suite passes unchanged.
 
 **Milestones:**
-- [ ] M1 — The counted limits and the quota: periods in the list (pure), the four entries, `quota.ts` with its transaction, lock and give-back, the index migration; unit tests; decisions (quota counted from `UsageEvent` under a lock; what counts as one).
+- [ ] M1 — The counted limits and the quota: rolling periods in the list (pure), the four entries, `quota.ts` with its transaction, lock and give-back, the index migration; unit tests; decisions (quota counted from `UsageEvent` under a lock; what counts as one).
 - [ ] M2 — The routes and the refusal: `/api/jobs` and `/api/exports` take the quota before the processor; the 429 and 503 refusals in the shared shape; the browser's notice; guests at 0; browser tests in CI.
 - [ ] M3 — Where it is seen: the admin's Limits page with the periods, "what they get" per layer; the account page's used, left and reset; the temporary-entry proof; browser tests.
 - [ ] M4 — Records and release: HANDOVER, coverage rows, release notes, docs-lint; `npm run release`, push, deploy to `cross-stitch.craftodejnice.cz` (existing target) with every counted limit unlimited (nothing changes for anyone until the admin sets values); live check with single GET requests.
 
 **Progress log** (newest first; The Company appends at every stopping point):
-- 2026-10-08 — planned at the Owner's word ("go g-109 first"); awaiting acceptance and the open questions.
+- 2026-10-08 — Owner accepted the plan, to run through all milestones. Answers: rolling 24 hours and 30 days; a limit reached refuses (no queue); admins obey limits as everyone does. Open questions (1) to (4) are all answered.
+- 2026-10-08 — planned at the Owner's word ("go g-109 first").
 - 2026-10-06 — goal created.
 
 ### G-111 · What users write and publish, and its moderation: guide comments, gallery reports and takedown — DRAFT (2026-10-06)
