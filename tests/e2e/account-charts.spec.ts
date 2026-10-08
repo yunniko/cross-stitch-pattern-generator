@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { openSmallChart, saveButton, saveMenuItem } from "./helpers/app";
+import { openSmallChart, saveButton, saveMenuItem, waitForAutosave } from "./helpers/app";
 import { registerReader, uniqueEmail } from "./helpers/auth";
 
 /**
@@ -37,6 +37,8 @@ test("the account lists its saved charts with the space used; one is renamed, on
   await saveToAccount(page, "Save as copy");
   await expect(message(page)).toContainText("you are now editing the copy");
   const [copy, first] = await savedCharts(page);
+  // The editor is left for the account: the chart, and the saved chart it is, must be stored first.
+  await waitForAutosave(page);
 
   await page.goto("/account/charts");
   await expect(rows(page)).toHaveCount(2);
@@ -80,6 +82,7 @@ test("the account lists its saved charts with the space used; one is renamed, on
   expect(await savedCharts(page)).toEqual([expect.objectContaining({ id: first.id, version: first.version + 1 })]);
 
   // The same chart asked for again while it is open: nothing to replace, nothing asked.
+  await waitForAutosave(page);
   await page.goto(`/?chart=${first.id}`);
   await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 30_000 });
   await expect(confirm).toHaveCount(0);
@@ -99,6 +102,7 @@ test("a chart that is gone, or someone else's, is not opened, and the open chart
 
   await registerReader(page, uniqueEmail("visitor"));
   await openSmallChart(page);
+  await waitForAutosave(page);
   // Read before anything is asked: refused, so no confirmation, and nothing replaced.
   await page.goto(`/?chart=${theirs.id}`);
   await expect(page.getByText("That chart is no longer among your saved charts.")).toBeVisible();
