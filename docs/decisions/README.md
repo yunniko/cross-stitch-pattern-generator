@@ -407,3 +407,5 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D369 — A subscription is stored as a snapshot fetched from the provider, not built from events — active
 - D370 — A second live subscription is ended at its period's end; a new one replaces one that gives nothing — active
 - D371 — The reconciliation is the app's own route, called by a clock service on the compose network — active
+- D372 — Buying starts hidden, by a site row its migration writes — active
+- D373 — On a local server the fake provider has pages, and posts its events to the real webhook — active

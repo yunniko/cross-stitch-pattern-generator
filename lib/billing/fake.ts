@@ -44,12 +44,19 @@ export class FakeBilling implements BillingGateway {
   private readonly subscriptions = new Map<string, FakeSubscription>();
   private readonly sessions = new Map<string, CheckoutInput>();
   private serial = 0;
+  /** How many of `events` the app has delivered to its own webhook (`takeUndelivered`). */
+  private delivered = 0;
 
   constructor(
     private readonly webhookSecret: string,
     private readonly siteUrl: string,
     /** The provider's clock; a test moves it. */
-    public now: () => Date = () => new Date()
+    public now: () => Date = () => new Date(),
+    /**
+     * Where a price the fake was not given comes from. On a local server it is the database's `Price` rows, so the
+     * prices an admin attaches are the ones the fake sells (`gateway.ts`); unit tests add theirs with `addPrice`.
+     */
+    private readonly resolvePrice?: (id: string) => Promise<ProviderPrice | null>
   ) {}
 
   private nextId(prefix: string): string {
@@ -96,6 +103,10 @@ export class FakeBilling implements BillingGateway {
 
   async startCheckout(input: CheckoutInput): Promise<{ url: string }> {
     this.reachable();
+    if (!this.prices.has(input.priceId) && this.resolvePrice) {
+      const found = await this.resolvePrice(input.priceId);
+      if (found) this.prices.set(found.id, found);
+    }
     if (!this.prices.get(input.priceId)?.active) throw new Error(`the fake provider has no active price ${input.priceId}`);
     const session = this.nextId("cs");
     this.sessions.set(session, input);
@@ -149,6 +160,20 @@ export class FakeBilling implements BillingGateway {
   /** An event as delivered now: Stripe signs each delivery attempt anew, so a late one is not refused as stale. */
   delivery(event: SignedEvent): { rawBody: string; signature: string } {
     return { rawBody: event.rawBody, signature: signPayload(event.rawBody, this.webhookSecret, this.now()) };
+  }
+
+  /** The events emitted since the last call, oldest first: what the local server's fake pages deliver to its webhook. */
+  takeUndelivered(): SignedEvent[] {
+    const pending = this.events.slice(this.delivered);
+    this.delivered = this.events.length;
+    return pending;
+  }
+
+  /** A Checkout session not yet paid, with its price; undefined when there is none. */
+  openSession(session: string): { input: CheckoutInput; price: ProviderPrice } | undefined {
+    const input = this.sessions.get(session);
+    const price = input && this.prices.get(input.priceId);
+    return input && price ? { input, price } : undefined;
   }
 
   addPrice(price: Omit<ProviderPrice, "id" | "active"> & { id?: string; active?: boolean }): ProviderPrice {

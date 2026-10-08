@@ -89,6 +89,9 @@ export function appWithProcessor({
         ADMIN_USERS_PAGE_SIZE: "3",
         // Short, so a spec can see an admin's change reach an open editor (G-102).
         FEATURES_REFRESH_SECONDS: "5",
+        // Billing through the fake provider (G-106 M3, D373): its Checkout and Portal are this server's own pages, and
+        // its events reach this server's webhook. It runs only on a local address (`lib/billing/settings.ts`).
+        BILLING_GATEWAY: "fake",
       },
       url: `http://localhost:${port}`,
       reuseExistingServer,

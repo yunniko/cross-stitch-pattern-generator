@@ -74,7 +74,9 @@ test("an admin sets a whole group and one feature for the site, a visitor sees i
       .click();
     await choose(page, "tool.text", "On");
     await expect(row(page, "tool.text")).toHaveAttribute("data-state", "on");
-    await expect.poll(async () => (await featuresDb().query(`SELECT count(*)::int AS n FROM "FeatureState"`)).rows[0].n).toBe(0);
+    // Buying's row is its migration's (D372), not this spec's.
+    const rows = `SELECT count(*)::int AS n FROM "FeatureState" WHERE "featureId" <> 'billing.buy'`;
+    await expect.poll(async () => (await featuresDb().query(rows)).rows[0].n).toBe(0);
   } finally {
     await clearSiteFeatures(["tool.text", "brand.dmc", "brand.cosmo", "brand.anchor"]);
   }

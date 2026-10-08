@@ -31,6 +31,8 @@ const SHARED_COMMAND_FEATURES: Record<string, { label: string; group: string }> 
   "charts.account": { label: "Save to an account", group: "Saving" },
   // The id the stamp routes check (`STAMPS_FEATURE`), shared by Save as stamp and Add stamp (G-119).
   "stamps.account": { label: "Stamps", group: "Saving" },
+  // The id the Plan section and Checkout check (`BUYING_FEATURE`, G-106 M3); hidden in production until G-128 (D372).
+  "billing.buy": { label: "Buying a plan", group: "Account" },
 };
 
 function build(): Feature[] {

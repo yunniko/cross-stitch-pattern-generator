@@ -509,3 +509,5 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | D369 | out of scope (billing) | |
 | D370 | out of scope (billing) | |
 | D371 | out of scope (billing) | |
+| D372 | out of scope (billing) | |
+| D373 | out of scope (billing) | |

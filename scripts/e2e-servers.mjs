@@ -45,6 +45,8 @@ const env = {
   ADMIN_USERS_PAGE_SIZE: "3",
   // Short, so a spec can see an admin's change reach an open editor (G-102).
   FEATURES_REFRESH_SECONDS: "5",
+  // Billing through the fake provider (G-106 M3, D373), as scripts/playwright-servers.ts sets it.
+  BILLING_GATEWAY: "fake",
 };
 
 function run(command) {
