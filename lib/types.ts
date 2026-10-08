@@ -224,6 +224,11 @@ export interface FloatingSelection {
    * vacated and never filled.
    */
   mask?: Uint8Array;
+  /**
+   * Transparency as colour (G-119, D359): the piece's empty stitches cover what they land on, as any colour does. Absent
+   * or false, they leave what lies beneath. The selection tools set it from their switch; `stampsCell` reads it.
+   */
+  emptyCovers?: boolean;
   originRect?: CellRect;
   /**
    * The mask as it was when the piece was lifted, in `originRect`'s own box, so a merge vacates the shape rather

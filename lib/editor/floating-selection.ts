@@ -249,6 +249,16 @@ export function cropToSelection(pattern: StitchPattern, selection: FloatingSelec
   });
 }
 
+/**
+ * Whether the piece's cell at `local` is written onto the chart: the one rule every preview and every merge reads. A cell
+ * the mask excludes is not part of the piece, so whatever is under it stays (G-072); an empty stitch covers what is under
+ * it only with transparency as colour on (G-119, D359).
+ */
+export function stampsCell(selection: FloatingSelection, local: number): boolean {
+  if (selection.mask && !selection.mask[local]) return false;
+  return selection.emptyCovers === true || selection.cells[local] !== EMPTY_CELL;
+}
+
 function stampSelection(
   cellPalette: Uint8Array,
   cellKind: Uint8Array | undefined,
@@ -263,8 +273,7 @@ function stampSelection(
       const px = selection.x + lx;
       if (px < 0 || px >= width) continue;
       const local = ly * selection.width + lx;
-      // A cell the mask excludes is not part of the piece, so whatever is under it stays (G-072).
-      if (selection.mask && !selection.mask[local]) continue;
+      if (!stampsCell(selection, local)) continue;
       cellPalette[py * width + px] = selection.cells[local];
       if (cellKind) cellKind[py * width + px] = selection.kinds?.[local] ?? STITCH_WHOLE;
     }
@@ -295,9 +304,10 @@ export function compositeSelectionPreview(pattern: StitchPattern, selection: Flo
  * editable piece merges into picture") -- clears `originRect` to
  * `EMPTY_CELL` first (vacating wherever the piece was lifted from, if
  * anywhere), then stamps the selection's cells at its current position,
- * overwriting whatever is there. `EMPTY_CELL` values inside the selection
- * overwrite just like any real color ("empty cells rewrite color cells
- * the same way as other colors do") -- never treated as transparent.
+ * overwriting whatever is there. Its `EMPTY_CELL` values overwrite as any
+ * colour does only with transparency as colour on (`emptyCovers`); off,
+ * they leave what is beneath (G-119, D359, replacing D037's "never
+ * transparent"). The place it was lifted from is emptied either way.
  */
 export function mergeSelection(pattern: StitchPattern, selection: FloatingSelection): StitchPattern {
   const cellPalette = pattern.cellPalette.slice();

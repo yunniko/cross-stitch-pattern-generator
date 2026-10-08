@@ -91,6 +91,10 @@ export async function dragStitch(page: Page, from: Stitch, to: Stitch) {
 export const selectionMode = (page: Page, name: "Select" | "Select +" | "Select −") =>
   page.getByRole("radiogroup", { name: "Selection mode" }).getByRole("radio", { name: new RegExp(`^${name.replace("+", "\\+")}:`) });
 
+/** The Transparency as colour switch Select, Lasso and the Magic wand share (G-119): On or Off. */
+export const emptyAsColour = (page: Page, choice: "On" | "Off") =>
+  page.getByRole("radiogroup", { name: "Transparency as colour" }).getByRole("radio", { name: choice, exact: true });
+
 /** One choice of a region switch, Fill's or the Magic wand's, whichever tool is in hand (G-115, G-116). */
 export const regionSwitch = (page: Page, group: "Diagonal neighbours" | "Color only", choice: string) =>
   page.getByRole("radiogroup", { name: group }).getByRole("radio", { name: choice, exact: true });

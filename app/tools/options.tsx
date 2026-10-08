@@ -204,6 +204,35 @@ export const SELECTION_MODE: ToolOption<SelectionMode> = {
   ],
 };
 
+/**
+ * Transparency as colour (G-119, D359): whether a piece's empty stitches cover what they land on, or leave it. Off unless
+ * turned on (Owner, 2026-10-08). One choice for Select, Lasso and the Magic wand, so it is one option, kept once.
+ */
+export const EMPTY_AS_COLOUR: ToolOption<"on" | "off"> = {
+  id: "emptyAsColour",
+  group: "Transparency",
+  label: "Transparency as colour",
+  title: "On: the piece's empty stitches cover what they land on. Off: what lies under them stays",
+  control: "icons",
+  values: ["off", "on"],
+  defaultValue: "off",
+  separated: true,
+  choices: [
+    {
+      value: "off",
+      label: <SkinIcon name="empty-keeps" />,
+      name: "Off",
+      title: "Transparency as colour off: what lies under the piece's empty stitches stays",
+    },
+    {
+      value: "on",
+      label: <SkinIcon name="empty-covers" />,
+      name: "On",
+      title: "Transparency as colour on: the piece's empty stitches cover what they land on",
+    },
+  ],
+};
+
 /** Which way a left press of the Zoom tool zooms; a right press zooms the other way (G-115, D324). */
 export const ZOOM_DIRECTION: ToolOption<"in" | "out"> = {
   id: "zoomDirection",
@@ -225,10 +254,10 @@ export const BRUSH_OPTIONS = [BRUSH_SIZE, BRUSH_SHAPE] as const;
 export const STITCH_OPTIONS = [STITCH_KIND] as const;
 /** Fill's: the stitch type, and how its region is found (G-115). */
 export const FILL_OPTIONS = [STITCH_KIND, FILL_REGION.diagonal, FILL_REGION.colorOnly] as const;
-/** Select's and Lasso's: what a new area does to the selection (G-116). */
-export const SELECTION_OPTIONS = [SELECTION_MODE] as const;
-/** The Magic wand's: the selection mode, then how its region is found. */
-export const WAND_OPTIONS = [SELECTION_MODE, WAND_REGION.diagonal, WAND_REGION.colorOnly] as const;
+/** Select's and Lasso's: what a new area does to the selection (G-116), and what the piece's empty stitches do (G-119). */
+export const SELECTION_OPTIONS = [SELECTION_MODE, EMPTY_AS_COLOUR] as const;
+/** The Magic wand's: the selection mode, how its region is found, then what the piece's empty stitches do. */
+export const WAND_OPTIONS = [SELECTION_MODE, WAND_REGION.diagonal, WAND_REGION.colorOnly, EMPTY_AS_COLOUR] as const;
 /** For the tools that lay stitches with the brush: Brush and Line. */
 export const LAYING_OPTIONS = [...BRUSH_OPTIONS, STITCH_KIND] as const;
 /** For the shapes that enclose something, whose outline is as thick as the brush. */

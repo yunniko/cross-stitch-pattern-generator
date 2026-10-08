@@ -373,6 +373,24 @@ export const INTERFACE_ICONS = {
       <path d="M14 16 L22 16 L22 8 Z" fill="currentColor" />
     </>
   ),
+  /** A piece's empty stitches keep what is beneath: the stitches behind show through the piece (G-119). */
+  "empty-keeps": outline(
+    "h-3.5 w-3.5",
+    1.6,
+    <>
+      <rect x="2" y="2" width="12" height="12" rx="1" fill="currentColor" />
+      <rect x="9" y="9" width="12" height="12" rx="1" />
+    </>
+  ),
+  /** Transparency as colour: a piece's empty stitches cover what is beneath, so the stitches behind are cut away. */
+  "empty-covers": outline(
+    "h-3.5 w-3.5",
+    1.6,
+    <>
+      <path d="M3 2h10a1 1 0 0 1 1 1v6H9v5H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z" fill="currentColor" />
+      <rect x="9" y="9" width="12" height="12" rx="1" />
+    </>
+  ),
   /** A compact control on the quick bar opens its choices (G-118). */
   "chevron-down": outline("h-3 w-3", 2, <path d="m6 9 6 6 6-6" />),
   /** The quick bar's More: what did not fit (G-118). */

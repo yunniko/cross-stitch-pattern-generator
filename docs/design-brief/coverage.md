@@ -437,7 +437,7 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | G-117 | internal | security fixes; the sign-in message is accounts (out of scope) |
 | G-124 | 02-photo-and-generation | the photo Wand, Delete, adjustments applied, the photo history |
 | G-118 | 04-editing | the two colours, the Region switches (where the bar shows them: docs/interface-placement.md); the quick bar fits every tool at every desktop width; M1 takes the names off it |
-| G-119 | not shipped (draft) | stamps |
+| G-119 | 04-editing | Transparency as colour (M1); stamps not shipped yet |
 | G-120 | out of scope | draft: preferences kept with the account |
 | G-121 | out of scope | draft: Google and Apple sign-in |
 | G-122 | out of scope | draft: jobs and queue in the admin area |
@@ -493,3 +493,4 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | D356 | 08-exports-and-files | the account's Charts list itself is out of scope (accounts and admin) |
 | D357 | 08-exports-and-files | the preview in the account's Charts list is out of scope (accounts and admin); the picture is the pixel-art export's |
 | D358 | out of scope (accounts and admin) | |
+| D359 | 04-editing | Transparency as colour |

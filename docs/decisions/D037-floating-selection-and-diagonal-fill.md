@@ -1,5 +1,5 @@
 # D037 · Rectangle selections float until merged; the Fill tool is 8-connected
-Date: 2026-09-10 · Goal: G-018 · Status: active (superseded by: —)
+Date: 2026-09-10 · Goal: G-018 · Status: active; empty cells always overwriting superseded by D359
 Context: The Owner asked for select, copy, paste, move and flip, merging when deselected with empty cells overwriting too. Fill should treat diagonal neighbors as connected.
 Decision: A FloatingSelection holds lifted cells and an optional originRect to clear. Only mergeSelection writes history, stamping every cell, EMPTY_CELL included. Switching tools or starting a new selection merges first. Paste lands 3 cells down and right. Fill uses a separate 8-connected flood fill.
 Rejected: transparent empty cells (Owner said they overwrite); pushing history during a selection (one select session is one undo step); changing the 4-connected cluster fill used by drag-to-recolor (different tool, different rule).

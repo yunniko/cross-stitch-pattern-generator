@@ -1,9 +1,9 @@
 import { SelectionFinish, SelectionPanel, type SelectionActionsProps } from "../components/selection-actions";
 import { LassoIcon, SelectIcon, WandIcon } from "./icons";
-import { regionOf, SELECTION_MODE, SELECTION_OPTIONS, WAND_OPTIONS, WAND_REGION } from "./options";
+import { EMPTY_AS_COLOUR, regionOf, SELECTION_MODE, SELECTION_OPTIONS, WAND_OPTIONS, WAND_REGION } from "./options";
 import { act, inputsFrom } from "./shared";
 import type { EditorApi, ToolModule, ToolRuntime } from "./types";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { hitLine } from "@/lib/editor/backstitch";
 import { lassoRegion, maskedCell } from "@/lib/editor/lasso";
 import type { RegionRule } from "@/lib/editor/region";
@@ -98,9 +98,13 @@ export function useSelectTool(
   { frameRef, rendererRef, pattern, cellSize, commit, lockTransparency: locked = false, stitchKind = STITCH_WHOLE }: CanvasToolInputs,
   tool: "select" | "lasso" | "wand",
   selectionMode: SelectionMode = "replace",
-  wandRule: RegionRule = { connectivity: 8, sameKind: true }
+  wandRule: RegionRule = { connectivity: 8, sameKind: true },
+  emptyCovers = false
 ) {
-  const [selection, setSelection] = useState<FloatingSelection | null>(null);
+  const [held, setSelection] = useState<FloatingSelection | null>(null);
+  // The piece in hand always carries the switch as it stands now, so a preview, a merge, a crop and the quick mirrors all
+  // stamp by it, and turning the switch changes the piece already in hand (G-119, D359).
+  const selection = useMemo(() => (held && held.emptyCovers !== emptyCovers ? { ...held, emptyCovers } : held), [held, emptyCovers]);
   const [clipboard, setClipboard] = useState<FloatingSelection | null>(null);
   const dragRef = useRef<SelectDrag | null>(null);
   const isDragging = useCallback(() => dragRef.current !== null, []);
@@ -374,10 +378,16 @@ export const selectModule = {
   useRuntime(api: EditorApi): ToolRuntime {
     const mode = api.activeTool === "lasso" ? "lasso" : api.activeTool === "wand" ? "wand" : "select";
     const region = regionOf(api.option, WAND_REGION);
-    const select = useSelectTool(inputsFrom(api), mode, api.option(SELECTION_MODE), {
-      connectivity: region.connectivity,
-      sameKind: !region.colorOnly,
-    });
+    const select = useSelectTool(
+      inputsFrom(api),
+      mode,
+      api.option(SELECTION_MODE),
+      {
+        connectivity: region.connectivity,
+        sameKind: !region.colorOnly,
+      },
+      api.option(EMPTY_AS_COLOUR) === "on"
+    );
     const inHand = api.activeTool === "select" || api.activeTool === "lasso" || api.activeTool === "wand";
     const held = inHand && select.selection !== null;
     const colour = api.activeColorIndex;

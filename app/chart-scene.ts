@@ -1,6 +1,6 @@
 import { tidyKinds } from "@/lib/editor/stitch-kind";
 import { intersectRects, isEmptyRect, moveTileOffsets, type PixelRect } from "@/lib/editor/chart-viewport";
-import { compositeSelectionPreview } from "@/lib/editor/floating-selection";
+import { compositeSelectionPreview, stampsCell } from "@/lib/editor/floating-selection";
 import type { CellPoint } from "@/lib/editor/shape-raster";
 import type { BackstitchLine } from "@/lib/types";
 import type { SymmetryAxes } from "@/lib/editor/symmetry";
@@ -349,8 +349,8 @@ export function pieceCellsIn(base: StitchPattern, piece: FloatingSelection) {
     for (let ly = ly0; ly < ly1; ly++) {
       for (let lx = lx0; lx < lx1; lx++) {
         const local = ly * piece.width + lx;
-        // A cell the mask excludes is not part of the piece; the base scene underneath it stays visible.
-        if (piece.mask && !piece.mask[local]) continue;
+        // A cell the piece does not write leaves the base scene underneath it visible: the merge's own rule.
+        if (!stampsCell(piece, local)) continue;
         draw(piece.x + lx, piece.y + ly, piece.cells[local], piece.kinds?.[local] ?? 0);
       }
     }

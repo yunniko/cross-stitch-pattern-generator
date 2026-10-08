@@ -1023,9 +1023,9 @@ describe("mergeSelection (G-018)", () => {
     expect(Array.from(merged.cellPalette)).toEqual([0, 1, 2, 3, 4, 0]); // only F's spot changed
   });
 
-  it("EMPTY_CELL values inside the selection overwrite the destination just like any real color", () => {
+  it("with transparency as colour on, EMPTY_CELL values inside the selection overwrite the destination like any colour (G-119)", () => {
     const pattern = makeGridPattern();
-    const sel: FloatingSelection = { x: 2, y: 0, width: 1, height: 1, cells: Uint8Array.from([EMPTY_CELL]) };
+    const sel: FloatingSelection = { x: 2, y: 0, width: 1, height: 1, cells: Uint8Array.from([EMPTY_CELL]), emptyCovers: true };
     const merged = mergeSelection(pattern, sel);
     expect(Array.from(merged.cellPalette)).toEqual([0, 1, EMPTY_CELL, 3, 4, 5]);
   });

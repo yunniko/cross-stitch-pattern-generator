@@ -97,6 +97,8 @@ Choosing a region with Select, Lasso or the Magic wand (or pasting, or placing l
 
 Under Select + and Select − a press always starts a new area. A piece that has been moved, flipped or turned is applied where it sits before a new area is added to it or taken from it; the selection is then the area on the chart.
 
+**Transparency as colour** (one switch for every selection tool, kept between visits; default **Off**; each choice shown as a picture and named when pointed at): **On**, the piece's empty stitches cover what they land on, as any colour does. **Off**, what lies under them stays, in the preview and when the piece is applied. Turning it changes the piece already in hand. Either way, the place a piece was lifted from is emptied when it is applied, and backstitch under a piece is never removed.
+
 | Action | Available when | Effect |
 |---|---|---|
 | **Move** (drag the piece) | A piece is in hand | Repositions it; stitches under it are not lost until it is applied |

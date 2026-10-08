@@ -118,7 +118,7 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D023 — A brush stroke is one undo step; colors are renamed by hand; the legend sorts a copy — active
 - D028 — One docked workspace with a single undo history; saved files embed the source photo — partly superseded (superseded by: D109 for the resize fill color)
 - D030 — Scrollable centered containers use grid centering; wheel zoom uses a native non-passive listener — active
-- D037 — Rectangle selections float until merged; the Fill tool is 8-connected — active
+- D037 — Rectangle selections float until merged; the Fill tool is 8-connected — active (empty cells always overwriting superseded by D359)
 - D042 — Lloyd's last step reassigns against the returned centroids; a shape-fidelity suite guards boundaries — active
 - D049 — The shape harness measures N classes, degenerate boundaries, fractional scales, junctions and thin lines — active
 - D082 — Tools are hand-drawn SVG icons in three groups, keeping their names as aria-labels — active
@@ -394,3 +394,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D356 — A saved chart opens by its address, read before anything is asked — active
 - D357 — A saved chart's preview is drawn by the app server at every save, one pixel per stitch — active
 - D358 — The account's Charts are the design's card grid, with pins kept by the server and rename and delete's question kept — active
+- D359 — Transparency as colour: a piece's empty stitches cover only when the switch is on, and it starts off — active
