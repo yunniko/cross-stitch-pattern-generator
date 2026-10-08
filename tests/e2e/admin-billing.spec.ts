@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { logIn, READER_PASSWORD, registerReader, signInAsAdmin, uniqueEmail } from "./helpers/auth";
+import { registerReader, signInAs, signInAsAdmin, uniqueEmail } from "./helpers/auth";
 import { takeTierOffSale } from "./helpers/billing";
 
 /**
@@ -69,7 +69,7 @@ test("tiers and prices made, replaced and offered again; a tier given by hand an
     await expect(panel).toContainText(tier);
 
     await context.clearCookies();
-    await logIn(page, email, READER_PASSWORD);
+    await signInAs(page, email);
     await page.goto("/account/plan");
     await expect(page.getByTestId("plan-current")).toContainText(tier);
     await expect(page.getByTestId("plan-status")).toContainText("Given to you by the site until");
@@ -83,7 +83,7 @@ test("tiers and prices made, replaced and offered again; a tier given by hand an
     await expect(panel.getByTestId("admin-grant")).not.toContainText("Given by hand until");
 
     await context.clearCookies();
-    await logIn(page, email, READER_PASSWORD);
+    await signInAs(page, email);
     await page.goto("/account/plan");
     await expect(page.getByTestId("plan-status")).toContainText("The plan the site gave you has ended.");
 

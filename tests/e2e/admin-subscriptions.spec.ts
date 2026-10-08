@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { registerReader, signInAsAdmin, logIn, READER_PASSWORD, uniqueEmail } from "./helpers/auth";
+import { registerReader, signInAs, signInAsAdmin, uniqueEmail } from "./helpers/auth";
 import { putTierOnSale, takeTierOffSale } from "./helpers/billing";
 import { setSiteFeatures } from "./helpers/features";
 
@@ -86,7 +86,7 @@ test("a person's subscription read, refunded, moved to the current price, and li
 
     // The person's renewal fails: they are listed as failing, and may no longer be moved.
     await context.clearCookies();
-    await logIn(page, email, READER_PASSWORD);
+    await signInAs(page, email);
     await page.goto("/account/plan");
     await page.getByRole("button", { name: "Manage billing" }).click();
     await page.getByRole("button", { name: "Renewal fails" }).click();

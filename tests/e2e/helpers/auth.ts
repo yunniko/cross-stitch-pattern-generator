@@ -42,6 +42,12 @@ export async function logIn(page: Page, email: string, password: string): Promis
   await page.click('button[type="submit"]');
 }
 
+/** Logs a confirmed account in and waits for /account: a page opened before then would race the sign-in to the log-in form. */
+export async function signInAs(page: Page, email: string, password = READER_PASSWORD): Promise<void> {
+  await logIn(page, email, password);
+  await expect(page).toHaveURL(/\/account$/);
+}
+
 /** A new reader, registered, confirmed and signed in, on /account. */
 export async function registerReader(page: Page, email: string, password = READER_PASSWORD, name = ""): Promise<void> {
   await submitRegistration(page, email, password, name);
