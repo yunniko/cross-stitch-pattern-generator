@@ -85,10 +85,14 @@ describe("smoothing the drawn path", () => {
     // Asserted as a **ratio**, not a wall time: a millisecond bound measures the machine as much as the code,
     // and this one failed at 275 ms against 250 on a loaded desktop while the code was unchanged (2026-09-25).
     // Smoothing quadruples the point count, so the honest ceiling is a small multiple of the unsmoothed run.
+    // Both warmed up first and the best of five taken: on a shared CI runner a cold first run of either side
+    // swung the ratio past the bound while the code was unchanged (6.6 on 2026-10-08).
     const long = circle(5000, 750, 500, 480);
+    lassoRegion(long, 1500, 1000, { smooth: false });
+    lassoRegion(long, 1500, 1000, { smooth: true });
     const time = (smooth: boolean) => {
       let best = Infinity;
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < 5; i++) {
         const started = performance.now();
         const region = lassoRegion(long, 1500, 1000, { smooth });
         best = Math.min(best, performance.now() - started);
