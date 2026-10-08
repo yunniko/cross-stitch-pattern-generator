@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-10-08 at d684649 with G-109 M1, v0.20.0 deployed at a6c13f3 (1,565 unit; CI green on 50d05ee, e2e 664 and 24)
+Last verified: 2026-10-08 at cd0558a with G-109 M3, v0.20.0 deployed at a6c13f3 (1,567 unit; CI green on cd0558a, e2e 666 and 25)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab), live at
@@ -8,6 +8,8 @@ standalone Owner project (not svc-lab), live at
 goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 ## Current state
+
+**G-109, counted limits — ACTIVE, M1 to M3 done; M4 (release) next.** Four counted limits in `ACCOUNT_LIMITS` (`lib/limits/limits.ts`): generations and server exports over rolling 24 hours and 30 days, unlimited until the admin sets a value, which is done on the Features page's Limits tab like the space limit. `/api/jobs` and `/api/exports` call `quotaForRoute` (`lib/limits/quota-server.ts`) after the feature check: a limit in force is checked and counted in one transaction under a per-person lock, and the use is given back if the processor does not accept the job (D364; what one use is, D365). Refusals: 429 naming the limit with `retry-after`, 403 "sign-in" for a guest under any limit, 503 when the limits cannot be read; the browser shows the words through `LimitReachedError` (`lib/pipeline/server-errors.ts`). The pure rules and wording are in `lib/limits/quota.ts`. The account's Usage page shows used, left and the next one for each limit in force.
 **G-119, Transparency as colour and stamps — ACTIVE, all five milestones done and deployed in v0.18.0 (the preview enlarged in v0.19.0; half stitches and backstitch in previews in v0.20.0, D362); awaiting the Owner's sign-off.** Select, Lasso and Wand share a **Transparency as colour** switch, Off by default: a piece's empty stitches then keep what lies beneath, in the preview and on apply (`lib/editor/floating-selection.ts`, D359). Stamps are kept by the server (`Stamp` table, migration `20261008180000_stamps`; contents and their check in `lib/stamps/stamp.ts`, reads and writes in `lib/stamps/server.ts`, routes under `app/api/stamps/`; limit `stamps.count`, feature `stamps.account`; D360). **Save as stamp** is in the Selection tab (`app/components/selection-actions.tsx`, naming in `app/hooks/use-stamps.ts` and `app/components/stamp-name-dialog.tsx`); the account's Stamps section (`app/account/stamps/`) lists them with search, pin, rename and delete, and its count in the sidebar. **Add stamp** in the top bar (`app/components/app-bar.tsx`) opens a gallery (`app/components/stamp-gallery.tsx`); the stamp chosen is placed by `lib/stamps/place.ts` (threads matched by identity, the missing ones added, else refused whole; D361) and handed to `takePiece` with the grown chart, committed in one undo step. Stamps are user content: deleted with the account, in the same backups as saved charts.
 
 **Production** runs a6c13f3, v0.20.0 (2026-10-08, per the deploy log below): the 1b shell, and generation and every export but the editable save running in the `processor` container. The work itself is in the Rust sidecar and **nothing stands behind it** — the TypeScript pipeline is deleted, not disabled (D221). Every signed-off goal, with what it produced and how it was verified, is in `docs/goals-archive.md` — G-028 onwards, from the OXS format to the Atelier redesign (D157–D167), the move to the server (D149–D155) and the Rust port.
@@ -361,7 +363,7 @@ which the Pattern Keeper PDF shares and calls with backstitch switched off.)
 
 ## Next steps and open questions
 
-- **G-109 (counted limits) is active; M1 done:** four counted limits in `ACCOUNT_LIMITS`, all unlimited until the admin sets them, and `takeQuota` (`lib/limits/quota-server.ts`, D364, D365), not yet called by any route. Next: M2, the routes and the refusal. Then, accepted 2026-10-08: G-106, G-126, G-127, G-128 (subscriptions); their Stripe test-mode milestones wait on the Owner's test keys.
+- **G-109 (counted limits) is active; M1 to M3 done.** Next: M4, release and deploy with every counted limit unlimited; the values are the Owner's to set in the admin. Then, accepted 2026-10-08: G-106, G-126, G-127, G-128 (subscriptions); their Stripe test-mode milestones wait on the Owner's test keys.
 - **G-108 part 1 is signed off (2026-10-08); its pre-deploy dumps are deleted.** Personal data: saved charts hold photos on the shared host, deleted with the account, with no retention rule or scheduled backup yet. Known: a rename from the account bumps the version, so the editor's next Save asks first (D356). Part 2 (visibility, the gallery, G-111) is not planned yet.
 
 - **G-119 is deployed in v0.18.0 and awaits the Owner's sign-off.** Personal data: stamps are user content, deleted with the account; the pre-deploy dump in `~/backups/` on the host is deleted at sign-off. Left for later (Owner): tags on stamps, and importing a stamp from a file.
