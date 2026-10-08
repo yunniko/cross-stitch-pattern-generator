@@ -503,3 +503,7 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | D363 | internal | |
 | D364 | out of scope (accounts and admin) | |
 | D365 | out of scope (accounts and admin) | |
+| D366 | out of scope (billing) | |
+| D367 | out of scope (billing) | |
+| D368 | out of scope (billing) | |
+| D369 | out of scope (billing) | |

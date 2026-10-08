@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { adminUsersPageSize, paginate } from "@/lib/admin/pagination";
 import { parseUserFilters, usersHref } from "@/lib/admin/users-filter";
 import { planName } from "@/lib/account/plan";
+import { ENTITLEMENT_SELECT } from "@/lib/billing/entitlement";
 import { groupThousands, isoDay } from "@/lib/panel/format";
 import { PageHead } from "@/app/components/panel/panel-parts";
 import { UserPanel } from "./user-panel";
@@ -56,7 +57,7 @@ export default async function AdminUsersPage({
       role: true,
       disabled: true,
       createdAt: true,
-      subscription: { select: { status: true, tier: { select: { name: true } } } },
+      subscription: { select: { ...ENTITLEMENT_SELECT, tier: { select: { name: true } } } },
     },
   });
   const filtered = Boolean(filters.query || filters.role || filters.status);

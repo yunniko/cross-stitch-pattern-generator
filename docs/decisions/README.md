@@ -401,3 +401,7 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D363 — Release-note ids are matched and refused; developers' wording is judged and only advised — active
 - D364 — A counted limit is checked and counted in one locked transaction, and given back if the processor refuses — active
 - D365 — What one use is: a generation or try, or one server export; guests are refused, never counted — active
+- D366 — Stripe's package pinned at 22.3.0 and its API version at 2026-06-24.dahlia — active
+- D367 — A tier is given only until the stored period's end, plus two days for a late record — active
+- D368 — Prices are rows of their own, one current per tier and interval — active
+- D369 — A subscription is stored as a snapshot fetched from the provider, not built from events — active

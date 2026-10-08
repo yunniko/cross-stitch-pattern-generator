@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { barShares, dailyUsage, exportKindLabel, exportsByKind, NOT_RECORDED } from "@/lib/account/usage";
-import { FREE_PLAN, planName, subscriptionLive } from "@/lib/account/plan";
+import { FREE_PLAN, planName } from "@/lib/account/plan";
 
 const NOW = new Date("2026-10-07T15:00:00Z");
 const at = (iso: string) => new Date(iso);
@@ -81,12 +81,15 @@ describe("exports by kind", () => {
 });
 
 describe("planName", () => {
-  it("is the tier's while the subscription is live, Free otherwise", () => {
-    expect(planName(null)).toBe(FREE_PLAN);
-    expect(planName({ status: "active", tier: { name: "Stitcher" } })).toBe("Stitcher");
-    expect(planName({ status: "past_due", tier: { name: "Stitcher" } })).toBe("Stitcher");
-    expect(planName({ status: "canceled", tier: { name: "Stitcher" } })).toBe(FREE_PLAN);
-    expect(subscriptionLive("trialing")).toBe(true);
-    expect(subscriptionLive("incomplete")).toBe(false);
+  it("is the tier's while the entitlement rule gives it, Free otherwise", () => {
+    const now = new Date("2026-10-08T12:00:00Z");
+    const periodEnd = new Date("2026-11-08T12:00:00Z");
+    const on = (status: string) => ({ status, currentPeriodEnd: periodEnd, firstFailedAt: null, tier: { name: "Stitcher" } });
+    expect(planName(null, now)).toBe(FREE_PLAN);
+    expect(planName(on("active"), now)).toBe("Stitcher");
+    expect(planName(on("trialing"), now)).toBe("Stitcher");
+    expect(planName(on("canceled"), now)).toBe(FREE_PLAN);
+    expect(planName(on("incomplete"), now)).toBe(FREE_PLAN);
+    expect(planName(on("active"), new Date("2026-12-01T00:00:00Z")), "past the period's end").toBe(FREE_PLAN);
   });
 });

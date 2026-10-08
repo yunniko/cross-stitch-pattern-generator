@@ -82,8 +82,10 @@ export async function putOnTierWithSet(email: string, name: string, states: Reco
     [id(), name, set]
   );
   await db().query(
-    `INSERT INTO "Subscription" ("id", "userId", "tierId", "status", "createdAt", "updatedAt") VALUES ($1, $2, $3, 'active', now(), now())
-     ON CONFLICT ("userId") DO UPDATE SET "tierId" = EXCLUDED."tierId", "status" = 'active', "updatedAt" = now()`,
+    `INSERT INTO "Subscription" ("id", "userId", "tierId", "status", "currentPeriodEnd", "createdAt", "updatedAt")
+     VALUES ($1, $2, $3, 'active', now() + interval '30 days', now(), now())
+     ON CONFLICT ("userId") DO UPDATE SET "tierId" = EXCLUDED."tierId", "status" = 'active',
+       "currentPeriodEnd" = EXCLUDED."currentPeriodEnd", "updatedAt" = now()`,
     [id(), user, tiers[0].id]
   );
 }

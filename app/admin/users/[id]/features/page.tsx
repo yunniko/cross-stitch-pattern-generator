@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import type { FeatureState } from "@/lib/features/features";
-import { subscriptionLive } from "@/lib/account/plan";
+import { ENTITLEMENT_SELECT, hasTier } from "@/lib/billing/entitlement";
 import { layerOver, limitDefaults, limitValuesOf } from "@/lib/limits/limits";
 import { LimitsEditor } from "@/app/admin/features/limits-editor";
 import { UserFeatures } from "./user-features";
@@ -27,7 +27,10 @@ export default async function AdminUserFeaturesPage({ params }: { params: Promis
         features: true,
         limits: true,
         subscription: {
-          select: { status: true, tier: { select: { name: true, limits: true, featureSet: { select: { name: true, entries: true } } } } },
+          select: {
+            ...ENTITLEMENT_SELECT,
+            tier: { select: { name: true, limits: true, featureSet: { select: { name: true, entries: true } } } },
+          },
         },
       },
     }),
@@ -38,7 +41,7 @@ export default async function AdminUserFeaturesPage({ params }: { params: Promis
   if (!user) notFound();
   const tier = user.subscription?.tier ?? null;
   const accounts = layerOver(layerOver(limitDefaults(), limitValuesOf(siteLimits)), limitValuesOf(accountLimits));
-  const withoutOwn = tier && subscriptionLive(user.subscription!.status) ? layerOver(accounts, limitValuesOf(tier.limits)) : accounts;
+  const withoutOwn = tier && hasTier(user.subscription) ? layerOver(accounts, limitValuesOf(tier.limits)) : accounts;
   return (
     <div className="flex flex-col gap-4">
       <p className="m-0 text-[13px]">

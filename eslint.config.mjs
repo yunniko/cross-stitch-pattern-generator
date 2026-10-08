@@ -2,6 +2,23 @@ import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 
+// The billing boundary (G-106, D366): only the Stripe adapter loads the `stripe` package; everything else goes through
+// the contract in lib/billing/contract.ts. A flat config's later block replaces an earlier one's rule for a file, so
+// every block below that restricts imports carries this one too, through `restrict`.
+const STRIPE_ONLY_IN_ADAPTER = "Only lib/billing/stripe-adapter.ts loads Stripe: use the contract in lib/billing/contract.ts.";
+const restrict = ({ paths = [], patterns = [] } = {}) => [
+  "error",
+  {
+    paths: [...paths, { name: "stripe", message: STRIPE_ONLY_IN_ADAPTER }],
+    patterns: [...patterns, { group: ["stripe/*"], message: STRIPE_ONLY_IN_ADAPTER }],
+  },
+];
+
+const LIB_FRAMEWORK_FREE = [
+  { name: "react", message: "lib/ stays framework-free: put the hook in app/hooks/ and keep the logic here as a pure module." },
+  { name: "react-dom", message: "lib/ stays framework-free: put the hook in app/hooks/ and keep the logic here as a pure module." },
+];
+
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
@@ -18,43 +35,40 @@ const eslintConfig = defineConfig([
     // megabytes of third-party code that lint has nothing useful to say about.
     "dist/**",
   ]),
+  {
+    files: ["**/*.ts", "**/*.tsx", "**/*.mjs"],
+    // The end-to-end tests may drive Stripe's test mode directly (G-106 M4).
+    ignores: ["tests/e2e/**"],
+    rules: { "no-restricted-imports": restrict() },
+  },
   // `lib/` is the framework-free layer: pure modules the unit tests exercise without rendering anything, and the
   // same code the processor runs server-side where there is no React at all (STANDARDS.md -> Software). Two hooks
   // had drifted in before G-067 M6; this keeps the boundary a rule rather than a tendency.
   {
     files: ["lib/**/*.ts", "lib/**/*.tsx"],
     rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          paths: [
-            { name: "react", message: "lib/ stays framework-free: put the hook in app/hooks/ and keep the logic here as a pure module." },
-            {
-              name: "react-dom",
-              message: "lib/ stays framework-free: put the hook in app/hooks/ and keep the logic here as a pure module.",
-            },
-          ],
-        },
-      ],
+      "no-restricted-imports": restrict({ paths: LIB_FRAMEWORK_FREE }),
     },
+  },
+  // The adapter itself, and the mapping that reads Stripe's types: lib/'s rule without the billing boundary.
+  {
+    files: ["lib/billing/stripe-adapter.ts", "lib/billing/stripe-mapping.ts"],
+    rules: { "no-restricted-imports": ["error", { paths: LIB_FRAMEWORK_FREE }] },
   },
   // The document is the bottom layer (G-094, D289; docs/architecture.md section 5): it knows the chart's data and nothing of
   // the editor, the exports or the interface built on it.
   {
     files: ["lib/document/**/*.ts"],
     rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          paths: [{ name: "react", message: "lib/ stays framework-free." }],
-          patterns: [
-            {
-              group: ["**/editor/**", "**/export/**", "**/pipeline/**", "@/app/**", "**/app/**"],
-              message: "lib/document imports nothing from the editor, the exports, the pipeline or the app: they are built on it.",
-            },
-          ],
-        },
-      ],
+      "no-restricted-imports": restrict({
+        paths: [{ name: "react", message: "lib/ stays framework-free." }],
+        patterns: [
+          {
+            group: ["**/editor/**", "**/export/**", "**/pipeline/**", "@/app/**", "**/app/**"],
+            message: "lib/document imports nothing from the editor, the exports, the pipeline or the app: they are built on it.",
+          },
+        ],
+      }),
     },
   },
   // A tool is one module (G-092, D284): it touches the editor only through the API it is handed, so it may not reach for
@@ -64,18 +78,15 @@ const eslintConfig = defineConfig([
     files: ["app/tools/*.ts", "app/tools/*.tsx"],
     ignores: ["app/tools/registry.ts", "app/tools/use-tools.ts"],
     rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          patterns: [
-            {
-              group: ["**/workspace", "./registry", "./use-tools"],
-              message:
-                "A tool module uses only the EditorApi it is given (app/tools/types.ts): not the workspace, the registry or the shell.",
-            },
-          ],
-        },
-      ],
+      "no-restricted-imports": restrict({
+        patterns: [
+          {
+            group: ["**/workspace", "./registry", "./use-tools"],
+            message:
+              "A tool module uses only the EditorApi it is given (app/tools/types.ts): not the workspace, the registry or the shell.",
+          },
+        ],
+      }),
     },
   },
 ]);

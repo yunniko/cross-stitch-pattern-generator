@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { FREE_PLAN, planName } from "@/lib/account/plan";
+import { ENTITLEMENT_SELECT } from "@/lib/billing/entitlement";
 import { PageHead, SectionTitle } from "@/app/components/panel/panel-parts";
 
 /**
@@ -13,7 +14,7 @@ export default async function AccountPlanPage() {
   if (!session?.user?.id) redirect("/login");
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { subscription: { select: { status: true, tier: { select: { name: true } } } } },
+    select: { subscription: { select: { ...ENTITLEMENT_SELECT, tier: { select: { name: true } } } } },
   });
   if (!user) redirect("/login");
   const plan = planName(user.subscription);

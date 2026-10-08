@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { logoutAction } from "@/lib/auth/actions";
 import { ACCOUNT_SECTIONS } from "@/lib/account/sections";
 import { planName } from "@/lib/account/plan";
+import { ENTITLEMENT_SELECT } from "@/lib/billing/entitlement";
 import { countCharts } from "@/lib/charts/server";
 import { countStamps } from "@/lib/stamps/server";
 import { PanelHeader } from "@/app/components/panel/panel-header";
@@ -21,7 +22,7 @@ export default async function AccountLayout({ children }: { children: ReactNode 
   if (!session?.user?.id) redirect("/login");
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { name: true, email: true, role: true, subscription: { select: { status: true, tier: { select: { name: true } } } } },
+    select: { name: true, email: true, role: true, subscription: { select: { ...ENTITLEMENT_SELECT, tier: { select: { name: true } } } } },
   });
   // Deleted (from another tab, say) after the session cookie was issued: there is nothing to show.
   if (!user) redirect("/login");

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { planName } from "@/lib/account/plan";
+import { ENTITLEMENT_SELECT } from "@/lib/billing/entitlement";
 import { signInMethods } from "@/lib/account/sign-in-methods";
 import { ownStatesSummary } from "@/lib/admin/users-filter";
 import { groupThousands, isoDay, lastSeen } from "@/lib/panel/format";
@@ -31,7 +32,7 @@ export async function UserPanel({ userId, own, closeHref }: { userId: string; ow
         passwordHash: true,
         accounts: { select: { provider: true } },
         features: { select: { featureId: true, state: true } },
-        subscription: { select: { status: true, tier: { select: { name: true } } } },
+        subscription: { select: { ...ENTITLEMENT_SELECT, tier: { select: { name: true } } } },
       },
     }),
     prisma.usageEvent.groupBy({ by: ["kind"], where: { userId }, _count: { _all: true } }),

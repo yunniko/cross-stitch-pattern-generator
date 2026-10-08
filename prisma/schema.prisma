@@ -93,17 +93,43 @@ model VerificationToken {
 /// rather than a hardcoded enum, since the tiers/limits themselves are not decided yet. Nothing reads
 /// or writes this table in G-075 — it exists only so that goal is a data migration, not a schema rework.
 model Tier {
-  id            String   @id @default(cuid())
-  name          String   @unique
-  stripePriceId String?
+  id           String   @id @default(cuid())
+  name         String   @unique
   /// The feature set a person on this tier gets (G-102); null means the site's states alone.
-  featureSetId  String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  featureSetId String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   subscriptions Subscription[]
   featureSet    FeatureSet?    @relation(fields: [featureSetId], references: [id])
   limits        TierLimit[]
+  prices        Price[]
+}
+
+enum BillingInterval {
+  MONTH
+  YEAR
+}
+
+/// A price of a tier (G-106 M1): a row of its own, never edited in place. A changed price is a new row and the old one
+/// stops being current; subscriptions already on the old price keep it (D368). Checkout offers only current rows.
+model Price {
+  id            String          @id @default(cuid())
+  tierId        String
+  interval      BillingInterval
+  /// In the currency's minor unit (cents).
+  amount        Int
+  /// ISO 4217, lower case, as Stripe writes it ("eur").
+  currency      String
+  /// The price at Stripe this row stands for.
+  stripePriceId String          @unique
+  current       Boolean         @default(true)
+  createdAt     DateTime        @default(now())
+
+  tier          Tier           @relation(fields: [tierId], references: [id])
+  subscriptions Subscription[]
+
+  @@index([tierId, interval, current])
 }
 
 /// Feature switches (G-102, D303). A feature's id is the feature list's (`app/features/registry.ts`); a row naming a
@@ -170,19 +196,64 @@ model FeatureSetEntry {
 
 /// Same scaffolding note as `Tier`. One subscription per user; `status` mirrors Stripe's own
 /// subscription status strings so the future webhook can write it through unchanged.
+/// A person's subscription: the latest snapshot read from Stripe (G-106, D369), never pieced together from events. What
+/// it gives is the entitlement rule's to say (`lib/billing/entitlement.ts`, D367).
 model Subscription {
   id                   String    @id @default(cuid())
   userId               String    @unique
   tierId               String
+  /// The price subscribed to; null for a row not made through Checkout (tests, and G-127's grants by hand).
+  priceId              String?
+  /// Stripe's status, written through unchanged (`SUBSCRIPTION_STATUSES`).
   status               String
   stripeCustomerId     String?
   stripeSubscriptionId String?   @unique
+  /// From the subscription's item: Stripe no longer keeps the period on the subscription itself.
   currentPeriodEnd     DateTime?
+  /// The person cancelled in the Portal; the subscription ends at `currentPeriodEnd`.
+  cancelAtPeriodEnd    Boolean   @default(false)
+  endedAt              DateTime?
+  /// The first failed attempt of the invoice now open, from Stripe's own dates; null when no invoice is failing.
+  firstFailedAt        DateTime?
+  /// When this snapshot was last read from Stripe.
+  syncedAt             DateTime?
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tier Tier @relation(fields: [tierId], references: [id])
+  user   User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tier   Tier                @relation(fields: [tierId], references: [id])
+  price  Price?              @relation(fields: [priceId], references: [id])
+  events SubscriptionEvent[]
+}
+
+/// A Stripe event already handled (G-106): its id is recorded once, so a second delivery changes nothing. The payload
+/// is not kept.
+model BillingEvent {
+  /// Stripe's event id ("evt_...").
+  id         String   @id
+  type       String
+  receivedAt DateTime @default(now())
+}
+
+/// The history of a subscription (G-106; Architecture fit (4)): one row per change to its snapshot, append-only, as
+/// `FeatureChange` is for features. G-127's admin page shows it.
+model SubscriptionEvent {
+  id             String   @id @default(cuid())
+  subscriptionId String
+  /// What changed: "created", "status", "period", "cancel", "price", "failure"; see `lib/billing/`.
+  kind           String
+  /// The values before and after, as short text ("active", "2026-11-08").
+  before         String?
+  after          String?
+  /// "webhook", "reconcile" or "admin".
+  source         String
+  /// The Stripe event that brought the change, when one did.
+  eventId        String?
+  at             DateTime @default(now())
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([subscriptionId, at])
 }
 
 /// Usage counts for the admin stats page (G-075 M4): one row per generation or export job, written

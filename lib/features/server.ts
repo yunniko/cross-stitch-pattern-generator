@@ -1,6 +1,6 @@
 import type { FeatureSwitch } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
-import { subscriptionLive } from "@/lib/account/plan";
+import { ENTITLEMENT_SELECT, hasTier } from "@/lib/billing/entitlement";
 import { EVERYTHING_ON, type FeatureState, type FeatureStates } from "./features";
 import { resolveFeatures } from "./resolve";
 
@@ -32,13 +32,13 @@ export async function featureStatesFor(userId: string | null): Promise<FeatureSt
             where: { id: userId },
             select: {
               features: true,
-              subscription: { select: { status: true, tier: { select: { featureSet: { select: { entries: true } } } } } },
+              subscription: { select: { ...ENTITLEMENT_SELECT, tier: { select: { featureSet: { select: { entries: true } } } } } },
             },
           })
         : null,
     ]);
-    // A tier's set counts while the subscription is live (`subscriptionLive`, the test the Plan section shows by).
-    const live = person?.subscription && subscriptionLive(person.subscription.status);
+    // A tier's set counts while the subscription gives the tier (`hasTier`, D367, the rule the Plan section shows by).
+    const live = hasTier(person?.subscription);
     return resolveFeatures(
       {
         site: toStates(site),
