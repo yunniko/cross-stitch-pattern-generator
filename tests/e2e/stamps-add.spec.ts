@@ -77,7 +77,8 @@ test("a stamp chosen in the gallery arrives as a piece in hand, its thread added
   const { cells, kinds } = await saved(page);
   await page.getByRole("tab", { name: "Threads" }).click();
   await expect(legendRows(page)).toHaveCount(2);
-  await expect(legendRows(page).nth(1)).toContainText("Ink");
+  // The legend orders its rows by use, so the stamp's thread is found by name, not by place.
+  await expect(legendRows(page).filter({ hasText: "Ink" })).toHaveCount(1);
   await page.getByRole("tab", { name: "Chart" }).click();
   expect([cells[at(3, 3)], cells[at(4, 3)], cells[at(5, 3)]]).toEqual([1, 1, 255]);
   expect(kinds[at(4, 3)]).toBe(SLASH);
