@@ -194,8 +194,6 @@ model FeatureSetEntry {
   @@id([setId, featureId])
 }
 
-/// Same scaffolding note as `Tier`. One subscription per user; `status` mirrors Stripe's own
-/// subscription status strings so the future webhook can write it through unchanged.
 /// A person's subscription: the latest snapshot read from Stripe (G-106, D369), never pieced together from events. What
 /// it gives is the entitlement rule's to say (`lib/billing/entitlement.ts`, D367).
 model Subscription {
@@ -245,7 +243,7 @@ model SubscriptionEvent {
   /// The values before and after, as short text ("active", "2026-11-08").
   before         String?
   after          String?
-  /// "webhook", "reconcile" or "admin".
+  /// "webhook", "reconcile" or "admin" (`HistorySource` in `lib/billing/sync.ts`).
   source         String
   /// The Stripe event that brought the change, when one did.
   eventId        String?

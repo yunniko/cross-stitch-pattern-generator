@@ -405,3 +405,5 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D367 — A tier is given only until the stored period's end, plus two days for a late record — active
 - D368 — Prices are rows of their own, one current per tier and interval — active
 - D369 — A subscription is stored as a snapshot fetched from the provider, not built from events — active
+- D370 — A second live subscription is ended at its period's end; a new one replaces one that gives nothing — active
+- D371 — The reconciliation is the app's own route, called by a clock service on the compose network — active

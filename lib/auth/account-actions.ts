@@ -3,6 +3,8 @@
 import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { auth, signOut } from "@/auth";
+import { endSubscriptionsBeforeDeletion } from "@/lib/billing/account-end";
+import { billingGateway } from "@/lib/billing/gateway";
 import { prisma } from "@/lib/prisma";
 import { nameError, normalizeName, passwordError } from "@/lib/auth/validation";
 
@@ -56,7 +58,8 @@ export async function changePasswordAction(_prev: AccountFormState, formData: Fo
 
 /**
  * Deletes the signed-in account and everything the schema cascades from it (`Account`, `Session`,
- * `Subscription`) in one statement, then signs out. The reader must type their own email first — a plain
+ * `Subscription`) in one statement, then signs out. Its subscriptions at the provider are ended first, and the
+ * account is kept if they cannot be (G-106, `lib/billing/account-end.ts`). The reader must type their own email first — a plain
  * "Are you sure?" is too easy to click through on an action this irreversible, and this needs no
  * confirmation dialog (never trigger a native `confirm()` -- see `lib/auth/validation.ts`'s neighbours for
  * why nothing here uses one).
@@ -69,6 +72,13 @@ export async function deleteAccountAction(_prev: AccountFormState, formData: For
   if (typed !== session.user.email?.toLowerCase()) {
     return { fieldErrors: { confirmEmail: "Type your email exactly to confirm." } };
   }
+
+  const stored = await prisma.subscription.findUnique({
+    where: { userId: session.user.id },
+    select: { status: true, endedAt: true, stripeSubscriptionId: true, stripeCustomerId: true },
+  });
+  const ended = await endSubscriptionsBeforeDeletion(await billingGateway(), stored);
+  if (!ended.ok) return { error: ended.error };
 
   await prisma.user.delete({ where: { id: session.user.id } });
   await signOut({ redirectTo: "/" });

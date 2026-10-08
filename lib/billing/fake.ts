@@ -146,6 +146,11 @@ export class FakeBilling implements BillingGateway {
 
   // --- Driving the fake, as Stripe and the person would ---
 
+  /** An event as delivered now: Stripe signs each delivery attempt anew, so a late one is not refused as stale. */
+  delivery(event: SignedEvent): { rawBody: string; signature: string } {
+    return { rawBody: event.rawBody, signature: signPayload(event.rawBody, this.webhookSecret, this.now()) };
+  }
+
   addPrice(price: Omit<ProviderPrice, "id" | "active"> & { id?: string; active?: boolean }): ProviderPrice {
     const added: ProviderPrice = { ...price, id: price.id ?? this.nextId("price"), active: price.active ?? true };
     this.prices.set(added.id, added);

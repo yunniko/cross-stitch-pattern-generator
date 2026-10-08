@@ -72,6 +72,13 @@ services:
       MAIL_TRANSPORT: ${MAIL_TRANSPORT:-}
       MAIL_FROM: ${MAIL_FROM:-}
       RESEND_API_KEY: ${RESEND_API_KEY:-}
+      # Billing (G-106): off while BILLING_GATEWAY is empty. The keys are the Owner's; a live key is refused unless
+      # STRIPE_LIVE=on (G-128).
+      BILLING_GATEWAY: ${BILLING_GATEWAY:-}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      STRIPE_LIVE: ${STRIPE_LIVE:-}
+      BILLING_RECONCILE_TOKEN: ${BILLING_RECONCILE_TOKEN:-}
     depends_on:
       processor:
         condition: service_started
@@ -93,6 +100,25 @@ services:
       PROCESSOR_PORT: 8081
     # Deliberately no `ports`: reachable only on the internal network, so the app's Route Handlers --
     # which hold the Origin check and the rate limit -- are its only caller.
+
+  # The billing reconciliation's clock (G-106 M2): asks the app every BILLING_RECONCILE_MINUTES to re-read open
+  # subscriptions from the provider. The work is the app's own route; this only calls it, on the internal network.
+  # Without BILLING_RECONCILE_TOKEN it only waits.
+  billing-reconcile:
+    profiles: ["app"]
+    image: node:22-alpine
+    restart: unless-stopped
+    cpus: 0.1
+    mem_limit: 64m
+    command: ["node", "/loop/billing-reconcile-loop.mjs"]
+    volumes:
+      - ./scripts/billing-reconcile-loop.mjs:/loop/billing-reconcile-loop.mjs:ro
+    environment:
+      BILLING_RECONCILE_TOKEN: ${BILLING_RECONCILE_TOKEN:-}
+      BILLING_RECONCILE_MINUTES: ${BILLING_RECONCILE_MINUTES:-60}
+    depends_on:
+      app:
+        condition: service_started
 
 volumes:
   db-data:

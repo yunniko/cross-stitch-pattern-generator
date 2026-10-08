@@ -39,6 +39,11 @@ export function DeleteAccount({ email }: { email: string }) {
         This deletes your account and everything tied to it. It cannot be undone. Type <strong>{email}</strong> to confirm.
       </p>
       <AuthField id="confirmEmail" name="confirmEmail" label="Your email" error={state.fieldErrors?.confirmEmail} />
+      {state.error && (
+        <p role="alert" className="m-0 text-[13px] text-danger">
+          {state.error}
+        </p>
+      )}
       <div className="flex gap-3">
         <AuthSubmitButton className="border border-danger-strong bg-danger-edge px-4 py-1.5 text-sm text-on-danger hover:bg-danger-strong">
           Delete my account
