@@ -1,5 +1,5 @@
 import Stripe from "stripe";
-import { BillingSignatureError, BillingUnavailableError, type BillingGateway } from "./contract";
+import { BillingSignatureError, BillingUnavailableError, type BillingGateway, type PaymentTotals, type ProviderPayment } from "./contract";
 import { readEventObject } from "./event-reference";
 import { failingInvoice, invoicePaymentIntentId, priceFromStripe, snapshotFromStripe } from "./stripe-mapping";
 
@@ -32,6 +32,21 @@ async function call<T>(what: string, request: () => Promise<T>): Promise<T> {
     throw error;
   }
 }
+
+/** How many of a customer's latest payments the admin sees. */
+const PAYMENTS_SHOWN = 24;
+
+/** A charge that took money: a failed or pending one took nothing. */
+const taken = (charge: Stripe.Charge) => charge.paid && charge.status === "succeeded";
+
+const paymentFromStripe = (charge: Stripe.Charge): ProviderPayment => ({
+  id: charge.id,
+  amount: charge.amount,
+  currency: charge.currency,
+  paidAt: new Date(charge.created * 1000),
+  refunded: charge.amount_refunded,
+  disputed: charge.disputed,
+});
 
 export function createStripeGateway(settings: { secretKey: string; webhookSecret: string }): BillingGateway {
   const stripe = new Stripe(settings.secretKey, { apiVersion: STRIPE_API_VERSION, maxNetworkRetries: 2, timeout: 20_000 });
@@ -150,6 +165,55 @@ export function createStripeGateway(settings: { secretKey: string; webhookSecret
     setPriceActive: (priceId, active) =>
       call("change a price", async () => {
         await stripe.prices.update(priceId, { active });
+      }),
+
+    listPayments: (customerId) =>
+      call("list payments", async () => {
+        const list = await stripe.charges.list({ customer: customerId, limit: PAYMENTS_SHOWN });
+        return list.data.filter(taken).map(paymentFromStripe);
+      }),
+
+    refundPayment: (paymentId, requestKey) =>
+      call("refund a payment", async () => {
+        await stripe.refunds.create({ charge: paymentId }, { idempotencyKey: `refund-${requestKey}` });
+      }),
+
+    paymentTotals: (from, to) =>
+      call("add up payments", async () => {
+        const totals = new Map<string, PaymentTotals>();
+        const created = { gte: Math.floor(from.getTime() / 1000), lt: Math.floor(to.getTime() / 1000) };
+        for await (const charge of stripe.charges.list({ created, limit: 100 })) {
+          if (!taken(charge)) continue;
+          const total = totals.get(charge.currency) ?? { currency: charge.currency, payments: 0, taken: 0, refunded: 0 };
+          total.payments += 1;
+          total.taken += charge.amount;
+          total.refunded += charge.amount_refunded;
+          totals.set(charge.currency, total);
+        }
+        return [...totals.values()];
+      }),
+
+    countSubscriptions: () =>
+      call("count subscriptions", async () => {
+        const counts: Record<string, number> = {};
+        // With no status asked for, Stripe lists every subscription that is not cancelled.
+        for await (const subscription of stripe.subscriptions.list({ limit: 100 })) {
+          if (subscription.ended_at !== null) continue;
+          counts[subscription.status] = (counts[subscription.status] ?? 0) + 1;
+        }
+        return counts;
+      }),
+
+    movePrice: (subscriptionId, priceId) =>
+      call("move a subscription to a price", async () => {
+        const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+        const item = subscription.items.data[0];
+        if (!item) throw new Error(`Stripe's subscription ${subscriptionId} has no item`);
+        // No proration: the new price is charged from the next renewal, and nothing now (D381).
+        await stripe.subscriptions.update(subscriptionId, {
+          items: [{ id: item.id, price: priceId }],
+          proration_behavior: "none",
+        });
       }),
   };
 }

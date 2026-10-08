@@ -4,6 +4,8 @@ import {
   type BillingInterval,
   type CheckoutInput,
   type NewPrice,
+  type PaymentTotals,
+  type ProviderPayment,
   type ProviderPrice,
   type SubscriptionSnapshot,
 } from "./contract";
@@ -31,6 +33,16 @@ interface FakeSubscription extends SubscriptionSnapshot {
   invoiceId: string;
 }
 
+interface FakeCharge {
+  customerId: string;
+  subscriptionId: string;
+  amount: number;
+  currency: string;
+  at: Date;
+  refunded: number;
+  disputed: boolean;
+}
+
 const DAY = 24 * 3_600_000;
 const PERIOD_MS: Record<BillingInterval, number> = { MONTH: 30 * DAY, YEAR: 365 * DAY };
 /** How long after a failed attempt the fake tries again: Stripe's schedule is the account's, and this is any one schedule. */
@@ -49,8 +61,10 @@ export class FakeBilling implements BillingGateway {
   private readonly products = new Map<string, string>();
   private readonly subscriptions = new Map<string, FakeSubscription>();
   private readonly sessions = new Map<string, CheckoutInput>();
-  /** Each paid invoice's charge, by id, with its customer and subscription. */
-  private readonly charges = new Map<string, { customerId: string; subscriptionId: string }>();
+  /** Each paid invoice's charge, by id, with its customer and subscription, oldest first. */
+  private readonly charges = new Map<string, FakeCharge>();
+  /** Refunds made through the contract, by the request's key: the same key refunds once, as at Stripe. */
+  private readonly refundKeys = new Set<string>();
   private serial = 0;
   /** How many of `events` the app has delivered to its own webhook (`takeUndelivered`). */
   private delivered = 0;
@@ -111,11 +125,7 @@ export class FakeBilling implements BillingGateway {
 
   async startCheckout(input: CheckoutInput): Promise<{ url: string }> {
     this.reachable();
-    if (!this.prices.has(input.priceId) && this.resolvePrice) {
-      const found = await this.resolvePrice(input.priceId);
-      if (found) this.prices.set(found.id, found);
-    }
-    if (!this.prices.get(input.priceId)?.active) throw new Error(`the fake provider has no active price ${input.priceId}`);
+    if (!(await this.knownPrice(input.priceId))?.active) throw new Error(`the fake provider has no active price ${input.priceId}`);
     const session = this.nextId("cs");
     this.sessions.set(session, input);
     return { url: `${this.siteUrl}/billing/fake-checkout?session=${session}` };
@@ -192,6 +202,74 @@ export class FakeBilling implements BillingGateway {
     // A price the fake does not hold in memory is one made before the server restarted: the database's row is the one
     // the fake sells by (`resolvePrice`), so there is nothing here to change.
     if (price) this.prices.set(priceId, { ...price, active });
+  }
+
+  async listPayments(customerId: string): Promise<ProviderPayment[]> {
+    this.reachable();
+    return [...this.charges]
+      .filter(([, charge]) => charge.customerId === customerId)
+      .reverse()
+      .map(([id, charge]) => ({
+        id,
+        amount: charge.amount,
+        currency: charge.currency,
+        paidAt: charge.at,
+        refunded: charge.refunded,
+        disputed: charge.disputed,
+      }));
+  }
+
+  async refundPayment(paymentId: string, requestKey: string): Promise<void> {
+    this.reachable();
+    if (this.refundKeys.has(requestKey)) return;
+    const charge = this.charges.get(paymentId);
+    if (!charge) throw new Error(`the fake provider has no charge ${paymentId}`);
+    if (charge.refunded >= charge.amount) throw new Error(`the fake provider's charge ${paymentId} is already refunded`);
+    this.refundKeys.add(requestKey);
+    this.refund(paymentId);
+  }
+
+  async paymentTotals(from: Date, to: Date): Promise<PaymentTotals[]> {
+    this.reachable();
+    const totals = new Map<string, PaymentTotals>();
+    for (const charge of this.charges.values()) {
+      if (charge.at < from || charge.at >= to) continue;
+      const total = totals.get(charge.currency) ?? { currency: charge.currency, payments: 0, taken: 0, refunded: 0 };
+      total.payments += 1;
+      total.taken += charge.amount;
+      total.refunded += charge.refunded;
+      totals.set(charge.currency, total);
+    }
+    return [...totals.values()];
+  }
+
+  async countSubscriptions(): Promise<Record<string, number>> {
+    this.reachable();
+    const counts: Record<string, number> = {};
+    for (const subscription of this.subscriptions.values()) {
+      if (subscription.endedAt === null) counts[subscription.status] = (counts[subscription.status] ?? 0) + 1;
+    }
+    return counts;
+  }
+
+  async movePrice(subscriptionId: string, priceId: string): Promise<void> {
+    this.reachable();
+    const subscription = this.get(subscriptionId);
+    const price = await this.knownPrice(priceId);
+    if (!price?.interval) throw new Error(`the fake provider has no recurring price ${priceId}`);
+    // As with Stripe's `proration_behavior: "none"`: the price changes now, and the next renewal charges it.
+    subscription.priceId = priceId;
+    subscription.interval = price.interval;
+    this.emit("customer.subscription.updated", this.subscriptionObject(subscription));
+  }
+
+  /** A price held in memory, or else the one `resolvePrice` finds, which is then held. */
+  private async knownPrice(id: string): Promise<ProviderPrice | undefined> {
+    if (!this.prices.has(id) && this.resolvePrice) {
+      const found = await this.resolvePrice(id);
+      if (found) this.prices.set(found.id, found);
+    }
+    return this.prices.get(id);
   }
 
   // --- Driving the fake, as Stripe and the person would ---
@@ -322,12 +400,15 @@ export class FakeBilling implements BillingGateway {
 
   /** The person's bank disputes a charge: the event names the charge only, as Stripe's does. */
   dispute(chargeId: string): void {
+    const charge = this.charges.get(chargeId);
+    if (charge) charge.disputed = true;
     this.emit("charge.dispute.created", { object: "dispute", id: this.nextId("dp"), charge: chargeId });
   }
 
-  /** A charge is refunded from the provider's dashboard. */
+  /** A charge is refunded in full, from the provider's dashboard or through the contract. */
   refund(chargeId: string): void {
     const charge = this.charges.get(chargeId);
+    if (charge) charge.refunded = charge.amount;
     this.emit("charge.refunded", { object: "charge", id: chargeId, customer: charge?.customerId ?? null });
   }
 
@@ -356,8 +437,18 @@ export class FakeBilling implements BillingGateway {
     return this.snapshot(subscription);
   }
 
+  /** The subscription's price is taken; a price the fake does not hold charges nothing, as no test reads its amount. */
   private charge(subscription: FakeSubscription): void {
-    this.charges.set(this.nextId("ch"), { customerId: subscription.customerId, subscriptionId: subscription.id });
+    const price = subscription.priceId ? this.prices.get(subscription.priceId) : undefined;
+    this.charges.set(this.nextId("ch"), {
+      customerId: subscription.customerId,
+      subscriptionId: subscription.id,
+      amount: price?.amount ?? 0,
+      currency: price?.currency ?? "eur",
+      at: this.now(),
+      refunded: 0,
+      disputed: false,
+    });
   }
 
   /** The open invoice is paid: by a retry, a new card, or the person on the invoice's page. */

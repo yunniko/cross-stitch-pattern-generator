@@ -46,6 +46,8 @@ export type HistoryKind =
   | "second"
   | "dispute"
   | "refund"
+  /** The admin asked the provider for a refund (G-127 M2); the provider's own "refund" line follows by the webhook. */
+  | "refund-asked"
   | "granted"
   | "grant-ended";
 export type HistorySource = "webhook" | "reconcile" | "admin";

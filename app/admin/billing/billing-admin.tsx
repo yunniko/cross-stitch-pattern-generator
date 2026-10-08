@@ -5,9 +5,12 @@ import Link from "next/link";
 import { PillButton } from "@/app/components/ui";
 import { createPriceAction, makePriceCurrentAction, withdrawPriceAction } from "@/lib/admin/billing-actions";
 import { createTierAction, type ActionResult } from "@/lib/admin/feature-actions";
+import { movePriceHoldersAction, type SubscriptionActionResult } from "@/lib/admin/subscription-actions";
 import { PRICE_CURRENCIES } from "@/lib/billing/catalog";
 
-/** The admin's tiers and prices (G-127 M1, D380). */
+/** The admin's tiers and prices (G-127 M1, D380), and moving the people on an old price to the current one (M2, D381). */
+
+type Result = ActionResult | SubscriptionActionResult;
 
 export interface BillingTierRow {
   id: string;
@@ -21,14 +24,19 @@ const FIELD = "rounded-md border border-control-line bg-control px-3 py-1.5 text
 
 export function BillingAdmin({ tiers, billingOn }: { tiers: BillingTierRow[]; billingOn: boolean }) {
   const [problem, setProblem] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  function run(action: () => Promise<ActionResult>, then?: () => void) {
+  function run(action: () => Promise<Result>, then?: () => void) {
     setProblem(null);
+    setNotice(null);
     startTransition(async () => {
       const result = await action();
       if (result.error) setProblem(result.error);
-      else then?.();
+      else {
+        if ("done" in result && result.done) setNotice(result.done);
+        then?.();
+      }
     });
   }
 
@@ -43,6 +51,11 @@ export function BillingAdmin({ tiers, billingOn }: { tiers: BillingTierRow[]; bi
       {problem && (
         <p role="alert" className="m-0 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-[13px] text-danger">
           {problem}
+        </p>
+      )}
+      {notice && (
+        <p role="status" className="m-0 rounded-md border border-line bg-surface px-3 py-2 text-[13px] text-ink">
+          {notice}
         </p>
       )}
       <form
@@ -88,14 +101,16 @@ function TierPrices({
   tier: BillingTierRow;
   billingOn: boolean;
   pending: boolean;
-  run: (action: () => Promise<ActionResult>, then?: () => void) => void;
+  run: (action: () => Promise<Result>, then?: () => void) => void;
 }) {
   // One key per form: sent twice, the same form makes one price at the provider (D380).
   const [requestKey, setRequestKey] = useState(() => crypto.randomUUID());
   const [interval, setPeriod] = useState<"MONTH" | "YEAR">("MONTH");
   const [amount, setAmount] = useState("");
   const [currency, setCurrency] = useState<string>(PRICE_CURRENCIES[0]);
-  const replaces = tier.prices.find((price) => price.current && price.interval === interval);
+  const currentOf = (period: "MONTH" | "YEAR") => tier.prices.find((price) => price.current && price.interval === period);
+  const replaces = currentOf(interval);
+  const movable = (price: BillingTierRow["prices"][number]) => !price.current && price.subscribers > 0 && !!currentOf(price.interval);
 
   return (
     <section
@@ -131,23 +146,42 @@ function TierPrices({
                 <td className={`py-1.5 pr-3 ${price.current ? "text-ink" : "text-muted"}`}>{price.current ? "Offered" : "Not offered"}</td>
                 <td className="py-1.5 pr-3 font-mono text-ink">{price.subscribers}</td>
                 <td className="py-1.5 pr-3 font-mono text-muted">{price.made}</td>
-                <td className="py-1.5 text-right">
-                  {billingOn && (
-                    <PillButton
-                      type="button"
-                      size="xs"
-                      disabled={pending}
-                      aria-label={`${price.current ? "Stop offering" : "Offer again"} ${price.label}`}
-                      onClick={() => run(() => (price.current ? withdrawPriceAction(price.id) : makePriceCurrentAction(price.id)))}
-                    >
-                      {price.current ? "Stop offering" : "Offer again"}
-                    </PillButton>
-                  )}
+                <td className="py-1.5">
+                  <div className="flex flex-wrap justify-end gap-1.5">
+                    {billingOn && movable(price) && (
+                      <PillButton
+                        type="button"
+                        size="xs"
+                        disabled={pending}
+                        aria-label={`Move the people on ${price.label} to ${currentOf(price.interval)!.label}`}
+                        onClick={() => run(() => movePriceHoldersAction(price.id))}
+                      >
+                        Move to {currentOf(price.interval)!.label}
+                      </PillButton>
+                    )}
+                    {billingOn && (
+                      <PillButton
+                        type="button"
+                        size="xs"
+                        disabled={pending}
+                        aria-label={`${price.current ? "Stop offering" : "Offer again"} ${price.label}`}
+                        onClick={() => run(() => (price.current ? withdrawPriceAction(price.id) : makePriceCurrentAction(price.id)))}
+                      >
+                        {price.current ? "Stop offering" : "Offer again"}
+                      </PillButton>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+      )}
+      {billingOn && tier.prices.some(movable) && (
+        <p className="m-0 text-[12px] text-muted">
+          Moving takes effect at each person&apos;s next renewal, with no charge now. The site does not tell them, so tell them before a
+          higher price is charged.
+        </p>
       )}
       {billingOn && (
         <form

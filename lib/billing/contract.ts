@@ -79,6 +79,30 @@ export interface NewPrice {
   requestKey: string;
 }
 
+/** A payment the provider took from a customer (a paid charge), as the admin sees it (G-127 M2). */
+export interface ProviderPayment {
+  /** "ch_..." */
+  id: string;
+  /** In the currency's minor unit. */
+  amount: number;
+  currency: string;
+  paidAt: Date;
+  /** How much of it has been given back, in the minor unit. */
+  refunded: number;
+  disputed: boolean;
+}
+
+/** What the provider took in one currency over a time (G-127 M2): read from the provider, never added up from events. */
+export interface PaymentTotals {
+  currency: string;
+  /** How many payments were taken. */
+  payments: number;
+  /** Their sum, in the minor unit. */
+  taken: number;
+  /** How much of those payments has been refunded since, in the minor unit. */
+  refunded: number;
+}
+
 export interface CheckoutInput {
   /** The provider's price id (`Price.stripePriceId`). */
   priceId: string;
@@ -128,4 +152,17 @@ export interface BillingGateway {
   createPrice(input: NewPrice): Promise<{ priceId: string; productId: string }>;
   /** Offers a price for new subscriptions or stops offering it; subscriptions already on it keep it either way. */
   setPriceActive(priceId: string, active: boolean): Promise<void>;
+  /** A customer's latest payments, newest first (G-127 M2): what the admin refunds from. */
+  listPayments(customerId: string): Promise<ProviderPayment[]>;
+  /** Gives back what is left of a payment; the same key refunds once. The refund's event comes back through the webhook. */
+  refundPayment(paymentId: string, requestKey: string): Promise<void>;
+  /** The payments taken in [from, to), by currency. */
+  paymentTotals(from: Date, to: Date): Promise<PaymentTotals[]>;
+  /** How many subscriptions have not ended, by the provider's status. */
+  countSubscriptions(): Promise<Record<string, number>>;
+  /**
+   * Moves a subscription to another price from its next renewal, with no charge now (G-127 M2, D381). The change comes
+   * back through the webhook, and the caller syncs it as well.
+   */
+  movePrice(subscriptionId: string, priceId: string): Promise<void>;
 }

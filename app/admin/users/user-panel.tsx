@@ -94,7 +94,10 @@ export async function UserPanel({ userId, own, closeHref }: { userId: string; ow
         <dt className={TERM}>Plan</dt>
         <dd className="m-0 text-ink">
           {planName(user.subscription, policy)}
-          {user.subscription && <span className="text-muted"> ({user.subscription.status})</span>}
+          {user.subscription && <span className="text-muted"> ({user.subscription.status})</span>}{" "}
+          <Link href={`/admin/users/${user.id}/billing`} className="text-accent hover:underline">
+            Subscription and payments
+          </Link>
         </dd>
         <dt className={TERM}>Joined</dt>
         <dd className="m-0 font-mono text-ink">{isoDay(user.createdAt)}</dd>
