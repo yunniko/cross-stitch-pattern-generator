@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type { BillingPolicy } from "@/lib/billing/entitlement";
-import { resolveSiteSettings, type SiteSettings } from "./site-settings";
+import { policyOf, resolveSiteSettings, type SiteSettings } from "./site-settings";
 
 /**
  * The site's settings read from the database (G-126 M1, D374). Read on each request that needs one, uncached: the table
@@ -14,5 +14,3 @@ export async function siteSettings(): Promise<SiteSettings> {
 export async function billingPolicy(): Promise<BillingPolicy> {
   return policyOf(await siteSettings());
 }
-
-export const policyOf = (settings: SiteSettings): BillingPolicy => ({ graceDays: settings["billing.graceDays"] });

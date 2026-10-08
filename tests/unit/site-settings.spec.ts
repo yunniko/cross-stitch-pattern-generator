@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { policyOf } from "../../lib/settings/server";
-import { parseSiteSetting, resolveSiteSettings, SITE_SETTINGS } from "../../lib/settings/site-settings";
+import { parseSiteSetting, policyOf, resolveSiteSettings, SITE_SETTINGS } from "../../lib/settings/site-settings";
 
 describe("site settings (G-126 M1, D374)", () => {
   it("takes each setting's default when nothing is stored", () => {

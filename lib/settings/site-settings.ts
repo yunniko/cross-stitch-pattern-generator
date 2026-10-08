@@ -1,3 +1,5 @@
+import type { BillingPolicy } from "@/lib/billing/entitlement";
+
 /**
  * The site's settings (G-126 M1, D374): single whole numbers the admin sets for the whole site, each one entry of
  * `SITE_SETTINGS`. A setting with no row in `SiteSetting` takes its default here. Pure: the database half is `server.ts`.
@@ -58,3 +60,6 @@ export function parseSiteSetting(id: string, input: string): { value: number } |
     return { error: `Enter between ${definition.min} and ${definition.max} ${definition.unit}.` };
   return { value };
 }
+
+/** What the entitlement rule needs from the settings. */
+export const policyOf = (settings: SiteSettings): BillingPolicy => ({ graceDays: settings["billing.graceDays"] });
