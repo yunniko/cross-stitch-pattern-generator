@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
-import { serializeStamp, stampFacts, stampFromPiece, stampName, type StampContents } from "@/lib/stamps/stamp";
+import { parseStamp, serializeStamp, stampFacts, stampFromPiece, stampName, type StampContents } from "@/lib/stamps/stamp";
+import type { StampFaceStamp } from "../components/stamp-face";
 import type { FloatingSelection, StitchPattern } from "@/lib/types";
 import type { AccountSaveMessage } from "./use-account-save";
 
 /**
- * The person's stamps from the editor (G-119, D360): saving the piece in hand as one, which asks for a name first, and how
- * many they keep, which Add stamp in the top bar waits for. The stamps themselves are the server's (`/api/stamps`).
+ * The person's stamps from the editor (G-119, D360): saving the piece in hand as one, which asks for a name first; how
+ * many they keep, which Add stamp in the top bar waits for; and Add stamp's gallery, read afresh each time it opens, from
+ * which a stamp is read whole and handed to `place`. The stamps themselves are the server's (`/api/stamps`).
  */
 export function useStamps(pattern: StitchPattern | null, signedIn: boolean, usable: boolean) {
   /** The stamp being named: made from the piece when Save as stamp was pressed, so the piece may move on meanwhile. */
@@ -14,6 +16,8 @@ export function useStamps(pattern: StitchPattern | null, signedIn: boolean, usab
   const [message, setMessage] = useState<AccountSaveMessage | null>(null);
   /** How many stamps the person keeps; null until known, and for a visitor. */
   const [count, setCount] = useState<number | null>(null);
+  /** Add stamp's gallery while it is open: the list (null while it is read), why something failed, the stamp being read. */
+  const [gallery, setGallery] = useState<{ stamps: StampFaceStamp[] | null; error: string | null; placing: string | null } | null>(null);
 
   useEffect(() => {
     if (!signedIn || !usable) return;
@@ -59,6 +63,33 @@ export function useStamps(pattern: StitchPattern | null, signedIn: boolean, usab
     }
   }
 
+  async function openGallery() {
+    setGallery({ stamps: null, error: null, placing: null });
+    const listed = await keptStamps();
+    setGallery(
+      (open) =>
+        open && (listed ? { ...open, stamps: listed } : { ...open, stamps: [], error: "Couldn't read your stamps. Try again in a moment." })
+    );
+    if (listed) setCount(listed.length);
+  }
+
+  /** Reads the stamp chosen and hands it to `place`, which answers why the chart refused it, or null once it is in hand. */
+  async function choose(id: string, place: (stamp: StampContents) => string | null) {
+    setGallery((open) => open && { ...open, placing: id, error: null });
+    let refusal: string | null;
+    try {
+      const response = await fetch(`/api/stamps/${encodeURIComponent(id)}`);
+      if (response.ok) refusal = place(parseStamp(await response.text()));
+      else {
+        const body = (await response.json().catch(() => null)) as { error?: string } | null;
+        refusal = body?.error ?? "That stamp could not be read. Try again in a moment.";
+      }
+    } catch {
+      refusal = "Couldn't reach the server, so the stamp was not placed. Check your connection and try again.";
+    }
+    setGallery((open) => open && (refusal === null ? null : { ...open, placing: null, error: refusal }));
+  }
+
   return {
     busy,
     count,
@@ -66,6 +97,12 @@ export function useStamps(pattern: StitchPattern | null, signedIn: boolean, usab
     dismissMessage: () => setMessage(null),
     /** Makes the stamp from the piece and asks for its name. */
     begin,
+    openGallery: () => void openGallery(),
+    gallery: gallery && {
+      ...gallery,
+      choose: (id: string, place: (stamp: StampContents) => string | null) => void choose(id, place),
+      close: () => setGallery(null),
+    },
     naming: naming && { save: (name: string) => void save(name), cancel: () => setNaming(null), facts: factsOf(naming) },
   };
 }
@@ -78,13 +115,16 @@ const factsOf = ({ pattern }: StampContents) =>
     backstitch: Boolean(pattern.backstitch?.length),
   });
 
-/** How many stamps the person keeps, read from their list; null when it cannot be read. */
-async function keptCount(): Promise<number | null> {
+/** The person's stamps as cards, pinned first and then the newest; null when they cannot be read. */
+async function keptStamps(): Promise<StampFaceStamp[] | null> {
   try {
-    const response = await fetch("/api/stamps");
+    const response = await fetch("/api/stamps", { cache: "no-store" });
     if (!response.ok) return null;
-    return ((await response.json()) as { stamps: unknown[] }).stamps.length;
+    return ((await response.json()) as { stamps: StampFaceStamp[] }).stamps;
   } catch {
     return null;
   }
 }
+
+/** How many stamps the person keeps; null when it cannot be read. */
+const keptCount = async () => (await keptStamps())?.length ?? null;

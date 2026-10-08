@@ -255,11 +255,15 @@ export function useSelectTool(
     copy: () => selection && setClipboard(selection),
     /**
      * Puts a ready-made piece in hand, as Paste does (G-081): whatever is floating is applied first, never discarded.
-     * Lettering from the Text tab arrives this way.
+     * Lettering from the Text tab arrives this way, and a stamp (G-119) with `chart`, its palette grown by the threads the
+     * stamp brought: what was floating is applied onto that chart, as one undo step with the new threads. The threads are
+     * added at the palette's end, so the floating piece's indices still name its own.
      */
-    insert: (piece: FloatingSelection) => {
+    insert: (piece: FloatingSelection, chart?: StitchPattern) => {
       if (!pattern) return;
-      merge();
+      const base = chart ?? pattern;
+      if (selection) commit(mergeSelection(base, selection));
+      else if (chart) commit(chart);
       setSelection(piece);
     },
     paste: () => {

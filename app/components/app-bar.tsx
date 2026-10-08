@@ -3,7 +3,8 @@
 import Link from "next/link";
 import type { RefObject } from "react";
 import { WORKSPACES, type Workspace } from "@/lib/editor/workspaces";
-import { featureState } from "@/lib/features/features";
+import { featureState, lockedNote } from "@/lib/features/features";
+import { STAMPS_FEATURE } from "@/lib/stamps/stamp";
 import { useFeatures } from "../features/features-context";
 import { SkinIcon } from "../skin/skin";
 import { lockedControlProps } from "./feature-gate";
@@ -12,7 +13,7 @@ import { DISABLED_ICON, DISABLED_TEXT, PillButton } from "./ui";
 
 /**
  * The bar across the top (G-095, proposal D): what belongs to the application and not to a tool or a view. The way to a
- * new chart, the way to save this one, the chart's name, the three workspaces, the one Undo and Redo, the command list and the account.
+ * new chart, the way to save this one, Add stamp, the chart's name, the three workspaces, the one Undo and Redo, the command list and the account.
  *
  * There were four copies of Undo and Redo, one in each bar a tool could put up; this is the only one, and it never moves.
  */
@@ -42,6 +43,11 @@ export interface AppBarProps {
    * with both groups switched off.
    */
   save: Omit<SaveMenuProps, "buttonClassName" | "wordClassName"> | null;
+  /**
+   * Add stamp (G-119 M4): opens the gallery of the person's stamps, to place one in the chart. `unusable` says why it
+   * cannot be now (signed out, no chart in Edit, no stamps). Under the stamps feature: hidden, it is absent.
+   */
+  addStamp: { onOpen: () => void; unusable: string | null };
   /** Opens the command list (G-093); Ctrl+K does the same (D288). */
   onOpenCommands: () => void;
   commandsDisabled: boolean;
@@ -61,6 +67,7 @@ export function AppBar({
   onNewChart,
   newChartDisabled,
   save,
+  addStamp,
   onOpenCommands,
   commandsDisabled,
   commandsButtonRef,
@@ -68,6 +75,7 @@ export function AppBar({
 }: AppBarProps) {
   // Each tab is under its workspace's switch (G-103, D312): hidden, the tab is absent; locked, it is greyed with its note.
   const features = useFeatures();
+  const stampGate = lockedControlProps(featureState(features, STAMPS_FEATURE), STAMPS_FEATURE);
   return (
     <header className="flex h-11 shrink-0 items-stretch gap-3 border-b border-line bg-surface px-3" data-testid="app-bar">
       <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -83,6 +91,25 @@ export function AppBar({
           <span className={WORD}>New</span>
         </button>
         {save && <SaveMenu {...save} buttonClassName={APP_BUTTON} wordClassName={WORD} />}
+        {stampGate && (
+          <button
+            type="button"
+            onClick={addStamp.onOpen}
+            disabled={stampGate.disabled || addStamp.unusable !== null}
+            data-feature-locked={stampGate["data-feature-locked"]}
+            aria-label="Add stamp"
+            aria-haspopup="dialog"
+            title={
+              (stampGate.disabled && lockedNote("Add stamp")) ||
+              addStamp.unusable ||
+              "Add stamp: place one of your stamps in the chart, as a piece in hand"
+            }
+            className={APP_BUTTON}
+          >
+            <SkinIcon name="stamp" className="h-[15px] w-[15px]" />
+            <span className={WORD}>Add stamp</span>
+          </button>
+        )}
         {chartName !== null && (
           <span
             className="min-w-0 truncate text-[13px] text-ink"

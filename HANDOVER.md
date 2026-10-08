@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-10-08 at the G-108 part 1 M9 deploy, on 2b84632 (production v0.17.0; 1,514 unit; CI green on 8e0d62c, e2e 652 and 24)
+Last verified: 2026-10-08 at G-119 M4, on the M4 commit after a4e1223 (production v0.17.0; 1,541 unit; CI pending)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab), live at
@@ -8,6 +8,7 @@ standalone Owner project (not svc-lab), live at
 goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 ## Current state
+**G-119, Transparency as colour and stamps — ACTIVE, M1–M4 done (not deployed yet); M5 (release and deploy) next.** Select, Lasso and Wand share a **Transparency as colour** switch, Off by default: a piece's empty stitches then keep what lies beneath, in the preview and on apply (`lib/editor/floating-selection.ts`, D359). Stamps are kept by the server (`Stamp` table, migration `20261008180000_stamps`; contents and their check in `lib/stamps/stamp.ts`, reads and writes in `lib/stamps/server.ts`, routes under `app/api/stamps/`; limit `stamps.count`, feature `stamps.account`; D360). **Save as stamp** is in the Selection tab (`app/components/selection-actions.tsx`, naming in `app/hooks/use-stamps.ts` and `app/components/stamp-name-dialog.tsx`); the account's Stamps section (`app/account/stamps/`) lists them with search, pin, rename and delete, and its count in the sidebar. **Add stamp** in the top bar (`app/components/app-bar.tsx`) opens a gallery (`app/components/stamp-gallery.tsx`); the stamp chosen is placed by `lib/stamps/place.ts` (threads matched by identity, the missing ones added, else refused whole; D361) and handed to `takePiece` with the grown chart, committed in one undo step. Stamps are user content: deleted with the account, in the same backups as saved charts.
 
 **Production** runs f07005a, v0.15.0 (2026-10-08, per the deploy log below): the 1b shell, and generation and every export but the editable save running in the `processor` container. The work itself is in the Rust sidecar and **nothing stands behind it** — the TypeScript pipeline is deleted, not disabled (D221). Every signed-off goal, with what it produced and how it was verified, is in `docs/goals-archive.md` — G-028 onwards, from the OXS format to the Atelier redesign (D157–D167), the move to the server (D149–D155) and the Rust port.
 
@@ -362,6 +363,7 @@ which the Pattern Keeper PDF shares and calls with backstitch switched off.)
 
 - **G-108 part 1 is signed off (2026-10-08); its pre-deploy dumps are deleted.** Personal data: saved charts hold photos on the shared host, deleted with the account, with no retention rule or scheduled backup yet. Known: a rename from the account bumps the version, so the editor's next Save asks first (D356). Part 2 (visibility, the gallery, G-111) is not planned yet.
 
+- **G-119 is mid-goal:** M5 releases and deploys it, with a database dump before the `stamps` migration.
 - **G-124 (editing the photo in Photo) is deployed in v0.14.0 and awaits the Owner's sign-off.** Known limits: tries made from an edited photo do not survive a reload, and a Generate while sliders are moved leaves the photo up over the new chart until Cancel.
 - **G-107 (the account and admin redesign) is signed off and archived** (2026-10-07). The mock-ups' sections not built yet are G-106, G-108 and G-119 to G-123.
 - **Email is built but off (G-113).** PENDING APPROVAL: switching sending on in production needs the site's name and domain, a sender address on it, and whether to reuse listing-studio's Resend account; then `.env` sets `MAIL_TRANSPORT`, `MAIL_FROM` and `RESEND_API_KEY`, and the app is restarted.

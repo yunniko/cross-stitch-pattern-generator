@@ -113,7 +113,7 @@ function StampCard({ stamp }: { stamp: StampListCard }) {
       data-pinned={stamp.pinned}
     >
       <StampPreview stamp={stamp}>
-        <div className="absolute top-1.5 right-1.5 flex gap-1">
+        <span className="absolute top-1.5 right-1.5 flex gap-1">
           <button
             type="button"
             aria-label="Pin"
@@ -145,7 +145,7 @@ function StampCard({ stamp }: { stamp: StampListCard }) {
           >
             <SkinIcon name="delete" />
           </button>
-        </div>
+        </span>
       </StampPreview>
       <div className="flex flex-col gap-1.5 px-3 py-2.5">
         {mode === "rename" ? (

@@ -154,13 +154,15 @@ Outside both: G-111's comments follow G-112; G-097 comes after G-108, whose char
 - **Architecture fit:** the stamping rule stays in `lib/editor/floating-selection.ts` (`stampSelection`, `mergeSelection`), told the switch's value, not a second merge. The switch is a shared tool option, as `lockTransparency` is (`app/tools/types.ts`). The stamp's contents and their check are pure modules in `lib/stamps/`; routes follow `app/api/charts/`; the limit and the feature join their registries; the gallery and the account cards reuse `lib/charts/chart-cards.ts`'s search and order.
 
 **Milestones:**
-- [ ] M1 — Transparency as colour: the shared switch in the quick options of Select, Lasso and Wand, honoured by the preview and the apply, for stitches and backstitch; unit and browser tests; a decision file.
-- [ ] M2 — Stamps kept by the server: the `Stamp` table and migration, the pure contents and their check, routes to list, save, rename, pin and delete, the limit and the feature; unit and API tests.
-- [ ] M3 — Save as stamp in the Selection tab, and the account's Stamps section with its count; browser tests.
-- [ ] M4 — Add stamp in the top bar and its gallery; placing as a piece in hand with the palette mapping; browser tests.
+- [x] M1 — Transparency as colour: the shared switch in the quick options of Select, Lasso and Wand, honoured by the preview and the apply, for stitches and backstitch; unit and browser tests; a decision file.
+- [x] M2 — Stamps kept by the server: the `Stamp` table and migration, the pure contents and their check, routes to list, save, rename, pin and delete, the limit and the feature; unit and API tests.
+- [x] M3 — Save as stamp in the Selection tab, and the account's Stamps section with its count; browser tests.
+- [x] M4 — Add stamp in the top bar and its gallery; placing as a piece in hand with the palette mapping; browser tests.
 - [ ] M5 — Records and release: HANDOVER, coverage rows, release notes, docs-lint; database dump, `npm run release`, push, deploy to `cross-stitch.craftodejnice.cz` (its existing target), live check with single GET requests.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-10-08 — M4 done: Add stamp in the top bar, its gallery (search, refusal shown in place), placing by `lib/stamps/place.ts` (D361), the grown chart committed with the piece. Verified: 1,541 unit (8 new for placing), tsc, eslint, prettier, docs-lint, brief checks; e2e `stamps-add.spec.ts` runs in CI. Also: the lasso cost-ratio test warms both sides (a4e1223), as a cold CI run failed it with the code unchanged. Next: M5.
+- 2026-10-08 — M1–M3 done (c2c2ba9, 97eb8df, f90ba5a). M1: the switch, Off by default (D359); the viewport-parity fixture now places its piece with the switch On, as the frozen drawing knew only that. M2: `Stamp` table, routes, limit and feature (D360). M3: Save as stamp with a name dialog, the account's Stamps section and its count. Verified: 1,533 unit, tsc, eslint, prettier, docs-lint, brief checks; CI on M2 failed 7 e2e: 6 parity cases (fixed in M3) and the stamps API spec meeting 429, because the e2e servers never raised the chart-save rate limit (bc5be0b raises it). CI on M3 pending. Next: M4.
 - 2026-10-08 — Owner accepted the plan, to run through all milestones. Answers: the switch starts Off (empty cells keep what is beneath; a change from today); the pieces are called stamps, as the mock-up names them ("sample" is the demo chart's name); tags and importing a stamp file are left for later.
 - 2026-10-08 — widened by the Owner (transparency switch, stamps library, Save as stamp, Add stamp); plan written.
 - 2026-10-07 — drafted as stamps from the Owner's mock-ups for G-107.

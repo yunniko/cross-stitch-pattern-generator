@@ -22,7 +22,8 @@ const SWATCHES_SHOWN = 8;
 
 export function StampPreview({ stamp, children }: { stamp: StampFaceStamp; children?: ReactNode }) {
   return (
-    <div className="at-well relative flex aspect-square items-center justify-center border-b border-line p-3">
+    // A span, not a div: in the editor's gallery the whole card is a button, which may hold only phrasing content.
+    <span className="at-well relative flex aspect-square items-center justify-center border-b border-line p-3">
       {/* eslint-disable-next-line @next/next/no-img-element -- one pixel per stitch shown pixelated, private to its owner; nothing to optimise. */}
       <img
         src={stampPreviewHref(stamp.id, stamp.version)}
@@ -31,7 +32,7 @@ export function StampPreview({ stamp, children }: { stamp: StampFaceStamp; child
         className="max-h-full max-w-full object-contain [image-rendering:pixelated]"
       />
       {children}
-    </div>
+    </span>
   );
 }
 

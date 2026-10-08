@@ -2,7 +2,7 @@ import { useMemo, useState, type MouseEvent, type PointerEvent, type ReactNode }
 import { ONE_STITCH_STAMP, stampOutline, type StampEdge } from "@/lib/editor/brush-stamp";
 import { stampForPress } from "@/lib/editor/shape-raster";
 import type { Command, CommandDefinition } from "@/lib/editor/commands";
-import type { BackstitchLine, FloatingSelection } from "@/lib/types";
+import type { BackstitchLine, FloatingSelection, StitchPattern } from "@/lib/types";
 import { firstTools, toolOffered, type Workspace } from "@/lib/editor/workspaces";
 import { moduleIndexOf, TOOL_DEFINITIONS, TOOL_MODULES, toolDefinition, type Tool } from "./registry";
 import { SHAPE_FILL, type ToolOption } from "./options";
@@ -55,8 +55,8 @@ export interface Tools {
   shares: readonly SharedOption[];
   overlay: ReactNode;
   piece: PieceService;
-  /** Takes a ready-made piece in hand, with a tool that can act on it. */
-  takePiece: (piece: FloatingSelection) => void;
+  /** Takes a ready-made piece in hand, with a tool that can act on it; see `ToolShell.takePiece` for `chart`. */
+  takePiece: (piece: FloatingSelection, chart?: StitchPattern) => void;
   highlightBackstitch: ((line: BackstitchLine) => boolean) | undefined;
   /** The options the tool in hand declares, in the order they are drawn (G-093). */
   options: readonly ToolOption[];
@@ -117,12 +117,12 @@ export function useTools(inputs: ToolsInputs): Tools {
     setActivation((count) => count + 1);
   }
 
-  function takePiece(taken: FloatingSelection) {
+  function takePiece(taken: FloatingSelection, chart?: StitchPattern) {
     if (!toolDefinition(activeTool).piece) {
       const pieceTool = TOOL_DEFINITIONS.find((tool) => tool.piece);
       if (pieceTool) switchTool(pieceTool.id);
     }
-    piece.insert(taken);
+    piece.insert(taken, chart);
   }
   const shell: ToolShell = { takePiece };
 

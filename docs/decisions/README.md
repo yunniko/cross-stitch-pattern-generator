@@ -396,3 +396,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D358 — The account's Charts are the design's card grid, with pins kept by the server and rename and delete's question kept — active
 - D359 — Transparency as colour: a piece's empty stitches cover only when the switch is on, and it starts off — active
 - D360 — A stamp is kept as an editable chart of the piece, limited by count — active
+- D361 — A placed stamp's threads are matched by identity, the missing ones added, and a stamp that cannot fit is refused whole — active

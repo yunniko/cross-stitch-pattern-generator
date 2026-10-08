@@ -163,8 +163,11 @@ export interface PhotoApi {
  * tools, which do not exist yet while a tool's own runtime is being built.
  */
 export interface ToolShell {
-  /** Puts a ready-made piece in hand, with a tool in hand that can act on it. */
-  takePiece: (piece: FloatingSelection) => void;
+  /**
+   * Puts a ready-made piece in hand, with a tool in hand that can act on it. `chart` is the chart the piece's threads are
+   * in when that is not the open one: a stamp's threads added to its palette (G-119), committed with the piece.
+   */
+  takePiece: (piece: FloatingSelection, chart?: StitchPattern) => void;
 }
 
 /** The piece in hand, which the Text tab, the quick mirrors and a colour merge also act on. */
@@ -179,8 +182,8 @@ export interface PieceService {
   release: () => void;
   /** Forgets the copied piece: the palette was renumbered under it. */
   invalidateClipboard: () => void;
-  /** Puts a ready-made piece in hand, as Paste does. */
-  insert: (piece: FloatingSelection) => void;
+  /** Puts a ready-made piece in hand, as Paste does; with `chart`, that chart is committed first (see `ToolShell.takePiece`). */
+  insert: (piece: FloatingSelection, chart?: StitchPattern) => void;
 }
 
 export interface ToolRuntime {

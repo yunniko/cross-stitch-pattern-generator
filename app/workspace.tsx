@@ -17,6 +17,7 @@ import { useDocumentHistory } from "./hooks/use-document-history";
 import type { StitchPattern } from "@/lib/types";
 import { ConfirmNewChart } from "./components/confirm-new-chart";
 import { SaveConflict } from "./components/save-conflict";
+import { StampGallery } from "./components/stamp-gallery";
 import { StampNameDialog } from "./components/stamp-name-dialog";
 import { AppBar } from "./components/app-bar";
 import { EditorLayout } from "./components/editor-layout";
@@ -35,7 +36,8 @@ import { useChartRenderer, type ChartRenderer } from "./hooks/use-chart-renderer
 import { paginatesAsA4, useExports } from "./hooks/use-exports";
 import { useAccountSave } from "./hooks/use-account-save";
 import { useStamps } from "./hooks/use-stamps";
-import { STAMPS_FEATURE } from "@/lib/stamps/stamp";
+import { placeStamp } from "@/lib/stamps/place";
+import { STAMPS_FEATURE, type StampContents } from "@/lib/stamps/stamp";
 import { PageCuts } from "./components/page-cuts";
 import { Preferences } from "./components/preferences";
 import { longerSideFor, useGeneration } from "./hooks/use-generation";
@@ -194,7 +196,7 @@ export default function Workspace({ account }: WorkspaceProps) {
       y: Math.max(0, Math.floor((shown.top - origin.top) / cellSize)),
     };
   }
-  // The person's stamps (G-119): Save as stamp in the Selection tab, and how many they keep for Add stamp.
+  // The person's stamps (G-119): Save as stamp in the Selection tab, and Add stamp's gallery in the top bar.
   const stamps = useStamps(pattern, account !== null, featureUsable(features, STAMPS_FEATURE));
   const stampSaving = gatedAction("selection.save-stamp", features, () => {});
   // The tools (G-092): which is in hand, and the routing of the pointer and the keys to it. What each does is in its own
@@ -550,8 +552,25 @@ export default function Workspace({ account }: WorkspaceProps) {
   useKeyboardShortcuts(
     commands,
     scrollerRef,
-    commandListOpen || preferencesOpen || stamps.naming !== null || accountSave.conflict !== null || everyWorkspaceOff
+    commandListOpen ||
+      preferencesOpen ||
+      stamps.naming !== null ||
+      stamps.gallery !== null ||
+      accountSave.conflict !== null ||
+      everyWorkspaceOff
   );
+
+  /**
+   * A stamp chosen in Add stamp's gallery, placed as a piece in hand at the corner of the part of the chart in view (G-119
+   * M4), the threads the chart lacks committed with it. Answers why the chart refused it, or null.
+   */
+  function placeChosenStamp(contents: StampContents): string | null {
+    if (!pattern) return "Open a chart to place a stamp in it.";
+    const placed = placeStamp(pattern, contents, viewCorner() ?? { x: 0, y: 0 });
+    if ("error" in placed) return placed.error;
+    tools.takePiece(placed.piece, placed.pattern === pattern ? undefined : placed.pattern);
+    return null;
+  }
 
   /** Closing without running anything gives the focus back to the button; after a command it is left on the page, so the chart's keys act at once. */
   function closeCommandList(ran: boolean) {
@@ -562,6 +581,17 @@ export default function Workspace({ account }: WorkspaceProps) {
   // The skin in force (G-095, D295). One is shipped; choosing between skins is a later goal's.
   const skin = ATELIER;
   const chartShown = pattern !== null && !startingNew;
+  // Add stamp (G-119 M4) is for a signed-in person with stamps, placing into a chart open in Edit.
+  const addStampUnusable =
+    account === null
+      ? "Sign in to place the stamps kept with your account"
+      : !chartShown || lookingOnly
+        ? "Add stamp places a stamp in the chart open in Edit"
+        : stamps.count === null
+          ? "Your stamps could not be read yet"
+          : stamps.count === 0
+            ? "No stamps yet: select a piece, then choose Save as stamp in the Selection tab"
+            : null;
   /**
    * The Save menu (G-108): the account's group under its own switch, the file under Export's (G-103). There is something to
    * save only with a chart shown, and no menu with both groups hidden.
@@ -600,6 +630,15 @@ export default function Workspace({ account }: WorkspaceProps) {
           photoDisabled={source.isLoading || generation.isProcessing}
         />
         {stamps.naming && <StampNameDialog facts={stamps.naming.facts} onSave={stamps.naming.save} onCancel={stamps.naming.cancel} />}
+        {stamps.gallery && (
+          <StampGallery
+            stamps={stamps.gallery.stamps}
+            error={stamps.gallery.error}
+            placing={stamps.gallery.placing}
+            onChoose={(id) => stamps.gallery?.choose(id, placeChosenStamp)}
+            onClose={stamps.gallery.close}
+          />
+        )}
         {accountSave.conflict && (
           <SaveConflict
             savedAt={accountSave.conflict.savedAt}
@@ -645,6 +684,7 @@ export default function Workspace({ account }: WorkspaceProps) {
                 onNewChart={() => setStartingNew(true)}
                 newChartDisabled={startScreenVisible}
                 save={saveMenu}
+                addStamp={{ onOpen: stamps.openGallery, unusable: addStampUnusable }}
                 onOpenCommands={() => setCommandListOpen(true)}
                 commandsDisabled={startingNew}
                 commandsButtonRef={commandsButtonRef}
