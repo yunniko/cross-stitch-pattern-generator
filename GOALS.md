@@ -150,7 +150,8 @@ What everything depends on is stated once here:
 - [ ] M4 — Proof in Stripe's test mode (waits on (b)): a script drives a test clock through subscribe, two renewals and cancellation, feeding the real events through the same handler, and checks the rule's answer at each step. The run is recorded in `docs/reviews/`.
 
 **Progress log** (newest first; The Company appends at every stopping point):
-- 2026-10-08 — split from the 2026-10-06 draft and planned at the Owner's request; awaiting acceptance.
+- 2026-10-08 — Owner accepted the plan ("you can go ahead with 109, 106 and 126 - 128"), to run after G-109 in the order G-106, G-126, G-127, G-128. (a) answered: G-109 first. Until the Owner says otherwise, (b) leaves M4 BLOCKED: on test keys. (The heading read ACTIVE from 60d1537, a replace meant for G-109 alone; corrected by this acceptance.)
+- 2026-10-08 — split from the 2026-10-06 draft and planned at the Owner's request.
 - 2026-10-06 — goal created.
 
 ### G-126 · Subscriptions, part 2: payment failures and recovery at any point in a subscription's life — ACTIVE (accepted 2026-10-08)
@@ -203,7 +204,8 @@ What everything depends on is stated once here:
 - [ ] M3 — Proof in Stripe's test mode (waits on G-106 (b)): the test-clock run of scenario (1), (2) and (4) against the real API, recorded.
 
 **Progress log** (newest first; The Company appends at every stopping point):
-- 2026-10-08 — goal created and planned at the Owner's request; awaiting acceptance.
+- 2026-10-08 — Owner accepted the plan ("you can go ahead with 109, 106 and 126 - 128"), to run after G-109 in the order G-106, G-126, G-127, G-128. Until the Owner answers, the reversible defaults built are: (a) grace 14 days, as the setting's starting value; (b) a dispute or refund is shown to the admin and changes no access by itself (the admin can take the tier by hand, G-127); (c) charts over Free's space kept, readable and exportable, no new saves. M3 BLOCKED: on test keys.
+- 2026-10-08 — goal created and planned at the Owner's request.
 
 ### G-127 · Subscriptions, part 3: the admin's controls (tiers, prices, people's subscriptions, grants by hand, revenue) — ACTIVE (accepted 2026-10-08)
 - **What:** from the 2026-10-06 draft. The admin:
@@ -231,9 +233,10 @@ What everything depends on is stated once here:
 - [ ] M2 — People's subscriptions: list, history, failing payments, second-subscription warnings, refunds if (a) says so, revenue and counts; tests; deploys to `cross-stitch.craftodejnice.cz` (existing target).
 
 **Progress log** (newest first; The Company appends at every stopping point):
-- 2026-10-08 — split from G-106's draft and planned; awaiting acceptance.
+- 2026-10-08 — Owner accepted the plan ("you can go ahead with 109, 106 and 126 - 128"), to run after G-109 in the order G-106, G-126, G-127, G-128. Until the Owner answers: (a) refunds through the contract from the admin page, since Stripe's dashboard remains available either way; (b) no trial unless the admin sets one, a setting defaulting to none.
+- 2026-10-08 — split from G-106's draft and planned.
 
-### G-128 · Ready to sell: the Stripe account, live mode, VAT, invoices and terms — DRAFT, planned 2026-10-08, mostly the Owner's
+### G-128 · Ready to sell: the Stripe account, live mode, VAT, invoices and terms — ACTIVE (accepted 2026-10-08), mostly the Owner's
 - **What:** everything that has to be true before the first real payment, and the switch itself. Each item is the Owner's or needs their approval; JulAI's part is the app's side and a checklist.
 - **The Owner's (escalation-tier: account, money, terms, credentials):**
   1. **The Stripe account:** the business identity it is held under, its country, and accepting Stripe's terms. Then its dashboard settings:
@@ -257,6 +260,7 @@ What everything depends on is stated once here:
 - **Milestones:** planned when the Owner takes it up. None of it starts without (1).
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-10-08 — Owner accepted the plan ("you can go ahead with 109, 106 and 126 - 128"), to run after G-109 in the order G-106, G-126, G-127, G-128. Items (1) to (6) are the Owner's and wait on them. JulAI's part starts after G-127: the pages take the Owner's text, so they are built with the missing text named as missing, and the launch checklist as a script.
 - 2026-10-08 — drafted from G-106's constraints at the Owner's request.
 
 ### G-108 · Charts saved to an account, a gallery, and who can see each (private by default) — DRAFT (part 2; part 1 signed off 2026-10-08)
