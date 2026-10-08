@@ -202,11 +202,12 @@ What everything depends on is stated once here:
   - (c) What Free means for saved charts beyond its space: the proposal above (kept, readable, no new saves), or something else.
 
 **Milestones:**
-- [ ] M1 — The life of a subscription: the scenario driver and all eleven scenarios as unit tests (twice-delivered and shuffled variants generated), the grace setting and the rule's `past_due` case, the first-failure date kept and cleared correctly across periods; decision on the grace's counting.
-- [ ] M2 — What the person sees: the five messages through the mail contract (sent once per failure), the account page's notice and Portal link, Free without deletion; browser tests on the fake adapter in CI. Deploys to `cross-stitch.craftodejnice.cz` (existing target), buying still hidden.
+- [x] M1 — The life of a subscription: the scenario driver and all eleven scenarios as unit tests (twice-delivered and shuffled variants generated), the grace setting and the rule's `past_due` case, the first-failure date kept and cleared correctly across periods; decision on the grace's counting.
+- [ ] M2 — What the person sees: the five messages through the mail contract (sent once per failure), the account page's notice and Portal link, Free without deletion, the admin's form for the grace setting (D374); browser tests on the fake adapter in CI. Deploys to `cross-stitch.craftodejnice.cz` (existing target), buying still hidden.
 - [ ] M3 — Proof in Stripe's test mode (waits on G-106 (b)): the test-clock run of scenario (1), (2) and (4) against the real API, recorded.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-10-08 — M1 done (9ba5cb5, 42e8a0b). The eleven scenarios in `tests/unit/billing-scenarios.spec.ts`, each delivered as sent, twice and shuffled (77 tests); both sync guards checked by mutation (removing either fails 4 and 8 tests); full unit suite 1728/1728. Built: the grace from the first failure, bounded by the period (D375); price changes taken only in good standing (D376); disputes and refunds noted in history; site settings with `billing.graceDays` (D374). The admin's form for the setting moved to M2, with the other things a person sees and their browser tests. Next: M2.
 - 2026-10-08 — Owner accepted the plan ("you can go ahead with 109, 106 and 126 - 128"), to run after G-109 in the order G-106, G-126, G-127, G-128. Until the Owner answers, the reversible defaults built are: (a) grace 14 days, as the setting's starting value; (b) a dispute or refund is shown to the admin and changes no access by itself (the admin can take the tier by hand, G-127); (c) charts over Free's space kept, readable and exportable, no new saves. M3 BLOCKED: on test keys.
 - 2026-10-08 — goal created and planned at the Owner's request.
 
