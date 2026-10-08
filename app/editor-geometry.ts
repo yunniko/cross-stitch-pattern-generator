@@ -2,7 +2,7 @@ import { cellAtClient } from "@/lib/editor/chart-viewport";
 import type { StampEdge } from "@/lib/editor/brush-stamp";
 import { smoothClosedPath } from "@/lib/editor/lasso";
 import { HIGHLIGHT_MASK_ALPHA } from "@/lib/export/render";
-import { backstitchThreads, dashPatternFor, dashSegments } from "@/lib/editor/backstitch-style";
+import { BACKSTITCH_WIDTH_RATIO, backstitchThreads, dashPatternFor, dashSegments } from "@/lib/editor/backstitch-style";
 import type { CellPoint } from "@/lib/editor/shape-raster";
 import { lineWithinRect } from "@/lib/editor/backstitch";
 import type { BackstitchLine, FloatingSelection, PaletteColor } from "@/lib/types";
@@ -283,9 +283,6 @@ export function drawLassoPath(ctx: CanvasRenderingContext2D, path: readonly Cell
   ctx.stroke();
   ctx.restore();
 }
-
-/** A backstitch is a fifth of a cell wide (Owner, 2026-09-25), never thinner than a pixel on screen. */
-export const BACKSTITCH_WIDTH_RATIO = 1 / 5;
 
 /**
  * Draws backstitch lines over the chart (G-073).

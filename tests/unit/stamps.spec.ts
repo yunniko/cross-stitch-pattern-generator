@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { PREVIEW_DRAWING } from "@/lib/charts/saved-chart-link";
 import { liftSelection } from "@/lib/editor/floating-selection";
 import { limitById } from "@/lib/limits/limits";
 import {
@@ -157,6 +158,6 @@ describe("the account's Stamps", () => {
     expect(stampsShown(kept, "  ROSE ").map((s) => s.name)).toEqual(["Rose border", "Little rose"]);
     expect(stampsShown(kept, "rose bor").map((s) => s.name)).toEqual(["Rose border"]);
     expect(stampsShown(kept, "")).toHaveLength(3);
-    expect(stampPreviewHref("a b", 3)).toBe("/api/stamps/a%20b/preview?v=3");
+    expect(stampPreviewHref("a b", 3)).toBe(`/api/stamps/a%20b/preview?v=3.${PREVIEW_DRAWING}`);
   });
 });

@@ -147,7 +147,7 @@ function ChartCard({ chart, now }: { chart: SavedChartCard; now: number }) {
       data-pinned={chart.pinned}
     >
       <div className="at-well relative flex aspect-[4/3] items-center justify-center border-b border-line p-3">
-        {/* eslint-disable-next-line @next/next/no-img-element -- one pixel per stitch shown pixelated, private to its owner; nothing to optimise. */}
+        {/* eslint-disable-next-line @next/next/no-img-element -- whole pixels a stitch shown pixelated, private to its owner; nothing to optimise. */}
         <img
           src={previewHref(chart.id, chart.version)}
           alt={`Preview of ${chart.name}`}

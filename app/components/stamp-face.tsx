@@ -24,8 +24,8 @@ export function StampPreview({ stamp, children }: { stamp: StampFaceStamp; child
   return (
     // A span, not a div: in the editor's gallery the whole card is a button, which may hold only phrasing content.
     <span className="at-well relative flex aspect-square items-center justify-center border-b border-line p-1.5">
-      {/* Scaled up to fill the square at its own proportions: the image has one pixel per stitch, so a size cap alone left a speck. */}
-      {/* eslint-disable-next-line @next/next/no-img-element -- one pixel per stitch shown pixelated, private to its owner; nothing to optimise. */}
+      {/* Scaled up to fill the square at its own proportions: the image has a few pixels a stitch, so a size cap alone left a speck. */}
+      {/* eslint-disable-next-line @next/next/no-img-element -- whole pixels a stitch shown pixelated, private to its owner; nothing to optimise. */}
       <img
         src={stampPreviewHref(stamp.id, stamp.version)}
         alt={`Preview of ${stamp.name}`}

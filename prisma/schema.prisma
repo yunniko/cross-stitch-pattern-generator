@@ -287,8 +287,8 @@ model SavedChart {
   brand     String?
   /// Kept first in the account's list (M8). Not a save: it changes neither the version nor the save time.
   pinned    Boolean  @default(false)
-  /// The chart in its own colours, one pixel per stitch, as a PNG drawn by the server at every save (D357). Null for a
-  /// chart saved before previews, until it is first asked for.
+  /// The chart in its own colours, as a PNG drawn by the server at every save (D357, D362). Null for a chart saved before
+  /// previews or before the current drawing, until it is first asked for.
   preview   Bytes?
   /// 1 when made, one more at every overwrite or rename: a save names the version it last saw (Owner, 2026-10-06).
   version   Int      @default(1)
@@ -319,8 +319,9 @@ model Stamp {
   backstitch Boolean  @default(false)
   /// Kept first in the gallery and the account's list. Not a change: the version stays.
   pinned     Boolean  @default(false)
-  /// The piece in its own colours, one pixel per stitch, drawn by the server when saved.
-  preview    Bytes
+  /// The piece in its own colours, drawn by the server when saved. Null for one kept before the current drawing, until
+  /// it is first asked for (D362).
+  preview    Bytes?
   /// 1 when made, one more at every rename.
   version    Int      @default(1)
   createdAt  DateTime @default(now())

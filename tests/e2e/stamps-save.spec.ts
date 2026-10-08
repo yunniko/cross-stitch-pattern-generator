@@ -61,10 +61,10 @@ test("the piece in hand is saved as a named stamp, listed in the account to sear
   await expect(cards(page).getByTestId("stamp-name")).toHaveText(["Untitled stamp", "Rose row"]);
   const rose = cards(page).filter({ hasText: "Rose row" });
   await expect(rose.getByTestId("stamp-facts")).toHaveText("3 × 1 · 1 thread");
-  // The preview is the server's, one pixel a stitch.
+  // The preview is the server's, sixteen pixels a stitch at this size.
   await expect
     .poll(() => rose.getByTestId("stamp-preview").evaluate((img: HTMLImageElement) => [img.naturalWidth, img.naturalHeight]))
-    .toEqual([3, 1]);
+    .toEqual([48, 16]);
   // Drawn large, not at one pixel a stitch: it fills its square but for a small margin.
   const filled = await rose
     .getByTestId("stamp-preview")

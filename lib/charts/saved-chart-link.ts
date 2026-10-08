@@ -98,9 +98,21 @@ export function openOutcome(status: number, header: (name: string) => string | n
   return { kind: "opened", link, name: name ? decodeURIComponent(name) : "" };
 }
 
+/**
+ * Which drawing of the previews is current (D362): part of every preview's address, so a browser keeping a picture of an
+ * older drawing asks again. One more whenever `lib/charts/preview.ts` draws differently, with a migration that drops the
+ * stored ones.
+ */
+export const PREVIEW_DRAWING = 2;
+
+/** What a preview's address asks for: the chart's or stamp's version, and the drawing. */
+export function previewKey(version: number): string {
+  return `${version}.${PREVIEW_DRAWING}`;
+}
+
 /** A saved chart's preview, at a version: a new save asks for a new picture, an unchanged one is served from the cache. */
 export function previewHref(id: string, version: number): string {
-  return `/api/charts/${encodeURIComponent(id)}/preview?v=${version}`;
+  return `/api/charts/${encodeURIComponent(id)}/preview?v=${previewKey(version)}`;
 }
 
 /** "8 Oct 2026, 14:05", for saying when the chart was saved elsewhere. */

@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { registerReader, uniqueEmail } from "./helpers/auth";
 import { featuresDb } from "./helpers/features";
+import { previewKey } from "../../lib/charts/saved-chart-link";
 
 /**
  * G-108 part 1 M2 (D354): the saved-chart routes against the real database, through a signed-in browser's own requests.
@@ -41,7 +42,7 @@ function api(page: Page) {
     rename: (id: string, name: string) => page.request.patch(`/api/charts/${id}`, { data: { name }, headers: headers() }),
     pin: (id: string, pinned: unknown) => page.request.patch(`/api/charts/${id}`, { data: { pinned }, headers: headers() }),
     remove: (id: string) => page.request.delete(`/api/charts/${id}`, { headers: headers() }),
-    preview: (id: string, version?: number) => page.request.get(`/api/charts/${id}/preview${version ? `?v=${version}` : ""}`),
+    preview: (id: string, version?: number) => page.request.get(`/api/charts/${id}/preview${version ? `?v=${previewKey(version)}` : ""}`),
   };
 }
 
@@ -104,19 +105,21 @@ test("a chart is saved by an id of the server's, overwritten at its version, ren
   expect(await renamed.json()).toMatchObject({ name: "Rose bed", version: 3 });
   expect(JSON.parse(await (await charts.read(first.id)).text()).name).toBe("Rose bed");
 
-  // The preview: drawn at every save, kept by a rename, kept by the browser only at the version it shows.
-  expect(await previewSize(await charts.preview(first.id, 3))).toEqual([2, 2]);
+  // The preview: drawn at every save, sixteen pixels a stitch on a chart this small, kept by a rename, kept by the browser
+  // only at the version and drawing it shows.
+  expect(await previewSize(await charts.preview(first.id, 3))).toEqual([32, 32]);
   expect((await charts.overwrite(first.id, chart("Rose bed", 9), 3)).status()).toBe(200);
   const redrawn = await charts.preview(first.id, 4);
-  expect(await previewSize(redrawn)).toEqual([3, 3]);
+  expect(await previewSize(redrawn)).toEqual([48, 48]);
   expect(redrawn.headers()["cache-control"]).toContain("immutable");
   expect((await charts.preview(first.id)).headers()["cache-control"]).toBe("private, no-cache");
-  // A chart saved before previews existed: drawn on first request and kept, its save time unchanged.
+  expect((await page.request.get(`/api/charts/${first.id}/preview?v=4`)).headers()["cache-control"]).toBe("private, no-cache");
+  // A chart saved before previews existed, or before the current drawing: drawn on first request and kept, its save time unchanged.
   const before = await featuresDb().query<{ updatedAt: Date }>(
     `UPDATE "SavedChart" SET "preview" = NULL WHERE "id" = $1 RETURNING "updatedAt"`,
     [first.id]
   );
-  expect(await previewSize(await charts.preview(first.id, 4))).toEqual([3, 3]);
+  expect(await previewSize(await charts.preview(first.id, 4))).toEqual([48, 48]);
   const kept = await featuresDb().query<{ drawn: boolean; updatedAt: Date }>(
     `SELECT "preview" IS NOT NULL AS drawn, "updatedAt" FROM "SavedChart" WHERE "id" = $1`,
     [first.id]

@@ -496,3 +496,4 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | D359 | 04-editing | Transparency as colour |
 | D360 | out of scope (accounts and admin) | |
 | D361 | 04-editing | Add stamp: threads matched by brand and code or colour, the missing ones added, refused whole |
+| D362 | out of scope (accounts and admin) | |

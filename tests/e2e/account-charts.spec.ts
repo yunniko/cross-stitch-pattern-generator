@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { previewHref } from "../../lib/charts/saved-chart-link";
 import { openSmallChart, saveButton, saveMenuItem, waitForAutosave } from "./helpers/app";
 import { registerReader, uniqueEmail } from "./helpers/auth";
 import { panel } from "./helpers/panel";
@@ -51,12 +52,12 @@ test("the account lists its saved charts with the space used; one is renamed, on
   await expect(chartsTab(page)).toHaveText("Charts2");
   await expect(rows(page).first()).toContainText(/50 × 31 · \d+ colours · /);
   await expect(rows(page).first().getByTestId("saved-chart-when")).toHaveText("Just now");
-  // The preview: one pixel per stitch, loaded.
+  // The preview: ten pixels a stitch at this size, loaded.
   const picture = rows(page).first().getByTestId("saved-chart-preview");
-  await expect(picture).toHaveAttribute("src", `/api/charts/${copy.id}/preview?v=${copy.version}`);
+  await expect(picture).toHaveAttribute("src", previewHref(copy.id, copy.version));
   await expect
     .poll(() => picture.evaluate((img: HTMLImageElement) => [img.complete, img.naturalWidth, img.naturalHeight]))
-    .toEqual([true, 50, 31]);
+    .toEqual([true, 500, 310]);
 
   // Pinned: the older chart goes first, without being saved again; unpinned, it goes back.
   await rows(page).nth(1).getByRole("button", { name: "Pin" }).click();
@@ -117,10 +118,7 @@ test("the account lists its saved charts with the space used; one is renamed, on
   // The list asks for the new version's preview.
   await waitForAutosave(page);
   await page.goto("/account/charts");
-  await expect(rows(page).first().getByTestId("saved-chart-preview")).toHaveAttribute(
-    "src",
-    `/api/charts/${first.id}/preview?v=${first.version + 1}`
-  );
+  await expect(rows(page).first().getByTestId("saved-chart-preview")).toHaveAttribute("src", previewHref(first.id, first.version + 1));
 
   // The same chart asked for again while it is open: nothing to replace, nothing asked.
   await page.goto(`/?chart=${first.id}`);

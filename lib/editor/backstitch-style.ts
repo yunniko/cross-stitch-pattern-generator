@@ -14,6 +14,9 @@ import { lineLengthCells } from "./backstitch";
  * fails rather than quietly printing a different chart from the one on screen.
  */
 
+/** A backstitch is a fifth of a cell wide (Owner, 2026-09-25), never thinner than a pixel on screen. */
+export const BACKSTITCH_WIDTH_RATIO = 1 / 5;
+
 /**
  * On/off lengths in cells, longest-lived first. Empty means solid.
  *

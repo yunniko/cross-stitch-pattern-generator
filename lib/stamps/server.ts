@@ -119,10 +119,20 @@ export async function readStamp(userId: string, id: string) {
   return stamp;
 }
 
+/**
+ * A stamp's preview, with the version it shows. One kept before the current drawing has none (D362): it is drawn from the
+ * stored document on first request and kept, without counting as a change.
+ */
 export async function readStampPreview(userId: string, id: string): Promise<{ png: Uint8Array<ArrayBuffer>; version: number }> {
   const stamp = await prisma.stamp.findUnique({ where: { id }, select: { userId: true, version: true, preview: true } });
   if (!stamp || stamp.userId !== userId) throw new Refused(404, NOT_FOUND);
-  return { png: new Uint8Array(stamp.preview), version: stamp.version };
+  if (stamp.preview) return { png: new Uint8Array(stamp.preview), version: stamp.version };
+  const { document } = (await prisma.stamp.findUnique({ where: { id }, select: { document: true } })) ?? {};
+  const read = document === undefined ? null : readStampUpload(document);
+  if (!read || "error" in read) throw new Refused(404, NOT_FOUND);
+  const png = await chartPreviewPng(read.stamp.pattern);
+  await prisma.$executeRaw`UPDATE "Stamp" SET "preview" = ${Buffer.from(png)} WHERE "id" = ${id} AND "preview" IS NULL`;
+  return { png, version: stamp.version };
 }
 
 /** Renames a stamp: the row and the name inside its document. One more version; the preview is kept. */

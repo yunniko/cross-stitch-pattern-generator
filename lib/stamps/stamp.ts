@@ -1,3 +1,4 @@
+import { previewKey } from "@/lib/charts/saved-chart-link";
 import { parsePatternDocument, serializePattern } from "@/lib/editor/pattern-serialize";
 import { BYTES_PER_MB, type LimitValue } from "@/lib/limits/limits";
 import { EMPTY_CELL, type BackstitchLine, type FloatingSelection, type PaletteColor, type StitchPattern } from "@/lib/types";
@@ -184,5 +185,5 @@ export function stampsShown<T extends { name: string }>(stamps: readonly T[], qu
 
 /** A stamp's preview, at the version shown, so a rename's new version is fetched afresh and the rest come from the cache. */
 export function stampPreviewHref(id: string, version: number): string {
-  return `/api/stamps/${encodeURIComponent(id)}/preview?v=${version}`;
+  return `/api/stamps/${encodeURIComponent(id)}/preview?v=${previewKey(version)}`;
 }

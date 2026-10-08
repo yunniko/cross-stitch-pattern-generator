@@ -172,7 +172,7 @@ export async function readChart(userId: string, id: string) {
 }
 
 /**
- * A saved chart's preview, its owner's alone, with the version it shows. A chart saved before previews existed has none:
+ * A saved chart's preview, its owner's alone, with the version it shows. A chart saved before previews, or before the current drawing (D362), has none:
  * it is drawn from the stored file on first request and kept, without counting as a save (the save time stays).
  */
 export async function readPreview(userId: string, id: string): Promise<{ png: Uint8Array<ArrayBuffer>; version: number }> {

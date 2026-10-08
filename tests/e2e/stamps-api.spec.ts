@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { registerReader, uniqueEmail } from "./helpers/auth";
 import { featuresDb, setUserFeatures } from "./helpers/features";
+import { previewKey } from "../../lib/charts/saved-chart-link";
 
 /**
  * G-119 M2 (D360): the stamp routes against the real database, through a signed-in browser's own requests. A stamp is kept
@@ -33,7 +34,7 @@ function api(page: Page) {
     rename: (id: string, name: string) => page.request.patch(`/api/stamps/${id}`, { data: { name }, headers: headers() }),
     pin: (id: string, pinned: unknown) => page.request.patch(`/api/stamps/${id}`, { data: { pinned }, headers: headers() }),
     remove: (id: string) => page.request.delete(`/api/stamps/${id}`, { headers: headers() }),
-    preview: (id: string, version?: number) => page.request.get(`/api/stamps/${id}/preview${version ? `?v=${version}` : ""}`),
+    preview: (id: string, version?: number) => page.request.get(`/api/stamps/${id}/preview${version ? `?v=${previewKey(version)}` : ""}`),
   };
 }
 
@@ -66,7 +67,7 @@ test("a stamp is kept by an id of the server's, read back, renamed, pinned and d
   });
   expect(first.id).toMatch(/^[a-z0-9]{20,}$/);
 
-  // Read back with its shape; the preview is one pixel a stitch.
+  // Read back with its shape; the preview is sixteen pixels a stitch at this size.
   const read = await stamps.read(first.id);
   expect(read.status()).toBe(200);
   expect(read.headers()["x-stamp-version"]).toBe("1");
@@ -75,7 +76,14 @@ test("a stamp is kept by an id of the server's, read back, renamed, pinned and d
   expect(preview.headers()["content-type"]).toBe("image/png");
   expect(preview.headers()["cache-control"]).toContain("immutable");
   const png = await preview.body();
-  expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([2, 1]);
+  expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([32, 16]);
+  // A stamp kept before the current drawing has none: drawn on first request, the same picture, and kept.
+  await featuresDb().query(`UPDATE "Stamp" SET "preview" = NULL WHERE "id" = $1`, [first.id]);
+  expect(Buffer.compare(await (await stamps.preview(first.id, 1)).body(), png)).toBe(0);
+  const drawn = await featuresDb().query<{ drawn: boolean }>(`SELECT "preview" IS NOT NULL AS drawn FROM "Stamp" WHERE "id" = $1`, [
+    first.id,
+  ]);
+  expect(drawn.rows[0].drawn).toBe(true);
 
   // Not a stamp: refused, nothing kept.
   expect((await stamps.create("{}")).status()).toBe(422);
