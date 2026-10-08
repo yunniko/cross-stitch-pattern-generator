@@ -13,6 +13,7 @@ const GRACE = "billing.graceDays";
 test("an admin sets the grace, is refused out of range, and puts the default back @alone", async ({ page }) => {
   const setting = page.locator(`[data-testid="setting"][data-setting="${GRACE}"]`);
   const field = setting.getByRole("textbox");
+  const editor = page.getByTestId("settings-editor");
   try {
     await signInAsAdmin(page);
     await page.goto("/admin/settings");
@@ -23,14 +24,14 @@ test("an admin sets the grace, is refused out of range, and puts the default bac
 
     await field.fill("61");
     await setting.getByRole("button", { name: "Set", exact: true }).click();
-    await expect(page.getByRole("alert")).toHaveText("Enter between 0 and 60 days.");
+    await expect(editor.getByRole("alert")).toHaveText("Enter between 0 and 60 days.");
     await field.fill("seven");
     await setting.getByRole("button", { name: "Set", exact: true }).click();
-    await expect(page.getByRole("alert")).toHaveText("Enter a whole number of days.");
+    await expect(editor.getByRole("alert")).toHaveText("Enter a whole number of days.");
 
     await field.fill("7");
     await setting.getByRole("button", { name: "Set", exact: true }).click();
-    await expect(page.getByRole("alert")).toHaveCount(0);
+    await expect(editor.getByRole("alert")).toHaveCount(0);
     await expect(setting.getByTestId("setting-effective")).toHaveAttribute("data-value", "7");
     await expect(setting.getByTestId("setting-effective")).toContainText("Set to 7 days");
     const { rows } = await featuresDb().query<{ value: number }>(`SELECT "value" FROM "SiteSetting" WHERE "key" = $1`, [GRACE]);
