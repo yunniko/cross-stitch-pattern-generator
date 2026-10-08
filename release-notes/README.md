@@ -18,7 +18,7 @@ The custom size can be typed freely again; it is limited and rounded when you le
   (something that was wrong is right), or `internal`: the change has nothing a user sees, and the text says why in one
   line. Internal notes are dropped when a release is cut.
 - **The text** is Markdown, written for the person using the app: what they will notice, not how it was done. One or two
-  sentences; no file names, commit ids or goal numbers.
+  sentences; no file names, commit ids or goal numbers (the check refuses those, D363).
 - **The file name** is a short slug of the change (`colour-picker.md`). It is never shown.
 
 ## Cutting a release

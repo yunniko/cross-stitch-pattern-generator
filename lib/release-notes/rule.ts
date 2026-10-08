@@ -70,6 +70,23 @@ export function parseNote(source: string): ReleaseNote | { error: string } {
   return { kind, text };
 }
 
+/**
+ * The developers' words a note a user reads may not carry (release-notes/README.md: "no file names, commit ids or goal
+ * numbers"), each found by its shape. Whether the rest is in a user's words is judged, not matched: see D363.
+ */
+const DEVELOPER_WORDS: [string, RegExp][] = [
+  ["a goal number", /\bG-\d{3}\b/g],
+  ["a decision number", /\bD\d{3}\b/g],
+  ["a file name", /\b[\w./-]+\.(?:[cm]?[jt]sx?|rs|md|json|css|html|ya?ml|toml|sql|prisma)\b/g],
+  // Seven to forty hex digits holding at least one digit and one letter, as git abbreviates a commit.
+  ["a commit id", /\b(?=[0-9a-f]*\d)(?=[0-9a-f]*[a-f])[0-9a-f]{7,40}\b/g],
+];
+
+/** Each developer's word in a note's text, as "a file name (lib/x.ts)". Empty when there is none. */
+export function developerWords(text: string): string[] {
+  return DEVELOPER_WORDS.flatMap(([what, shape]) => [...text.matchAll(shape)].map((m) => `${what} (${m[0]})`));
+}
+
 export interface NoteCheck {
   ok: boolean;
   /** The changed files that ask for a note. */
@@ -86,7 +103,7 @@ export interface NoteCheck {
  * Whether a change carries what it must. A change touching a watched path needs at least one note added or edited in
  * `release-notes/next/` with it, or a release cut in it: a pushed range that ends in "Release vX" has moved its notes
  * into that release's file, and the release is where they are now (found on v0.2.1's push). Any note it adds or edits
- * must parse. `readNote` gives a note file's text.
+ * must parse, and one a user reads may carry no developer's words. `readNote` gives a note file's text.
  */
 export function checkChange(changed: ChangedPath[], readNote: (path: string) => string): NoteCheck {
   const present = changed.filter((c) => c.state === "present").map((c) => toSlashes(c.path));
@@ -97,6 +114,10 @@ export function checkChange(changed: ChangedPath[], readNote: (path: string) => 
   for (const note of notes) {
     const parsed = parseNote(readNote(note));
     if ("error" in parsed) problems.push(`${note}: ${parsed.error}`);
+    else if (parsed.kind !== "internal") {
+      const words = developerWords(parsed.text);
+      if (words.length > 0) problems.push(`${note}: a user reads it, and it names ${words.join(", ")}`);
+    }
   }
   if (asking.length > 0 && notes.length === 0 && releases.length === 0) {
     problems.push(

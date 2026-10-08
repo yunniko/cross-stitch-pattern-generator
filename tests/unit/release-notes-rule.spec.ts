@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { RELEASES_DIR } from "@/lib/release-notes/release";
-import { asksForNote, checkChange, parseNote, RELEASED_NOTES_DIR, type ChangedPath } from "@/lib/release-notes/rule";
+import { asksForNote, checkChange, developerWords, parseNote, RELEASED_NOTES_DIR, type ChangedPath } from "@/lib/release-notes/rule";
 
 /** G-105 M2, D309: which changes ask for a release note, and what satisfies the ask. */
 
@@ -71,6 +71,8 @@ describe("a change", () => {
     "release-notes/next/picker.md": note("new"),
     "release-notes/next/rename.md": note("internal", "Renamed a hook."),
     "release-notes/next/broken.md": "no front matter",
+    "release-notes/next/goal.md": note("fixed", "The Brush keeps colours (G-114, see D241)."),
+    "release-notes/next/goal-internal.md": note("internal", "lib/fill/region.ts is shared for G-114."),
   };
   const read = (path: string) => files[path];
 
@@ -114,5 +116,34 @@ describe("a change", () => {
     const result = checkChange(present("release-notes/next/broken.md"), read);
     expect(result.ok).toBe(false);
     expect(result.problems[0]).toContain("release-notes/next/broken.md");
+  });
+
+  it("carrying a note a user reads that names a goal, a decision, a file or a commit fails; an internal one may", () => {
+    const result = checkChange(present("app/x.tsx", "release-notes/next/goal.md"), read);
+    expect(result.ok).toBe(false);
+    expect(result.problems[0]).toContain("a goal number (G-114), a decision number (D241)");
+    expect(checkChange(present("app/x.tsx", "release-notes/next/goal-internal.md"), read).ok).toBe(true);
+  });
+});
+
+describe("a developer's word in a note (D363)", () => {
+  it("is a goal or decision number, a file name or a commit id", () => {
+    expect(developerWords("Fixed in lib/fill/region.ts and page.tsx.")).toEqual([
+      "a file name (lib/fill/region.ts)",
+      "a file name (page.tsx)",
+    ]);
+    expect(developerWords("Reverts a1b2c3d, which broke the lasso.")).toEqual(["a commit id (a1b2c3d)"]);
+    expect(developerWords("Implements G-114 M2 per D241.")).toEqual(["a goal number (G-114)", "a decision number (D241)"]);
+  });
+
+  it("is not a version, a percentage, a key, a colour or an ordinary word", () => {
+    for (const text of [
+      "Version 0.18.0 draws half stitches thinner: 60 % of the side instead of 50 %.",
+      "Press W for the Magic wand, or Ctrl+D to drop the selection.",
+      "The thread DMC 310 is black; #1f2a3b is a colour, and so is accented, defaced or decade.",
+      "A chart named holiday.final opens again.",
+    ]) {
+      expect(developerWords(text), text).toEqual([]);
+    }
   });
 });
