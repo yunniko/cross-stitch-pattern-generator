@@ -140,11 +140,30 @@ Outside both: G-111's comments follow G-112; G-097 comes after G-108, whose char
 - **Answered (Owner, 2026-10-06):** for cross-stitch alone so far, but able to be set up for others. So the scripts and the service take the project's particulars (container, database, user, where dumps go, how long they are kept) as settings and name nothing of cross-stitch inside; another project on the host (`when-we-meet` has a database too) adopts it by settings, in its own compose file, when the Owner asks. Nothing is set up for another project by this goal.
 - **To settle (found by the review; Owner, 2026-10-06: not decided yet):** (a) where the copy off the host goes. (b) How long dumps are kept. (c) How much may be lost: is a daily dump enough once people's charts are stored?
 
-### G-119 · Stamps saved to an account and placed on a chart — DRAFT (2026-10-07)
-- **What:** a reader keeps small reusable motifs (stamps) with their account and places them on a chart; an Account › Stamps section lists them.
-- **Why:** shown in the Owner's mock-ups for G-107 (2026-10-07) and left out of it, because G-107 builds only sections whose data exists.
-- **Constraints:** joins G-107's declared section list as one entry (D346); no placeholder before it is built.
-- **Acceptance criteria (draft):** a stamp is made from a selection, kept with the account, listed, renamed and deleted in the account, and placed in the editor; specs for each.
+### G-119 · Transparency as colour, and a library of stamps kept with the account — ACTIVE (accepted 2026-10-08)
+- **What:** asked by the Owner, 2026-10-08: "add a switch to selection tools "transparency as color" if it is on - transparent parts rewrite any color. if it is off, transparent cells do not affect the cells on move or transform selected part. Also we need to add a library of samples saved to the account which can be reused in designs. Save as a sample becomes a selection button on a right panel. On the very top panel there is a add sample button which is active if user has samples and lets chose the sample from gallery". This takes over the stamps draft of 2026-10-07 (the mock-up's Account › Stamps).
+- **Why:** a piece moved over a design today wipes what lies under its empty cells; and a motif, border or lettering made once has to be redrawn in every chart.
+- **Acceptance criteria (restated):**
+  1. Select, Lasso and Wand share a **Transparency as colour** switch in their quick options. On: a piece's empty cells overwrite what they land on (today's behaviour). Off: they leave the cells beneath as they are, in the live preview and when the piece is applied; backstitch beneath is kept likewise. The place a moved piece was lifted from is still emptied either way. The switch starts Off.
+  2. **Save as stamp** is a button in the right panel's Selection tab: it asks a name and keeps the piece (stitches, stitch types, shape, backstitch and its threads) with the account. Without an account, or with the feature off, the button says why it cannot be used.
+  3. Stamps are kept by the server, refused to anyone but their owner, checked with the same rules as a saved chart's contents, and limited in number by an entry in the existing list of limits.
+  4. **Add stamp** sits in the top bar; it is usable only when the reader has stamps. It opens a gallery of their stamps (preview, name, size, threads, search); choosing one places it on the chart as a piece in hand, to move, flip and apply. A thread the chart lacks is added to its palette; a full palette is refused with a message.
+  5. An account section lists the stamps as the mock-up draws them (cards with preview, search, pin, rename, delete with a confirmation), with the count beside its tab.
+  6. Unit tests for the stamping rule, the stamp's contents and the palette mapping; browser tests for the switch both ways, saving, the account section, Add stamp and placing; the release deployed.
+- **Constraints:** **personal data:** stamps are user content on the shared host, deleted with the account, in the same backups as saved charts (flagged to the Owner, VALUES). The account section is one entry in G-107's section list (D346). Admin pages are never exercised live; the deploy is a release (`npm run release`) with a database dump before the migration.
+- **Architecture fit:** the stamping rule stays in `lib/editor/floating-selection.ts` (`stampSelection`, `mergeSelection`), told the switch's value, not a second merge. The switch is a shared tool option, as `lockTransparency` is (`app/tools/types.ts`). The stamp's contents and their check are pure modules in `lib/stamps/`; routes follow `app/api/charts/`; the limit and the feature join their registries; the gallery and the account cards reuse `lib/charts/chart-cards.ts`'s search and order.
+
+**Milestones:**
+- [ ] M1 — Transparency as colour: the shared switch in the quick options of Select, Lasso and Wand, honoured by the preview and the apply, for stitches and backstitch; unit and browser tests; a decision file.
+- [ ] M2 — Stamps kept by the server: the `Stamp` table and migration, the pure contents and their check, routes to list, save, rename, pin and delete, the limit and the feature; unit and API tests.
+- [ ] M3 — Save as stamp in the Selection tab, and the account's Stamps section with its count; browser tests.
+- [ ] M4 — Add stamp in the top bar and its gallery; placing as a piece in hand with the palette mapping; browser tests.
+- [ ] M5 — Records and release: HANDOVER, coverage rows, release notes, docs-lint; database dump, `npm run release`, push, deploy to `cross-stitch.craftodejnice.cz` (its existing target), live check with single GET requests.
+
+**Progress log** (newest first; The Company appends at every stopping point):
+- 2026-10-08 — Owner accepted the plan, to run through all milestones. Answers: the switch starts Off (empty cells keep what is beneath; a change from today); the pieces are called stamps, as the mock-up names them ("sample" is the demo chart's name); tags and importing a stamp file are left for later.
+- 2026-10-08 — widened by the Owner (transparency switch, stamps library, Save as stamp, Add stamp); plan written.
+- 2026-10-07 — drafted as stamps from the Owner's mock-ups for G-107.
 
 ### G-120 · The editor's preferences kept with the account — DRAFT (2026-10-07)
 - **What:** a signed-in reader's preferences follow them between browsers; a guest's stay in the browser as today.
