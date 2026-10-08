@@ -14,6 +14,7 @@ import { MemoryBillingStore } from "./helpers/memory-billing-store";
 
 const T0 = new Date("2026-10-08T12:00:00Z");
 const DAY = 24 * 3_600_000;
+const POLICY = { graceDays: 14 };
 const PRICE_ROW = { id: "price_row_personal_month", tierId: "tier_personal" };
 
 function setUp() {
@@ -117,7 +118,7 @@ describe("a subscription stored from the webhook", () => {
     expect(world.store.historyOf("user_1").map((entry) => [entry.kind, entry.after, entry.source])).toEqual([
       ["created", "active", "webhook"],
     ]);
-    expect(hasTier(world.store.row("user_1")!, world.clock.now())).toBe(true);
+    expect(hasTier(world.store.row("user_1")!, POLICY, world.clock.now())).toBe(true);
   });
 
   it("changes nothing on a second delivery of any event", async () => {
@@ -163,8 +164,8 @@ describe("a subscription stored from the webhook", () => {
       await world.deliver(shuffled(world.fresh(), 7));
       const row = world.store.row("user_1")!;
       expect(row.status).toBe(expected.status);
-      expect(hasTier(row, expected.tierAt)).toBe(true);
-      expect(hasTier(row, expected.freeAt)).toBe(false);
+      expect(hasTier(row, POLICY, expected.tierAt)).toBe(true);
+      expect(hasTier(row, POLICY, expected.freeAt)).toBe(false);
     };
     world.clock.move(30 * DAY);
     world.fake.endPeriod(id, "paid");
@@ -227,11 +228,11 @@ describe("payment failures after paid periods (the Owner's case)", () => {
       await world.deliver(shuffled(world.fresh(), 3));
       const row = world.store.row("user_1")!;
       expect(row.status).toBe(outcome);
-      expect(entitlement(row, world.clock.now())).toMatchObject({ tier: false, reason: outcome });
+      expect(entitlement(row, POLICY, world.clock.now())).toMatchObject({ tier: false, reason: outcome });
     });
   }
 
-  it("gives Free after the period when the retries end leaving it past_due for ever", async () => {
+  it("gives Free when the grace ends, the retries having left it past_due for ever", async () => {
     const world = setUp();
     const { id } = await world.checkout();
     world.clock.move(30 * DAY);
@@ -240,8 +241,9 @@ describe("payment failures after paid periods (the Owner's case)", () => {
     world.fake.giveUp(id, "past_due");
     await world.deliver(world.fresh());
     const row = world.store.row("user_1")!;
-    expect(hasTier(row, new Date(T0.getTime() + 59 * DAY))).toBe(true);
-    expect(hasTier(row, new Date(T0.getTime() + 63 * DAY))).toBe(false);
+    // The renewal failed at day 30; the grace is 14 days.
+    expect(hasTier(row, POLICY, new Date(T0.getTime() + 43 * DAY))).toBe(true);
+    expect(hasTier(row, POLICY, new Date(T0.getTime() + 44 * DAY))).toBe(false);
   });
 });
 

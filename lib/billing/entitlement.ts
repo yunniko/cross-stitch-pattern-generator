@@ -29,11 +29,19 @@ export function isSubscriptionStatus(status: string): status is SubscriptionStat
  */
 export const LATE_RECORD_ALLOWANCE_MS = 2 * 24 * 3_600_000;
 
+/** What the rule takes from the site's settings (`lib/settings/`). */
+export interface BillingPolicy {
+  /** How long the tier lasts after a renewal first fails (G-126, D375). */
+  graceDays: number;
+}
+
+const DAY_MS = 24 * 3_600_000;
+
 /** The stored fields the rule reads: what a query selects for it (`ENTITLEMENT_SELECT`). */
 export interface EntitlementInput {
   status: string;
   currentPeriodEnd: Date | null;
-  /** The first failed attempt of the invoice now open; G-126 counts its grace from it. */
+  /** The first failed attempt of the invoice now open, kept while the subscription stays failing (D375). */
   firstFailedAt: Date | null;
 }
 
@@ -46,6 +54,7 @@ export type FreeReason =
   | "first-payment-never-made"
   | "period-ended"
   | "no-period-recorded"
+  | "grace-ended"
   | "unpaid"
   | "canceled"
   | "paused"
@@ -63,7 +72,20 @@ function untilPeriodEnd(subscription: EntitlementInput, status: SubscriptionStat
   return now < until ? { tier: true, until, status } : free("period-ended", status);
 }
 
-export function entitlement(subscription: EntitlementInput | null | undefined, now: Date): Entitlement {
+/**
+ * A renewal is failing and being retried: the tier lasts for the grace, counted from the invoice's first failed
+ * attempt (Stripe's own date, never when an event arrived), and never past the period, so a subscription left failing
+ * cannot keep its tier for ever. A failing one with no failure date known lasts to its period's end. See D375.
+ */
+function untilGraceEnds(subscription: EntitlementInput, policy: BillingPolicy, now: Date): Entitlement {
+  const byPeriod = untilPeriodEnd(subscription, "past_due", now);
+  if (!subscription.firstFailedAt || !byPeriod.tier) return byPeriod;
+  const graceEnd = new Date(subscription.firstFailedAt.getTime() + policy.graceDays * DAY_MS);
+  if (now >= graceEnd) return free("grace-ended", "past_due");
+  return { tier: true, until: graceEnd < byPeriod.until ? graceEnd : byPeriod.until, status: "past_due" };
+}
+
+export function entitlement(subscription: EntitlementInput | null | undefined, policy: BillingPolicy, now: Date): Entitlement {
   if (!subscription) return free("no-subscription", null);
   const { status } = subscription;
   if (!isSubscriptionStatus(status)) return free("unknown-status", status);
@@ -76,10 +98,8 @@ export function entitlement(subscription: EntitlementInput | null | undefined, n
     case "trialing":
     case "active":
       return untilPeriodEnd(subscription, status, now);
-    // A renewal failed. Until G-126's grace setting exists, the tier lasts no longer than the paid-for period would:
-    // never past the stored period's end, so a failing subscription cannot keep its tier for ever.
     case "past_due":
-      return untilPeriodEnd(subscription, status, now);
+      return untilGraceEnds(subscription, policy, now);
     // Stripe has stopped trying (its "revoke access" status), ended the subscription, or paused it for want of a card.
     case "unpaid":
       return free("unpaid", status);
@@ -95,6 +115,6 @@ export function entitlement(subscription: EntitlementInput | null | undefined, n
 }
 
 /** Whether the person's tier counts now: the test features and limits apply. */
-export function hasTier(subscription: EntitlementInput | null | undefined, now = new Date()): boolean {
-  return entitlement(subscription, now).tier;
+export function hasTier(subscription: EntitlementInput | null | undefined, policy: BillingPolicy, now = new Date()): boolean {
+  return entitlement(subscription, policy, now).tier;
 }

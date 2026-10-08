@@ -8,6 +8,7 @@ import { BUYING_FEATURE, formatPrice, offeredTiers, planStatusLine, type PriceRo
 import { holdsThePlace } from "@/lib/billing/sync";
 import { featureUsable } from "@/lib/features/features";
 import { featureStatesFor } from "@/lib/features/server";
+import { billingPolicy } from "@/lib/settings/server";
 import { ChoosePriceButton, ManageBillingButton } from "@/app/components/account/billing-buttons";
 import { PageHead, SectionTitle } from "@/app/components/panel/panel-parts";
 
@@ -26,7 +27,7 @@ export default async function AccountPlanPage({ searchParams }: { searchParams: 
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
   const userId = session.user.id;
-  const [user, states, prices, { checkout }] = await Promise.all([
+  const [user, states, prices, { checkout }, policy] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -49,13 +50,14 @@ export default async function AccountPlanPage({ searchParams }: { searchParams: 
       select: { id: true, tierId: true, interval: true, amount: true, currency: true, tier: { select: { name: true } } },
     }),
     searchParams,
+    billingPolicy(),
   ]);
   if (!user) redirect("/login");
 
   const now = new Date();
   const stored = user.subscription;
-  const plan = planName(stored, now);
-  const status = planStatusLine(stored, now);
+  const plan = planName(stored, policy, now);
+  const status = planStatusLine(stored, policy, now);
   const billingOn = currentBillingSettings().on;
   const offered = billingOn && featureUsable(states, BUYING_FEATURE) ? offeredTiers(prices.map(toPriceRow)) : [];
   const live = stored !== null && holdsThePlace(stored);

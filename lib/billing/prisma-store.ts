@@ -51,6 +51,8 @@ function transactionStore(tx: Prisma.TransactionClient): BillingTx {
       tx.subscription.findUnique({ where: { stripeSubscriptionId: id }, select: STORED_SELECT }),
     subscriptionByUser: (userId): Promise<StoredSubscription | null> =>
       tx.subscription.findUnique({ where: { userId }, select: STORED_SELECT }),
+    subscriptionByCustomer: (customerId): Promise<StoredSubscription | null> =>
+      tx.subscription.findFirst({ where: { stripeCustomerId: customerId }, orderBy: { updatedAt: "desc" }, select: STORED_SELECT }),
     userExists: async (userId) => (await tx.user.findUnique({ where: { id: userId }, select: { id: true } })) !== null,
     priceByProviderId: (id) => tx.price.findUnique({ where: { stripePriceId: id }, select: { id: true, tierId: true } }),
     save: async (id: string | null, fields: SubscriptionFields, entries: HistoryEntry[], meta: HistoryMeta) => {

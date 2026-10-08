@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import type { FeatureState } from "@/lib/features/features";
 import { ENTITLEMENT_SELECT, hasTier } from "@/lib/billing/entitlement";
+import { billingPolicy } from "@/lib/settings/server";
 import { layerOver, limitDefaults, limitValuesOf } from "@/lib/limits/limits";
 import { LimitsEditor } from "@/app/admin/features/limits-editor";
 import { UserFeatures } from "./user-features";
@@ -17,7 +18,7 @@ const STATE: Record<"ON" | "LOCKED" | "HIDDEN", FeatureState> = { ON: "on", LOCK
 
 export default async function AdminUserFeaturesPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [user, siteRows, siteLimits, accountLimits] = await Promise.all([
+  const [user, siteRows, siteLimits, accountLimits, policy] = await Promise.all([
     prisma.user.findUnique({
       where: { id },
       select: {
@@ -37,11 +38,12 @@ export default async function AdminUserFeaturesPage({ params }: { params: Promis
     prisma.featureState.findMany(),
     prisma.siteLimit.findMany(),
     prisma.audienceLimit.findMany({ where: { audience: "accounts" } }),
+    billingPolicy(),
   ]);
   if (!user) notFound();
   const tier = user.subscription?.tier ?? null;
   const accounts = layerOver(layerOver(limitDefaults(), limitValuesOf(siteLimits)), limitValuesOf(accountLimits));
-  const withoutOwn = tier && hasTier(user.subscription) ? layerOver(accounts, limitValuesOf(tier.limits)) : accounts;
+  const withoutOwn = tier && hasTier(user.subscription, policy) ? layerOver(accounts, limitValuesOf(tier.limits)) : accounts;
   return (
     <div className="flex flex-col gap-4">
       <p className="m-0 text-[13px]">

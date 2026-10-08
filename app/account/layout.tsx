@@ -7,6 +7,7 @@ import { logoutAction } from "@/lib/auth/actions";
 import { ACCOUNT_SECTIONS } from "@/lib/account/sections";
 import { planName } from "@/lib/account/plan";
 import { ENTITLEMENT_SELECT } from "@/lib/billing/entitlement";
+import { billingPolicy } from "@/lib/settings/server";
 import { countCharts } from "@/lib/charts/server";
 import { countStamps } from "@/lib/stamps/server";
 import { PanelHeader } from "@/app/components/panel/panel-header";
@@ -28,7 +29,7 @@ export default async function AccountLayout({ children }: { children: ReactNode 
   if (!user) redirect("/login");
   // Beside Charts and Stamps, how many are kept (G-108 part 1 M8, G-119); a save, rename or delete reads the page, and so
   // this, again.
-  const [charts, stamps] = await Promise.all([countCharts(session.user.id), countStamps(session.user.id)]);
+  const [charts, stamps, policy] = await Promise.all([countCharts(session.user.id), countStamps(session.user.id), billingPolicy()]);
 
   return (
     <div className="flex min-h-screen flex-col bg-app">
@@ -48,7 +49,7 @@ export default async function AccountLayout({ children }: { children: ReactNode 
           <div className="flex flex-col gap-2 border-t border-line pt-4" data-testid="account-plan">
             <span className="text-[11px] font-medium tracking-[0.08em] text-muted uppercase">Plan</span>
             <div className="flex items-baseline justify-between gap-2">
-              <span className="text-[13px] text-ink">{planName(user.subscription)}</span>
+              <span className="text-[13px] text-ink">{planName(user.subscription, policy)}</span>
               <Link href="/account/plan" className="text-xs text-accent hover:text-accent-hover hover:underline">
                 See plans
               </Link>

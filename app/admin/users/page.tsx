@@ -6,6 +6,7 @@ import { adminUsersPageSize, paginate } from "@/lib/admin/pagination";
 import { parseUserFilters, usersHref } from "@/lib/admin/users-filter";
 import { planName } from "@/lib/account/plan";
 import { ENTITLEMENT_SELECT } from "@/lib/billing/entitlement";
+import { billingPolicy } from "@/lib/settings/server";
 import { groupThousands, isoDay } from "@/lib/panel/format";
 import { PageHead } from "@/app/components/panel/panel-parts";
 import { UserPanel } from "./user-panel";
@@ -41,7 +42,7 @@ export default async function AdminUsersPage({
     ...(filters.status ? { disabled: filters.status === "disabled" } : {}),
   };
 
-  const total = await prisma.user.count({ where });
+  const [total, policy] = await Promise.all([prisma.user.count({ where }), billingPolicy()]);
   const pageSize = adminUsersPageSize();
   const { page, totalPages, offset } = paginate(total, Number(params.page) || 1, pageSize);
 
@@ -135,7 +136,7 @@ export default async function AdminUsersPage({
                     <td className="px-3 py-2 text-muted">{user.name ?? ""}</td>
                     <td className="px-3 py-2 text-muted">{user.role}</td>
                     <td className="px-3 py-2 text-muted">
-                      {user.role === "ADMIN" && !user.subscription ? "—" : planName(user.subscription)}
+                      {user.role === "ADMIN" && !user.subscription ? "—" : planName(user.subscription, policy)}
                     </td>
                     <td className={`px-3 py-2 ${user.disabled ? "text-danger" : "text-muted"}`}>{user.disabled ? "Disabled" : "Active"}</td>
                     <td className="px-3 py-2 font-mono text-xs text-faint">{isoDay(user.createdAt)}</td>

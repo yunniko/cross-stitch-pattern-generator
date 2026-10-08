@@ -1,4 +1,4 @@
-# Stripe billing reference (G-106)
+# Stripe billing reference (G-106, G-126)
 
 Retrieved 2026-10-08. What the billing core relies on from Stripe, with its source; what The Company concludes
 from it is marked **Conclusion**.
@@ -8,6 +8,12 @@ from it is marked **Conclusion**.
 - S1: docs.stripe.com/billing/subscriptions/overview (subscription statuses, payment outcomes)
 - S2: docs.stripe.com/changelog/basil/2025-03-31/deprecate-subscription-current-period-start-and-end
 - S3: docs.stripe.com/webhooks (delivery, ordering, signatures, retries)
+- S4: docs.stripe.com/billing/collection-method (renewals that need the customer to authenticate)
+- S5: docs.stripe.com/billing/subscriptions/pending-updates (plan changes and failed payments)
+- S6: docs.stripe.com/billing/revenue-recovery/smart-retries (what happens when retries end)
+- S7: docs.stripe.com/billing/subscriptions/overview#subscription-status-resolution
+- S8: docs.stripe.com/billing/subscriptions/webhooks#refund-events and docs.stripe.com/api/disputes/object
+- S9: docs.stripe.com/billing/subscriptions/cancel
 
 ## Subscription statuses (S1)
 
@@ -17,7 +23,7 @@ from it is marked **Conclusion**.
 | `incomplete_expired` | the 23 hours passed; the first invoice is voided | Free |
 | `trialing` | in a trial; provision access | tier until the period's end |
 | `active` | in good standing; provision access | tier until the period's end |
-| `past_due` | a renewal payment failed; Stripe may retry | tier until the period's end (interim; G-126 adds grace) |
+| `past_due` | a renewal payment failed; Stripe may retry | tier until the grace ends, at most the period's end plus 2 days (D375) |
 | `unpaid` | retries exhausted under the "mark unpaid" setting; revoke access | Free |
 | `canceled` | terminal | Free |
 | `paused` | trial ended without a payment method | Free |
@@ -52,8 +58,28 @@ latest invoice with `attempt_count > 0` the failure began at `status_transitions
   delivered (G-106 M2).
 - Stripe recommends allowlisting its webhook IP addresses.
 
+## Payment failures over a subscription's life (G-126)
+
+- A renewal that needs the customer to authenticate sets the subscription `past_due`, sends
+  `invoice.payment_action_required`, and leaves the invoice `open` with a `hosted_invoice_url` to pay (S4).
+  **Conclusion:** treated as a failure; the same grace applies.
+- By default a plan change is applied at once whatever its payment does; `payment_behavior=pending_if_incomplete`
+  keeps the old items and sets `pending_update` instead (S5). Whether the Customer Portal uses it is not documented.
+  **Conclusion:** the app takes a new price only from a subscription in good standing (D376).
+- When retries end with "mark unpaid", later invoices stay drafts and are not attempted (S6). Under "most recent
+  invoice" resolution, paying the latest open invoice makes the subscription `active` again (S7).
+  **Conclusion:** an `unpaid` subscription can come back; it is the same subscription, not a new one.
+- A new period's invoice is a new latest invoice, so the failure date read from it starts over. **Conclusion:** the
+  app keeps the earliest failure date while the subscription stays failing, so a new invoice does not renew the
+  grace (D375).
+- A dispute names its `charge` and `payment_intent`, not a customer (S8); `charge.invoice` was removed in basil,
+  where the link is the `invoice_payments` API. **Conclusion:** the app finds the customer through the charge, and
+  notes disputes and refunds for the admin without changing access.
+- `cancel_at_period_end` does not stop retries; at cancellation, open invoices get `auto_advance=false` (S9).
+
 ## Confidence and gaps
 
 High for the statuses, item-level period and webhook rules (all from Stripe's own documentation). The failure
 date is The Company's reading of invoice fields and is to be checked against test mode in G-106 M4, which waits on
-the Owner's test keys.
+the Owner's test keys. The Portal's plan-change behaviour on a failed payment (S5) is unconfirmed: D376 holds
+either way, and G-126 M3 checks it in test mode.

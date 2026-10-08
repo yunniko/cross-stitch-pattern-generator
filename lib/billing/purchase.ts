@@ -1,5 +1,5 @@
 import type { BillingInterval } from "./contract";
-import { entitlement, type EntitlementInput } from "./entitlement";
+import { entitlement, type BillingPolicy, type EntitlementInput } from "./entitlement";
 import { holdsThePlace } from "./sync";
 
 /**
@@ -85,9 +85,9 @@ export interface StoredForStatus extends EntitlementInput {
 }
 
 /** One line under the plan's name about where the subscription stands; null when there is none to speak of. */
-export function planStatusLine(stored: StoredForStatus | null, now: Date): string | null {
+export function planStatusLine(stored: StoredForStatus | null, policy: BillingPolicy, now: Date): string | null {
   if (!stored) return null;
-  const given = entitlement(stored, now);
+  const given = entitlement(stored, policy, now);
   const periodEnd = stored.currentPeriodEnd ? DAY_FORMAT.format(stored.currentPeriodEnd) : null;
   if (given.tier) {
     if (given.status === "past_due") return "A renewal payment failed and is being retried. Update your card under Manage billing.";
@@ -103,6 +103,7 @@ export function planStatusLine(stored: StoredForStatus | null, now: Date): strin
     case "canceled":
       return "Your paid plan has ended.";
     case "unpaid":
+    case "grace-ended":
       return "Your paid plan stopped because a renewal could not be paid.";
     case "paused":
       return "Your paid plan is paused.";

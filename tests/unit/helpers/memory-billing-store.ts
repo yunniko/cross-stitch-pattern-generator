@@ -50,6 +50,7 @@ export class MemoryBillingStore implements BillingStore {
       },
       subscriptionByProviderId: async (id) => state.subscriptions.find((row) => row.stripeSubscriptionId === id) ?? null,
       subscriptionByUser: async (userId) => state.subscriptions.find((row) => row.userId === userId) ?? null,
+      subscriptionByCustomer: async (customerId) => state.subscriptions.find((row) => row.stripeCustomerId === customerId) ?? null,
       userExists: async (userId) => this.users.has(userId),
       priceByProviderId: async (id) => this.prices.get(id) ?? null,
       save: async (id: string | null, fields: SubscriptionFields, entries: HistoryEntry[], meta: HistoryMeta) => {

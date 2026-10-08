@@ -12,6 +12,7 @@ import {
 
 const NOW = new Date("2026-10-08T12:00:00Z");
 const DAY = 24 * 3_600_000;
+const POLICY = { graceDays: 14 };
 
 describe("checkoutRefusal (G-106 M3)", () => {
   const open = { billingOn: true, buyingUsable: true, price: { current: true }, stored: null };
@@ -76,25 +77,25 @@ describe("planStatusLine", () => {
   });
 
   it("says nothing without a subscription", () => {
-    expect(planStatusLine(null, NOW)).toBeNull();
+    expect(planStatusLine(null, POLICY, NOW)).toBeNull();
   });
 
   it("names the renewal, the end of a cancelled one, a trial and a failing payment", () => {
-    expect(planStatusLine(stored({}), NOW)).toBe("Renews on 18 October 2026.");
-    expect(planStatusLine(stored({ cancelAtPeriodEnd: true }), NOW)).toBe(
+    expect(planStatusLine(stored({}), POLICY, NOW)).toBe("Renews on 18 October 2026.");
+    expect(planStatusLine(stored({ cancelAtPeriodEnd: true }), POLICY, NOW)).toBe(
       "Cancelled: your plan lasts until 18 October 2026 and will not renew."
     );
-    expect(planStatusLine(stored({ status: "trialing" }), NOW)).toBe("Trial until 18 October 2026.");
-    expect(planStatusLine(stored({ status: "past_due", firstFailedAt: NOW }), NOW)).toMatch(/payment failed/);
+    expect(planStatusLine(stored({ status: "trialing" }), POLICY, NOW)).toBe("Trial until 18 October 2026.");
+    expect(planStatusLine(stored({ status: "past_due", firstFailedAt: NOW }), POLICY, NOW)).toMatch(/payment failed/);
   });
 
   it("explains each way to Free", () => {
-    expect(planStatusLine(stored({ status: "canceled" }), NOW)).toBe("Your paid plan has ended.");
-    expect(planStatusLine(stored({ status: "unpaid" }), NOW)).toMatch(/could not be paid/);
-    expect(planStatusLine(stored({ status: "incomplete" }), NOW)).toMatch(/not complete yet/);
-    expect(planStatusLine(stored({ status: "incomplete_expired" }), NOW)).toMatch(/did not start/);
-    expect(planStatusLine(stored({ status: "paused" }), NOW)).toMatch(/paused/);
-    expect(planStatusLine(stored({ currentPeriodEnd: new Date(NOW.getTime() - 5 * DAY) }), NOW)).toMatch(/not active/);
+    expect(planStatusLine(stored({ status: "canceled" }), POLICY, NOW)).toBe("Your paid plan has ended.");
+    expect(planStatusLine(stored({ status: "unpaid" }), POLICY, NOW)).toMatch(/could not be paid/);
+    expect(planStatusLine(stored({ status: "incomplete" }), POLICY, NOW)).toMatch(/not complete yet/);
+    expect(planStatusLine(stored({ status: "incomplete_expired" }), POLICY, NOW)).toMatch(/did not start/);
+    expect(planStatusLine(stored({ status: "paused" }), POLICY, NOW)).toMatch(/paused/);
+    expect(planStatusLine(stored({ currentPeriodEnd: new Date(NOW.getTime() - 5 * DAY) }), POLICY, NOW)).toMatch(/not active/);
   });
 });
 

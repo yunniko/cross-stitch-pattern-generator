@@ -409,3 +409,7 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D371 — The reconciliation is the app's own route, called by a clock service on the compose network — active
 - D372 — Buying starts hidden, by a site row its migration writes — active
 - D373 — On a local server the fake provider has pages, and posts its events to the real webhook — active
+
+- D374 — Site-wide settings are a registry in code and one row each in `SiteSetting` — active
+- D375 — The grace counts from the first failed attempt, kept while failing, bounded by the period — active
+- D376 — A change of price is taken only from a subscription in good standing — active

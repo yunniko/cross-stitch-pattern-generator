@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { ENTITLEMENT_SELECT, hasTier } from "@/lib/billing/entitlement";
+import { billingPolicy } from "@/lib/settings/server";
 import { limitValuesOf, resolveLimits, type ResolvedLimits } from "./limits";
 
 /**
@@ -10,7 +11,7 @@ import { limitValuesOf, resolveLimits, type ResolvedLimits } from "./limits";
  * (Owner, 2026-10-06, under G-109: a limit that cannot be read refuses).
  */
 export async function limitsFor(userId: string | null): Promise<ResolvedLimits> {
-  const [site, audience, person] = await Promise.all([
+  const [site, audience, person, policy] = await Promise.all([
     prisma.siteLimit.findMany(),
     prisma.audienceLimit.findMany({ where: { audience: userId ? "accounts" : "guests" } }),
     userId
@@ -19,8 +20,9 @@ export async function limitsFor(userId: string | null): Promise<ResolvedLimits> 
           select: { limits: true, subscription: { select: { ...ENTITLEMENT_SELECT, tier: { select: { limits: true } } } } },
         })
       : null,
+    billingPolicy(),
   ]);
-  const live = hasTier(person?.subscription);
+  const live = hasTier(person?.subscription, policy);
   return resolveLimits({
     site: limitValuesOf(site),
     audience: limitValuesOf(audience),

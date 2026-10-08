@@ -1,6 +1,7 @@
 import type { FeatureSwitch } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ENTITLEMENT_SELECT, hasTier } from "@/lib/billing/entitlement";
+import { billingPolicy } from "@/lib/settings/server";
 import { EVERYTHING_ON, type FeatureState, type FeatureStates } from "./features";
 import { resolveFeatures } from "./resolve";
 
@@ -20,7 +21,7 @@ const toStates = (rows: ReadonlyArray<{ featureId: string; state: FeatureSwitch 
 
 export async function featureStatesFor(userId: string | null): Promise<FeatureStates> {
   try {
-    const [site, audience, person] = await Promise.all([
+    const [site, audience, person, policy] = await Promise.all([
       prisma.featureState.findMany(),
       // The set for guests, or for accounts (D307).
       prisma.audienceSet.findUnique({
@@ -36,9 +37,10 @@ export async function featureStatesFor(userId: string | null): Promise<FeatureSt
             },
           })
         : null,
+      billingPolicy(),
     ]);
     // A tier's set counts while the subscription gives the tier (`hasTier`, D367, the rule the Plan section shows by).
-    const live = hasTier(person?.subscription);
+    const live = hasTier(person?.subscription, policy);
     return resolveFeatures(
       {
         site: toStates(site),

@@ -1,4 +1,4 @@
-import { BillingSignatureError, type BillingGateway, type SubscriptionSnapshot } from "./contract";
+import { BillingSignatureError, type BillingEventRead, type BillingGateway, type SubscriptionSnapshot } from "./contract";
 
 /**
  * The one write path of a subscription (G-106 M2, D369): the webhook and the reconciliation both come here. An event
@@ -27,7 +27,8 @@ export interface StoredSubscription {
 
 export type SubscriptionFields = Omit<StoredSubscription, "id">;
 
-export type HistoryKind = "created" | "status" | "period" | "cancel" | "price" | "failure" | "ended" | "replaced" | "second";
+export type HistoryKind =
+  "created" | "status" | "period" | "cancel" | "price" | "failure" | "ended" | "replaced" | "second" | "dispute" | "refund";
 export type HistorySource = "webhook" | "reconcile" | "admin";
 
 /** One line of a subscription's history (`SubscriptionEvent`). */
@@ -43,6 +44,8 @@ export interface BillingTx {
   recordEvent(id: string, type: string): Promise<void>;
   subscriptionByProviderId(id: string): Promise<StoredSubscription | null>;
   subscriptionByUser(userId: string): Promise<StoredSubscription | null>;
+  /** The newest row of a provider customer: where a dispute or a refund is recorded. */
+  subscriptionByCustomer(customerId: string): Promise<StoredSubscription | null>;
   userExists(userId: string): Promise<boolean>;
   /** The app's price row for a provider price id, with the tier it belongs to. */
   priceByProviderId(id: string): Promise<{ id: string; tierId: string } | null>;
@@ -133,10 +136,35 @@ export function historyOf(before: SubscriptionFields | null, after: Subscription
   return lines;
 }
 
+/** A subscription a renewal payment is failing for, retried or given up on. */
+const FAILING: ReadonlySet<string> = new Set(["past_due", "unpaid"]);
+/** A subscription in good standing: the only kind whose change of price is taken (D376). */
+const GOOD_STANDING: ReadonlySet<string> = new Set(["trialing", "active"]);
+
+const earliest = (a: Date | null, b: Date | null): Date | null => (a && b ? (a < b ? a : b) : (a ?? b));
+
+/**
+ * The fields to store over a row already held, where they differ from the snapshot alone:
+ * - while the subscription stays failing, the failure date is the earliest seen, so a new invoice left unpaid behind an
+ *   old one cannot start the grace again (D375);
+ * - a change of price is taken only from a subscription in good standing: the provider applies a plan change before its
+ *   payment succeeds, and a failing payment must not buy the new plan (D376).
+ */
+function overHeld(held: StoredSubscription, fields: SubscriptionFields): SubscriptionFields {
+  const next = { ...fields };
+  if (FAILING.has(held.status) && FAILING.has(fields.status) && held.firstFailedAt)
+    next.firstFailedAt = earliest(held.firstFailedAt, fields.firstFailedAt);
+  if (!GOOD_STANDING.has(fields.status) && held.priceId !== fields.priceId) {
+    next.priceId = held.priceId;
+    next.tierId = held.tierId;
+  }
+  return next;
+}
+
 /** Decides what one fetched snapshot does to the stored rows. Pure. */
 export function planSync({ snapshot, byProviderId, byUser, userId, price }: SyncFacts): SyncPlan {
   if (byProviderId) {
-    const fields = fieldsOf(snapshot, byProviderId.userId, price);
+    const fields = overHeld(byProviderId, fieldsOf(snapshot, byProviderId.userId, price));
     return { kind: "save", id: byProviderId.id, fields, history: historyOf(byProviderId, fields), cancelNow: null };
   }
   if (!userId) return { kind: "ignore", reason: "the subscription names no person of this site" };
@@ -223,7 +251,40 @@ export async function syncSubscription(
 }
 
 export type WebhookAnswer =
-  { status: 200; outcome: SyncOutcome | { kind: "duplicate" } | { kind: "no-subscription" } } | { status: 400; error: string };
+  | { status: 200; outcome: SyncOutcome | { kind: "duplicate" } | { kind: "no-subscription" } | { kind: "noted" } }
+  | { status: 400; error: string };
+
+/**
+ * Events the admin is shown and nothing more (G-126, scenario 10): a dispute or a refund changes no access by itself (the
+ * Owner's default until G-126 (b) is answered); the admin can take the tier by hand.
+ */
+const ADMIN_NOTICES: Readonly<Record<string, "dispute" | "refund">> = {
+  "charge.dispute.created": "dispute",
+  "charge.refunded": "refund",
+};
+
+/** Records a dispute or refund in the history of the customer's subscription; ignored when the customer has none here. */
+async function noteForAdmin(
+  gateway: BillingGateway,
+  store: BillingStore,
+  event: BillingEventRead,
+  kind: "dispute" | "refund",
+  now: Date
+): Promise<{ kind: "noted" } | SyncOutcome> {
+  const customerId = event.customerId ?? (event.chargeId ? await gateway.chargeCustomer(event.chargeId) : null);
+  if (!customerId) {
+    await store.recordEvent(event.id, event.type);
+    return { kind: "ignored", reason: "the charge names no customer" };
+  }
+  return store.locked(`billing-customer:${customerId}`, async (tx) => {
+    if (await tx.eventSeen(event.id)) return { kind: "ignored", reason: "event already handled" };
+    const row = await tx.subscriptionByCustomer(customerId);
+    if (row)
+      await tx.appendHistory(row.id, [{ kind, before: null, after: event.chargeId }], { source: "webhook", eventId: event.id, at: now });
+    await tx.recordEvent(event.id, event.type);
+    return row ? { kind: "noted" } : { kind: "ignored", reason: "no subscription of this customer here" };
+  });
+}
 
 /**
  * One delivery to the webhook: the signature is checked over the raw body, an event seen before changes nothing, and
@@ -244,6 +305,8 @@ export async function handleWebhook(
     throw error;
   }
   if (await store.eventSeen(event.id)) return { status: 200, outcome: { kind: "duplicate" } };
+  const notice = ADMIN_NOTICES[event.type];
+  if (notice) return { status: 200, outcome: await noteForAdmin(gateway, store, event, notice, now) };
   if (!event.subscriptionId) {
     await store.recordEvent(event.id, event.type);
     return { status: 200, outcome: { kind: "no-subscription" } };

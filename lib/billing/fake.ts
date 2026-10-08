@@ -43,6 +43,8 @@ export class FakeBilling implements BillingGateway {
   private readonly prices = new Map<string, ProviderPrice>();
   private readonly subscriptions = new Map<string, FakeSubscription>();
   private readonly sessions = new Map<string, CheckoutInput>();
+  /** Each paid invoice's charge, by id, with its customer and subscription. */
+  private readonly charges = new Map<string, { customerId: string; subscriptionId: string }>();
   private serial = 0;
   /** How many of `events` the app has delivered to its own webhook (`takeUndelivered`). */
   private delivered = 0;
@@ -150,6 +152,11 @@ export class FakeBilling implements BillingGateway {
     return this.snapshot(subscription);
   }
 
+  async chargeCustomer(chargeId: string): Promise<string | null> {
+    this.reachable();
+    return this.charges.get(chargeId)?.customerId ?? null;
+  }
+
   async listPrices(): Promise<ProviderPrice[]> {
     this.reachable();
     return [...this.prices.values()];
@@ -202,6 +209,7 @@ export class FakeBilling implements BillingGateway {
       invoiceId: this.nextId("in"),
     };
     this.subscriptions.set(subscription.id, subscription);
+    this.charge(subscription);
     this.emit("checkout.session.completed", {
       object: "checkout.session",
       id: session,
@@ -227,19 +235,69 @@ export class FakeBilling implements BillingGateway {
       return this.snapshot(subscription);
     }
     subscription.currentPeriodEnd = new Date(subscription.currentPeriodEnd!.getTime() + PERIOD_MS[subscription.interval]);
-    subscription.invoiceId = this.nextId("in");
+    this.newInvoice(subscription);
     if (payment === "paid") return this.pay(id);
     return this.fail(id);
   }
 
   /** A payment attempt on the open invoice fails (the first, or a retry). */
   fail(id: string): SubscriptionSnapshot {
+    return this.attemptFails(id, "invoice.payment_failed");
+  }
+
+  /** A payment attempt needs the person to authenticate: for a renewal, the subscription goes past due as on a failure. */
+  requireAction(id: string): SubscriptionSnapshot {
+    return this.attemptFails(id, "invoice.payment_action_required");
+  }
+
+  private attemptFails(id: string, type: string): SubscriptionSnapshot {
     const subscription = this.get(id);
     subscription.status = "past_due";
     subscription.firstFailedAt ??= this.now();
-    this.emit("invoice.payment_failed", this.invoiceObject(subscription));
+    this.emit(type, this.invoiceObject(subscription));
     this.emit("customer.subscription.updated", this.subscriptionObject(subscription));
     return this.snapshot(subscription);
+  }
+
+  /**
+   * The person changes plan in the Portal and the prorated invoice is charged at once. As Stripe does by default, the
+   * change is applied whether or not that payment succeeds; a failed one leaves the subscription past due on the new price.
+   */
+  changePrice(id: string, priceId: string, payment: "paid" | "failed"): SubscriptionSnapshot {
+    const subscription = this.get(id);
+    if (!this.prices.get(priceId)?.interval) throw new Error(`the fake provider has no recurring price ${priceId}`);
+    subscription.priceId = priceId;
+    subscription.interval = this.prices.get(priceId)!.interval!;
+    this.newInvoice(subscription);
+    return payment === "paid" ? this.pay(id) : this.fail(id);
+  }
+
+  /** The charge of the last invoice paid; disputes and refunds name it. */
+  lastCharge(id: string): string {
+    const found = [...this.charges].filter(([, charge]) => charge.subscriptionId === id).pop();
+    if (!found) throw new Error(`the fake provider has no charge for ${id}`);
+    return found[0];
+  }
+
+  /** The person's bank disputes a charge: the event names the charge only, as Stripe's does. */
+  dispute(chargeId: string): void {
+    this.emit("charge.dispute.created", { object: "dispute", id: this.nextId("dp"), charge: chargeId });
+  }
+
+  /** A charge is refunded from the provider's dashboard. */
+  refund(chargeId: string): void {
+    const charge = this.charges.get(chargeId);
+    this.emit("charge.refunded", { object: "charge", id: chargeId, customer: charge?.customerId ?? null });
+  }
+
+  /** A new invoice becomes the latest: the failure date, read from the latest invoice as Stripe's mapping does, starts again. */
+  private newInvoice(subscription: FakeSubscription): void {
+    subscription.invoiceId = this.nextId("in");
+    subscription.firstFailedAt = null;
+  }
+
+  private charge(subscription: FakeSubscription): void {
+    this.charges.set(this.nextId("ch"), { customerId: subscription.customerId, subscriptionId: subscription.id });
   }
 
   /** The open invoice is paid: by a retry, a new card, or the person on the invoice's page. */
@@ -247,6 +305,7 @@ export class FakeBilling implements BillingGateway {
     const subscription = this.get(id);
     subscription.status = "active";
     subscription.firstFailedAt = null;
+    this.charge(subscription);
     this.emit("invoice.paid", this.invoiceObject(subscription));
     this.emit("customer.subscription.updated", this.subscriptionObject(subscription));
     return this.snapshot(subscription);

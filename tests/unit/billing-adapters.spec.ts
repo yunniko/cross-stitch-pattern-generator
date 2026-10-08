@@ -114,6 +114,7 @@ describe("the subscription an event concerns", () => {
       subscriptionId: "sub_1",
       customerId: "cus_1",
       userId: null,
+      chargeId: null,
     });
     expect(
       readEventObject(
@@ -125,6 +126,19 @@ describe("the subscription an event concerns", () => {
         event({ object: "checkout.session", customer: { id: "cus_3" }, subscription: "sub_3", client_reference_id: "user_1" })
       )
     ).toMatchObject({ subscriptionId: "sub_3", customerId: "cus_3", userId: "user_1" });
+  });
+
+  it("is no subscription for a dispute, which names its charge only, or a refunded charge, which names its customer too", () => {
+    expect(readEventObject(event({ object: "dispute", id: "dp_1", charge: "ch_1" }))).toMatchObject({
+      subscriptionId: null,
+      customerId: null,
+      chargeId: "ch_1",
+    });
+    expect(readEventObject(event({ object: "charge", id: "ch_2", customer: "cus_2" }))).toMatchObject({
+      subscriptionId: null,
+      customerId: "cus_2",
+      chargeId: "ch_2",
+    });
   });
 
   it("is none for an invoice outside a subscription, or an object of another kind", () => {

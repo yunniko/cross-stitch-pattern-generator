@@ -85,11 +85,11 @@ describe("planName", () => {
     const now = new Date("2026-10-08T12:00:00Z");
     const periodEnd = new Date("2026-11-08T12:00:00Z");
     const on = (status: string) => ({ status, currentPeriodEnd: periodEnd, firstFailedAt: null, tier: { name: "Stitcher" } });
-    expect(planName(null, now)).toBe(FREE_PLAN);
-    expect(planName(on("active"), now)).toBe("Stitcher");
-    expect(planName(on("trialing"), now)).toBe("Stitcher");
-    expect(planName(on("canceled"), now)).toBe(FREE_PLAN);
-    expect(planName(on("incomplete"), now)).toBe(FREE_PLAN);
-    expect(planName(on("active"), new Date("2026-12-01T00:00:00Z")), "past the period's end").toBe(FREE_PLAN);
+    expect(planName(null, { graceDays: 14 }, now)).toBe(FREE_PLAN);
+    expect(planName(on("active"), { graceDays: 14 }, now)).toBe("Stitcher");
+    expect(planName(on("trialing"), { graceDays: 14 }, now)).toBe("Stitcher");
+    expect(planName(on("canceled"), { graceDays: 14 }, now)).toBe(FREE_PLAN);
+    expect(planName(on("incomplete"), { graceDays: 14 }, now)).toBe(FREE_PLAN);
+    expect(planName(on("active"), { graceDays: 14 }, new Date("2026-12-01T00:00:00Z")), "past the period's end").toBe(FREE_PLAN);
   });
 });

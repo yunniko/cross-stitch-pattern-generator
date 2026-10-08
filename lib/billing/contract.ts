@@ -40,6 +40,8 @@ export interface BillingEventRead {
   customerId: string | null;
   /** Our user id where the event carries one (a Checkout session's `client_reference_id`). */
   userId: string | null;
+  /** The charge a dispute or refund concerns ("ch_..."); null for other events. */
+  chargeId: string | null;
 }
 
 export interface ProviderPrice {
@@ -94,6 +96,8 @@ export interface BillingGateway {
   listSubscriptions(customerId: string): Promise<SubscriptionSnapshot[]>;
   /** Cancels now, or at the end of the period paid for; returns the subscription after. */
   cancelSubscription(id: string, options: { atPeriodEnd: boolean }): Promise<SubscriptionSnapshot>;
+  /** The customer a charge was made to: a dispute names only its charge (G-126). Null if the provider does not know it. */
+  chargeCustomer(chargeId: string): Promise<string | null>;
   /** The provider's recurring prices, for the admin to attach to tiers (G-127). */
   listPrices(): Promise<ProviderPrice[]>;
 }

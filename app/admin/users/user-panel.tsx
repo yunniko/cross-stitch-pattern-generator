@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { planName } from "@/lib/account/plan";
 import { ENTITLEMENT_SELECT } from "@/lib/billing/entitlement";
+import { billingPolicy } from "@/lib/settings/server";
 import { signInMethods } from "@/lib/account/sign-in-methods";
 import { ownStatesSummary } from "@/lib/admin/users-filter";
 import { groupThousands, isoDay, lastSeen } from "@/lib/panel/format";
@@ -18,7 +19,7 @@ const TERM = "text-muted";
  * naming no account says so rather than failing the page.
  */
 export async function UserPanel({ userId, own, closeHref }: { userId: string; own: boolean; closeHref: string }) {
-  const [user, counts] = await Promise.all([
+  const [user, counts, policy] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -36,6 +37,7 @@ export async function UserPanel({ userId, own, closeHref }: { userId: string; ow
       },
     }),
     prisma.usageEvent.groupBy({ by: ["kind"], where: { userId }, _count: { _all: true } }),
+    billingPolicy(),
   ]);
 
   const close = (
@@ -81,7 +83,7 @@ export async function UserPanel({ userId, own, closeHref }: { userId: string; ow
         <dd className={`m-0 ${user.disabled ? "text-danger" : "text-ink"}`}>{user.disabled ? "Disabled" : "Active"}</dd>
         <dt className={TERM}>Plan</dt>
         <dd className="m-0 text-ink">
-          {planName(user.subscription)}
+          {planName(user.subscription, policy)}
           {user.subscription && <span className="text-muted"> ({user.subscription.status})</span>}
         </dd>
         <dt className={TERM}>Joined</dt>

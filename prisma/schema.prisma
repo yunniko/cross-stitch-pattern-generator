@@ -222,6 +222,9 @@ model Subscription {
   tier   Tier                @relation(fields: [tierId], references: [id])
   price  Price?              @relation(fields: [priceId], references: [id])
   events SubscriptionEvent[]
+
+  /// A dispute or refund names only the customer (G-126).
+  @@index([stripeCustomerId])
 }
 
 /// A Stripe event already handled (G-106): its id is recorded once, so a second delivery changes nothing. The payload
@@ -301,6 +304,15 @@ model FeatureChange {
 model SiteLimit {
   limitId   String   @id
   value     Int?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+}
+
+/// A site setting the admin has set (G-126 M1, D374): the setting is an entry of `SITE_SETTINGS` in
+/// `lib/settings/site-settings.ts`, and `value` a whole number in its unit. No row means the setting's default.
+model SiteSetting {
+  key       String   @id
+  value     Int
   updatedAt DateTime @updatedAt
   updatedBy String?
 }

@@ -98,6 +98,17 @@ export function createStripeGateway(settings: { secretKey: string; webhookSecret
         )
       ),
 
+    chargeCustomer: (chargeId) =>
+      call("read a charge", async () => {
+        try {
+          const charge = await stripe.charges.retrieve(chargeId);
+          return typeof charge.customer === "string" ? charge.customer : (charge.customer?.id ?? null);
+        } catch (error) {
+          if (error instanceof Stripe.errors.StripeInvalidRequestError && error.statusCode === 404) return null;
+          throw error;
+        }
+      }),
+
     listPrices: () =>
       call("list prices", async () => {
         const list = await stripe.prices.list({ active: true, type: "recurring", limit: 100, expand: ["data.product"] });
