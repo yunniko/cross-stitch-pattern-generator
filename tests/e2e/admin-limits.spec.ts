@@ -67,7 +67,8 @@ test("an admin sets the space for saved charts per layer; each shows what it giv
     // One person: their own value, over what accounts give them.
     const { rows } = await featuresDb().query<{ id: string }>(`SELECT "id" FROM "User" WHERE "email" = $1`, [email]);
     await page.goto(`/admin/users/${rows[0].id}/features`);
-    const own = page.getByTestId("user-limits").getByTestId("limit-row");
+    // The person's page lists every limit (G-119 added the stamps kept); this case is about the space for saved charts.
+    const own = page.getByTestId("user-limits").locator(`[data-testid="limit"][data-limit="${CHARTS}"] [data-testid="limit-row"]`);
     await expect(own.getByTestId("limit-effective")).toContainText("100 MB");
     await own.getByRole("textbox").fill("3");
     await own.getByRole("button", { name: "Set", exact: true }).click();
