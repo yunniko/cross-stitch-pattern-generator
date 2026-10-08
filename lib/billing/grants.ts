@@ -20,6 +20,7 @@ export const GRANT_REFUSED = {
   past: "The end has to be after today.",
   far: "The end can be at most five years ahead.",
   none: "This person has no tier given by hand to end.",
+  own: "Your own tier is not given here; another admin gives it.",
 } as const;
 
 /** "2026-11-08" to the start of that day in UTC: the tier lasts until then. */

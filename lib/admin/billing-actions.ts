@@ -222,6 +222,7 @@ function revalidatePerson() {
 export async function grantTierAction(userId: string, tierId: string, endsOn: string): Promise<ActionResult> {
   return attempt(async () => {
     const admin = await requireAdmin();
+    if (userId === admin.id) throw new Error(GRANT_REFUSED.own);
     const now = new Date();
     const [user, tier, stored] = await Promise.all([
       prisma.user.findUnique({ where: { id: userId }, select: { email: true } }),
@@ -245,6 +246,7 @@ export async function grantTierAction(userId: string, tierId: string, endsOn: st
 export async function endGrantAction(userId: string): Promise<ActionResult> {
   return attempt(async () => {
     const admin = await requireAdmin();
+    if (userId === admin.id) throw new Error(GRANT_REFUSED.own);
     const now = new Date();
     const [user, stored] = await Promise.all([
       prisma.user.findUnique({ where: { id: userId }, select: { email: true } }),

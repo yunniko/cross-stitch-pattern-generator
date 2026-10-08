@@ -90,4 +90,5 @@ test("Users: a person's side panel, the filters, and each role and login change 
   await openPerson(page, ADMIN_EMAIL);
   await expect(panel.getByRole("button")).toHaveCount(0);
   await expect(panel).toContainText("your own role and login are not changed here");
+  await expect(panel).toContainText("Your own tier is not given here");
 });

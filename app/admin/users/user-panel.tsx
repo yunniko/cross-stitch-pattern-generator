@@ -2,7 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { planName } from "@/lib/account/plan";
 import { isGrant } from "@/lib/billing/entitlement";
-import { grantRefusal } from "@/lib/billing/grants";
+import { GRANT_REFUSED, grantRefusal } from "@/lib/billing/grants";
 import { STORED_SELECT } from "@/lib/billing/prisma-store";
 import { billingPolicy } from "@/lib/settings/server";
 import { signInMethods } from "@/lib/account/sign-in-methods";
@@ -119,7 +119,11 @@ export async function UserPanel({ userId, own, closeHref }: { userId: string; ow
 
       <div className="flex flex-col gap-1.5 border-t border-line pt-3.5">
         <span className="text-[11px] font-medium tracking-[0.08em] text-muted uppercase">Tier given by hand</span>
-        <GrantForm userId={user.id} tiers={tiers} givenUntil={givenUntil} refusal={grantRefusal(stored)} />
+        {own ? (
+          <span className="text-xs text-faint">{GRANT_REFUSED.own}</span>
+        ) : (
+          <GrantForm userId={user.id} tiers={tiers} givenUntil={givenUntil} refusal={grantRefusal(stored)} />
+        )}
       </div>
 
       <div className="flex flex-col gap-1.5 border-t border-line pt-3.5">
