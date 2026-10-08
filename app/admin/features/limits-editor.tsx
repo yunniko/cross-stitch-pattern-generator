@@ -14,8 +14,10 @@ export interface LimitLayerRow {
   /** Stable, for the row's test id: "site", "guests", "accounts", "tier:<name>", "user". */
   key: string;
   label: string;
-  /** A short note under the label, e.g. that a value for guests has no effect yet. */
+  /** A short note under the label, for every limit. */
   note?: string;
+  /** A note under the label for one limit, by limit id, in place of `note`: what a value means for this layer. */
+  notes?: Record<string, string>;
   layer: LimitLayer;
   /** The layer's own values, by limit id; a limit it sets nothing for is absent. */
   own: Record<string, LimitValue>;
@@ -68,11 +70,12 @@ function LimitRow({ row, limit, onProblem }: { row: LimitLayerRow; limit: Limit;
   const [text, setText] = useState(asText(own));
   const [pending, startTransition] = useTransition();
   const changed = text.trim() !== asText(own);
+  const note = row.notes?.[limit.id] ?? row.note;
   return (
     <tr className="border-b border-line last:border-0" data-testid="limit-row" data-layer={row.key}>
       <td className="px-3 py-2 align-top text-ink">
         {row.label}
-        {row.note && <span className="block text-[12px] text-muted">{row.note}</span>}
+        {note && <span className="block text-[12px] text-muted">{note}</span>}
       </td>
       <td className="px-3 py-2 align-top">
         <form

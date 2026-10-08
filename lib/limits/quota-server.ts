@@ -2,7 +2,16 @@ import { recordUsage } from "@/lib/admin/usage";
 import { prisma } from "@/lib/prisma";
 import type { QuotaAction } from "./limits";
 import { limitsFor } from "./server";
-import { decideQuota, limitsInForce, lookbackMs, refusalMessage, retryAfterSeconds, type QuotaDecision } from "./quota";
+import {
+  decideQuota,
+  limitUse,
+  limitsInForce,
+  lookbackMs,
+  refusalMessage,
+  retryAfterSeconds,
+  type LimitUse,
+  type QuotaDecision,
+} from "./quota";
 
 /**
  * The quota (G-109): "may this person have the server do this now, and count it", awaited before the work is asked for.
@@ -61,6 +70,30 @@ export async function takeQuota(
       });
     }),
   };
+}
+
+/**
+ * Where a person stands under each counted limit in force for them (G-109 M3), generations first: what the account's
+ * Usage page shows. Empty while every counted limit is unlimited.
+ */
+export async function quotaStatus(userId: string, now = new Date()): Promise<LimitUse[]> {
+  const limits = await limitsFor(userId);
+  const inForce = (["GENERATE", "EXPORT"] as const).flatMap((action) =>
+    limitsInForce(action, limits).map((entry) => ({ ...entry, action }))
+  );
+  if (inForce.length === 0) return [];
+  const uses = await prisma.usageEvent.findMany({
+    where: { userId, createdAt: { gte: new Date(now.getTime() - lookbackMs(inForce)) } },
+    select: { kind: true, createdAt: true },
+  });
+  return inForce.map(({ limit, value, action }) =>
+    limitUse(
+      limit,
+      value,
+      uses.filter((use) => use.kind === action).map((use) => use.createdAt),
+      now
+    )
+  );
 }
 
 /** A ticket whose first settling is the only one: a route's later `catch` cannot give back a use already kept. */

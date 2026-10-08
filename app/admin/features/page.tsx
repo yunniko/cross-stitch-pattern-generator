@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import type { FeatureState } from "@/lib/features/features";
 import { FEATURE_SCOPES } from "@/lib/admin/change-log";
 import { latestChanges } from "@/lib/admin/change-log-data";
-import { layerOver, limitDefaults, limitValuesOf } from "@/lib/limits/limits";
+import { ACCOUNT_LIMITS, layerOver, limitDefaults, limitValuesOf } from "@/lib/limits/limits";
 import { FeaturesAdmin } from "./features-admin";
 import type { LimitLayerRow } from "./limits-editor";
 
@@ -41,7 +41,15 @@ export default async function AdminFeaturesPage() {
     {
       key: "guests",
       label: "Guests (not signed in)",
-      note: "No effect while what a limit counts needs an account.",
+      // Saving needs an account, so a guest has no space; a counted limit is never counted for a guest (G-109, D364).
+      notes: Object.fromEntries(
+        ACCOUNT_LIMITS.map((limit) => [
+          limit.id,
+          limit.counted
+            ? "Any number, 0 included, means a guest must sign in first; nothing is counted for a guest."
+            : "No effect: saving needs an account.",
+        ])
+      ),
       layer: { kind: "audience", audience: "guests" },
       own: audienceOwn("guests"),
       follows: site,

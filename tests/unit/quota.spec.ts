@@ -1,6 +1,24 @@
 import { describe, expect, it } from "vitest";
-import { ACCOUNT_LIMITS, countedLimits, limitById, resolveLimits, type LimitValue } from "../../lib/limits/limits";
-import { decideQuota, limitUse, limitsInForce, lookbackMs, refusalMessage, retryAfterSeconds, waitWords } from "../../lib/limits/quota";
+import {
+  ACCOUNT_LIMITS,
+  countedLimits,
+  limitById,
+  limitDefaults,
+  parseLimitInput,
+  resolveLimits,
+  type Limit,
+  type LimitValue,
+} from "../../lib/limits/limits";
+import {
+  decideQuota,
+  limitUse,
+  limitsInForce,
+  lookbackMs,
+  nextWords,
+  refusalMessage,
+  retryAfterSeconds,
+  waitWords,
+} from "../../lib/limits/quota";
 
 /** G-109: counted limits over rolling periods, decided from the times of a person's uses. */
 
@@ -121,5 +139,45 @@ describe("the refusal", () => {
     expect(waitWords(61 * 60_000)).toBe("in 2 hours");
     expect(waitWords(47 * HOUR)).toBe("in 47 hours");
     expect(waitWords(49 * HOUR)).toBe("in 3 days");
+  });
+});
+
+describe("where a person stands, for the account's Usage page", () => {
+  it("says when the next one is available", () => {
+    expect(nextWords(limitUse(DAY, 3, [ago(1)], NOW), NOW)).toBe("now");
+    expect(nextWords(limitUse(DAY, 1, [ago(21)], NOW), NOW)).toBe("in 3 hours");
+    expect(nextWords(limitUse(DAY, 0, [], NOW), NOW)).toBe("not available");
+  });
+});
+
+describe("a counted limit added to the list", () => {
+  // The admin's Limits page and the account's Usage page render the list, and the quota reads it: one more entry is
+  // one more limit everywhere, with no other change (G-109 acceptance 6).
+  const TEMPORARY: Limit = {
+    id: "generations.1h",
+    label: "Generations in 1 hour",
+    note: "A temporary entry for this test.",
+    unit: "generations",
+    siteDefault: "unlimited",
+    max: 1_000_000,
+    counted: { action: "GENERATE", periodHours: 1 },
+  };
+
+  it("is offered, defaulted, parsed and enforced without any other change", () => {
+    const list = ACCOUNT_LIMITS as Limit[];
+    list.push(TEMPORARY);
+    try {
+      expect(limitById("generations.1h")).toBe(TEMPORARY);
+      expect(limitDefaults()["generations.1h"]).toBe("unlimited");
+      expect(countedLimits("GENERATE")).toContain(TEMPORARY);
+      expect(parseLimitInput(TEMPORARY, "4")).toEqual({ value: 4 });
+      const decision = decideQuota("GENERATE", limitsWith({ "generations.1h": 1 }), true, [ago(0.5)], NOW);
+      if (decision.allowed || decision.reason !== "used-up") throw new Error("expected used-up");
+      expect(decision.use.limit).toBe(TEMPORARY);
+      expect(refusalMessage(decision, NOW)).toBe("You have used all 1 generation allowed in 1 hour. The next is available in 30 minutes.");
+    } finally {
+      list.splice(list.indexOf(TEMPORARY), 1);
+    }
+    expect(limitById("generations.1h")).toBeUndefined();
   });
 });

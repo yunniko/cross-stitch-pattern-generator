@@ -36,7 +36,10 @@ test("an admin sets the space for saved charts per layer; each shows what it giv
     // Nothing set: every layer gets the list's default.
     await expect(limitRow(page, "site").getByTestId("limit-effective")).toContainText("50 MB");
     await expect(limitRow(page, `tier:${tier}`).getByTestId("limit-effective")).toContainText("50 MB");
-    await expect(limitRow(page, "guests")).toContainText("No effect while");
+    await expect(limitRow(page, "guests")).toContainText("No effect: saving needs an account.");
+    await expect(
+      page.locator(`[data-testid="limit"][data-limit="generations.24h"] [data-testid="limit-row"][data-layer="guests"]`)
+    ).toContainText("a guest must sign in first");
 
     // The site, then accounts over it, then the tier over accounts.
     await setLimit(page, "site", "20");

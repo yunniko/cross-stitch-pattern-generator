@@ -95,6 +95,18 @@ test("generations are refused by name at the limit, given back when the processo
     await page.getByRole("button", { name: "Regenerate" }).click();
     await expect(page.getByText("You have used all 2 generations allowed in 24 hours.", { exact: false })).toBeVisible();
     expect(await usesOf(userId, "GENERATE")).toBe(2);
+
+    // The account's Usage page shows the limit in force, and only that one (G-109 M3).
+    await setUserLimit(userId, "exports.30d", 5);
+    await page.goto("/account/usage");
+    const limits = page.getByTestId("usage-limits");
+    await expect(limits.locator("tbody tr")).toHaveCount(2);
+    const day = limits.locator(`tr[data-limit="generations.24h"]`);
+    await expect(day).toContainText("Generations in 24 hours");
+    await expect(day).toContainText("2 of 2");
+    await expect(day).toContainText("in 24 hours");
+    await expect(limits.locator(`tr[data-limit="exports.30d"]`)).toContainText("0 of 5");
+    await expect(limits.locator(`tr[data-limit="exports.30d"]`)).toContainText("now");
   } finally {
     await featuresDb().query(`DELETE FROM "UserLimit" WHERE "userId" = $1`, [userId]);
   }

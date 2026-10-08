@@ -1,21 +1,52 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { personUsage } from "@/lib/account/usage-data";
+import { quotaStatus } from "@/lib/limits/quota-server";
+import { nextWords } from "@/lib/limits/quota";
 import { groupThousands } from "@/lib/panel/format";
 import { DailyBars, Figure, PageHead } from "@/app/components/panel/panel-parts";
 
 /**
  * Usage (G-107 M2): what this person has asked the server for while signed in, from their usage events. The last 30
  * days are UTC days, as the admin's are. Generating or exporting signed out is not counted here: it is no one's.
+ * Above them, each counted limit in force for this person (G-109 M3): used, left, and when the next is available; none
+ * is shown while every one is unlimited.
  */
 export default async function AccountUsagePage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
-  const usage = await personUsage(session.user.id);
+  const now = new Date();
+  const [usage, limits] = await Promise.all([personUsage(session.user.id, now), quotaStatus(session.user.id, now)]);
 
   return (
     <div className="flex flex-col gap-4">
       <PageHead title="Usage" lead="What you have asked the server for while signed in." />
+      {limits.length > 0 && (
+        <div className="overflow-hidden rounded-md border border-line">
+          <table className="w-full border-collapse text-left text-sm" data-testid="usage-limits">
+            <thead>
+              <tr className="border-b border-line text-[13px] text-muted">
+                <th className="px-3 py-2 font-medium">Your limit</th>
+                <th className="px-3 py-2 font-medium">Used</th>
+                <th className="px-3 py-2 font-medium">Left</th>
+                <th className="px-3 py-2 font-medium">Next one</th>
+              </tr>
+            </thead>
+            <tbody>
+              {limits.map((use) => (
+                <tr key={use.limit.id} className="border-b border-line last:border-0" data-limit={use.limit.id}>
+                  <td className="px-3 py-2 text-ink">{use.limit.label}</td>
+                  <td className="px-3 py-2 font-mono text-ink">
+                    {groupThousands(use.used)} of {groupThousands(use.value)}
+                  </td>
+                  <td className="px-3 py-2 font-mono text-ink">{groupThousands(use.left)}</td>
+                  <td className="px-3 py-2 text-muted">{nextWords(use, now)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
       <div className="grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-3" data-testid="usage-figures">
         <Figure label="Generations" value={groupThousands(usage.generations.recent)} note="last 30 days" />
         <Figure label="Exports" value={groupThousands(usage.exports.recent)} note="last 30 days" />

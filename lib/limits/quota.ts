@@ -104,8 +104,15 @@ export function refusalMessage(
     plansWithMore.length > 0 ? ` ${plansWithMore.length === 1 ? "A plan gives" : "Plans give"} more: ${plansWithMore.join(", ")}.` : "";
   if (value === 0 || nextAt === null) return `${VERB[limit.counted!.action]} is not available to your account.${more}`;
   const hours = limit.counted!.periodHours;
-  const period = hours % 24 === 0 && hours > 24 ? `${hours / 24} days` : `${hours} hours`;
+  const period = hours % 24 === 0 && hours > 24 ? `${hours / 24} days` : hours === 1 ? "1 hour" : `${hours} hours`;
   return `You have used all ${value.toLocaleString("en")} ${value === 1 ? limit.unit.replace(/s$/, "") : limit.unit} allowed in ${period}. The next is available ${waitWords(nextAt.getTime() - now.getTime())}.${more}`;
+}
+
+/** When one more is available, for the account's Usage page: "now", "in 3 hours", or "not available" at a value of 0. */
+export function nextWords(use: LimitUse, now: Date): string {
+  if (use.left > 0) return "now";
+  if (use.nextAt === null) return "not available";
+  return waitWords(use.nextAt.getTime() - now.getTime());
 }
 
 /** Seconds until the refused request may be tried again, for `Retry-After`; null when it never may. */
