@@ -48,3 +48,20 @@ export function pricesRetiredBy(
     .filter((price) => price.current && price.tierId === made.tierId && price.interval === made.interval && price.id !== made.id)
     .map((price) => price.id);
 }
+
+export const TIER_DELETE_REFUSED = {
+  people: "People have had this tier, and their subscriptions name it. Stop offering its prices instead.",
+  offered: "Stop offering this tier's prices first, then delete it.",
+  atProvider:
+    "The payment provider has a subscription on one of this tier's prices that this site has not recorded yet. Stop offering its prices instead.",
+} as const;
+
+/**
+ * Why a tier may not be deleted, or null when it may (D382): never once anyone has had it, as their records name it, and
+ * not while a price of it is offered. Whether the provider holds a subscription on its prices is asked separately.
+ */
+export function tierDeleteRefusal(tier: { subscriptions: number; offeredPrices: number }): string | null {
+  if (tier.subscriptions > 0) return TIER_DELETE_REFUSED.people;
+  if (tier.offeredPrices > 0) return TIER_DELETE_REFUSED.offered;
+  return null;
+}

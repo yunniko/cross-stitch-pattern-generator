@@ -5,7 +5,14 @@ import type { Prisma } from "@/generated/prisma/client";
 import { requireAdmin } from "@/lib/admin/require-admin";
 import { logChange } from "@/lib/admin/change-log-data";
 import { BILLING_SCOPE } from "@/lib/admin/change-log";
-import { isBillingInterval, isPriceCurrency, parseAmount, pricesRetiredBy } from "@/lib/billing/catalog";
+import {
+  isBillingInterval,
+  isPriceCurrency,
+  parseAmount,
+  pricesRetiredBy,
+  tierDeleteRefusal,
+  TIER_DELETE_REFUSED,
+} from "@/lib/billing/catalog";
 import { BillingUnavailableError, type BillingGateway } from "@/lib/billing/contract";
 import { billingGateway } from "@/lib/billing/gateway";
 import { endedGrantRow, grantRefusal, grantRow, parseGrantEnd, GRANT_REFUSED } from "@/lib/billing/grants";
@@ -196,6 +203,46 @@ export async function withdrawPriceAction(priceId: string): Promise<ActionResult
     await deactivateAtProvider(gateway, [price.stripePriceId]);
     await logChange(admin, BILLING_SCOPE, price.tierId, `tier "${price.tier.name}": ${formatPrice(price)} no longer offered`);
     revalidateBilling();
+  });
+}
+
+/**
+ * Deletes a tier no one has had, with its prices and limits (D382). The provider is asked about each price, so a purchase
+ * whose webhook has not arrived yet keeps the tier; a tier with no prices needs no provider.
+ */
+export async function deleteTierAction(tierId: string): Promise<ActionResult> {
+  return attempt(async () => {
+    const admin = await requireAdmin();
+    const tier = await prisma.tier.findUnique({
+      where: { id: tierId },
+      select: {
+        name: true,
+        prices: { select: { stripePriceId: true, current: true } },
+        _count: { select: { subscriptions: true } },
+      },
+    });
+    if (!tier) throw new Error("No such tier.");
+    const refusal = tierDeleteRefusal({
+      subscriptions: tier._count.subscriptions,
+      offeredPrices: tier.prices.filter((price) => price.current).length,
+    });
+    if (refusal) throw new Error(refusal);
+    if (tier.prices.length > 0) {
+      const gateway = await gatewayOrRefuse();
+      for (const price of tier.prices) {
+        if (await gateway.priceInUse(price.stripePriceId)) throw new Error(TIER_DELETE_REFUSED.atProvider);
+      }
+    }
+    await prisma.$transaction(async (tx) => {
+      // Checked again inside the write: a grant or a purchase recorded since would otherwise lose its tier.
+      if ((await tx.subscription.count({ where: { tierId } })) > 0) throw new Error(TIER_DELETE_REFUSED.people);
+      await tx.price.deleteMany({ where: { tierId } });
+      await tx.tier.delete({ where: { id: tierId } });
+    });
+    await logChange(admin, "TIER", tierId, `tier "${tier.name}" deleted`);
+    revalidateBilling();
+    revalidatePath("/admin/features");
+    revalidatePath("/admin/users");
   });
 }
 

@@ -165,4 +165,6 @@ export interface BillingGateway {
    * back through the webhook, and the caller syncs it as well.
    */
   movePrice(subscriptionId: string, priceId: string): Promise<void>;
+  /** Whether any subscription at the provider, ended or not, is on this price: a tier is deleted only when none is (D382). */
+  priceInUse(priceId: string): Promise<boolean>;
 }

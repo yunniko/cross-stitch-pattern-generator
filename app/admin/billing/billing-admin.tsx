@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { PillButton } from "@/app/components/ui";
-import { createPriceAction, makePriceCurrentAction, withdrawPriceAction } from "@/lib/admin/billing-actions";
+import { createPriceAction, deleteTierAction, makePriceCurrentAction, withdrawPriceAction } from "@/lib/admin/billing-actions";
 import { createTierAction, type ActionResult } from "@/lib/admin/feature-actions";
 import { movePriceHoldersAction, type SubscriptionActionResult } from "@/lib/admin/subscription-actions";
 import { PRICE_CURRENCIES } from "@/lib/billing/catalog";
@@ -17,6 +17,8 @@ export interface BillingTierRow {
   name: string;
   setName: string | null;
   productId: string | null;
+  /** How many people's subscription rows name the tier: one that anyone has had is never deleted (D382). */
+  people: number;
   prices: Array<{ id: string; label: string; interval: "MONTH" | "YEAR"; current: boolean; subscribers: number; made: string }>;
 }
 
@@ -108,6 +110,7 @@ function TierPrices({
   const [interval, setPeriod] = useState<"MONTH" | "YEAR">("MONTH");
   const [amount, setAmount] = useState("");
   const [currency, setCurrency] = useState<string>(PRICE_CURRENCIES[0]);
+  const [deleting, setDeleting] = useState(false);
   const currentOf = (period: "MONTH" | "YEAR") => tier.prices.find((price) => price.current && price.interval === period);
   const replaces = currentOf(interval);
   const movable = (price: BillingTierRow["prices"][number]) => !price.current && price.subscribers > 0 && !!currentOf(price.interval);
@@ -120,10 +123,44 @@ function TierPrices({
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="m-0 text-base font-medium text-ink">{tier.name}</h2>
-        <span className="text-[12px] text-muted">
-          {tier.setName ? `Feature set: ${tier.setName}` : "No feature set: the tier unlocks nothing yet"}
-        </span>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[12px] text-muted">
+            {tier.setName ? `Feature set: ${tier.setName}` : "No feature set: the tier unlocks nothing yet"}
+          </span>
+          {tier.people === 0 && !deleting && (
+            <PillButton
+              type="button"
+              size="xs"
+              disabled={pending}
+              aria-label={`Delete tier ${tier.name}`}
+              onClick={() => setDeleting(true)}
+            >
+              Delete tier
+            </PillButton>
+          )}
+        </div>
       </div>
+      {deleting && (
+        <div className="flex flex-wrap items-center gap-2 text-[13px]" data-testid="billing-tier-delete">
+          <span className="text-ink">Delete {tier.name}? Its prices and limits go with it, and this cannot be undone.</span>
+          <PillButton
+            type="button"
+            size="xs"
+            disabled={pending}
+            onClick={() =>
+              run(
+                () => deleteTierAction(tier.id),
+                () => setDeleting(false)
+              )
+            }
+          >
+            Confirm delete
+          </PillButton>
+          <PillButton type="button" size="xs" disabled={pending} onClick={() => setDeleting(false)}>
+            Keep
+          </PillButton>
+        </div>
+      )}
       {tier.prices.length === 0 ? (
         <p className="m-0 text-[13px] text-muted">No prices: the tier is not on sale.</p>
       ) : (

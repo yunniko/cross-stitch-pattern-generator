@@ -255,6 +255,7 @@ What everything depends on is stated once here:
   4. **Terms of service and a privacy policy:** the privacy policy names Stripe as processor. They are the Owner's text, and may need professional advice.
   5. **The right of withdrawal:** an EU consumer buying digital content has a 14-day right of withdrawal. It is lost only if they agree to immediate performance and acknowledge losing it. That needs a checkbox before Checkout, whose wording is the Owner's. Labelled an inference to be confirmed by advice, not legal advice.
   6. **Approving the launch:** a feature that charges money (OPERATIONS §4).
+  7. **Raising a subscriber's price:** the admin can move people to a tier's current price from their next renewal (D381). The site does not tell them. How far ahead an EU consumer must be told of a higher price, and whether they must agree to it, is the Owner's to settle (an inference, not legal advice).
 - **JulAI's:** the terms and privacy pages (the Owner's text) and the withdrawal checkbox. A launch checklist that checks, against production, that:
   - the webhook is reachable and signed;
   - the reconciliation service is running;

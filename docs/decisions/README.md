@@ -418,3 +418,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D379 — A tier given by hand is the person's one subscription row, of kind "grant" — active
 - D380 — The admin makes prices through the billing contract, never edits one — active
 - D381 — The admin moves subscribers to the current price from their next renewal, with no charge now — active
+- D382 — A tier is deleted only when no one has had it and none of its prices is offered — active

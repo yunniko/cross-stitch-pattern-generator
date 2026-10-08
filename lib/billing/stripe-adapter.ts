@@ -215,5 +215,11 @@ export function createStripeGateway(settings: { secretKey: string; webhookSecret
           proration_behavior: "none",
         });
       }),
+
+    priceInUse: (priceId) =>
+      call("check a price's subscriptions", async () => {
+        const found = await stripe.subscriptions.list({ price: priceId, status: "all", limit: 1 });
+        return found.data.length > 0;
+      }),
   };
 }

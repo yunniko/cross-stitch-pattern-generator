@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MAX_PRICE, parseAmount, pricesRetiredBy } from "../../lib/billing/catalog";
+import { MAX_PRICE, TIER_DELETE_REFUSED, parseAmount, pricesRetiredBy, tierDeleteRefusal } from "../../lib/billing/catalog";
 import { entitlement } from "../../lib/billing/entitlement";
 import { FakeBilling } from "../../lib/billing/fake";
 import { GRANT_REFUSED, endedGrantRow, grantRefusal, grantRow, parseGrantEnd } from "../../lib/billing/grants";
@@ -144,5 +144,32 @@ describe("the admin's prices", () => {
     const listed = await fake.listPrices();
     expect(listed.find((price) => price.id === first.priceId)).toMatchObject({ active: false, amount: 499 });
     expect(listed.find((price) => price.id === second.priceId)).toMatchObject({ active: true, amount: 599, productName: "Personal" });
+  });
+});
+
+describe("deleting a tier (D382)", () => {
+  it("is refused once anyone has had the tier, and while a price of it is offered", () => {
+    expect(tierDeleteRefusal({ subscriptions: 0, offeredPrices: 0 })).toBeNull();
+    expect(tierDeleteRefusal({ subscriptions: 1, offeredPrices: 0 })).toBe(TIER_DELETE_REFUSED.people);
+    expect(tierDeleteRefusal({ subscriptions: 1, offeredPrices: 2 })).toBe(TIER_DELETE_REFUSED.people);
+    expect(tierDeleteRefusal({ subscriptions: 0, offeredPrices: 1 })).toBe(TIER_DELETE_REFUSED.offered);
+  });
+
+  it("asks the provider whether any subscription, ended or not, is on a price", async () => {
+    const fake = new FakeBilling(FAKE_WEBHOOK_SECRET, "http://localhost:3000");
+    const sold = fake.addPrice({ amount: 500, currency: "eur", interval: "MONTH", productName: "Personal" });
+    const unsold = fake.addPrice({ amount: 700, currency: "eur", interval: "MONTH", productName: "Personal" });
+    const { url } = await fake.startCheckout({
+      priceId: sold.id,
+      userId: "user_1",
+      email: "a@example.com",
+      customerId: null,
+      successUrl: "x",
+      cancelUrl: "y",
+    });
+    const bought = fake.completeCheckout(new URL(url).searchParams.get("session")!);
+    await fake.cancelSubscription(bought.id, { atPeriodEnd: false });
+    expect(await fake.priceInUse(sold.id)).toBe(true);
+    expect(await fake.priceInUse(unsold.id)).toBe(false);
   });
 });

@@ -73,9 +73,10 @@ test("a person's subscription read, refunded, moved to the current price, and li
 
     await personBilling(page, email);
     await expect(page.getByTestId("person-subscription")).toContainText("Bought, €12.00 a month");
-    await expect(
-      page.getByTestId("person-history-line").filter({ hasText: "Price €10.00 a month" }).filter({ hasText: "€12.00 a month" })
-    ).toContainText("by an admin");
+    // The history names each price with its tier: "Price <tier> €10.00 a month → <tier> €12.00 a month by an admin".
+    await expect(page.getByTestId("person-history-line").filter({ hasText: /Price .*€10\.00 a month → .*€12\.00 a month/ })).toContainText(
+      "by an admin"
+    );
     await expect(page.getByTestId("person-move")).toHaveCount(0);
 
     // The provider's figures are shown; no one of this run's is failing yet.

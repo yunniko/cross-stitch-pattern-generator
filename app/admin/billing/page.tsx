@@ -20,6 +20,7 @@ export default async function AdminBillingPage() {
       name: true,
       stripeProductId: true,
       featureSet: { select: { name: true } },
+      _count: { select: { subscriptions: true } },
       prices: {
         orderBy: { createdAt: "desc" },
         select: {
@@ -39,6 +40,7 @@ export default async function AdminBillingPage() {
     name: tier.name,
     setName: tier.featureSet?.name ?? null,
     productId: tier.stripeProductId,
+    people: tier._count.subscriptions,
     prices: tier.prices.map((price) => ({
       id: price.id,
       label: formatPrice(price),

@@ -20,6 +20,7 @@ const dayAhead = (days: number) => new Date(Date.now() + days * 24 * 3_600_000).
 test("tiers and prices made, replaced and offered again; a tier given by hand and ended @alone", async ({ page, context }) => {
   const email = uniqueEmail("given");
   const tier = `E2E Billing ${email.split("@")[0]}`;
+  const spare = `E2E Spare ${email.split("@")[0]}`;
   try {
     await registerReader(page, email);
     await context.clearCookies();
@@ -97,7 +98,33 @@ test("tiers and prices made, replaced and offered again; a tier given by hand an
     await expect(log.getByText(`tier "${tier}": €4.99 a month offered again, replacing €5.99 a month`)).toHaveCount(1);
     await expect(log.getByText(`${email}: given "${tier}" until ${until}`)).toHaveCount(1);
     await expect(log.getByText(`${email}: "${tier}" given by hand ended`)).toHaveCount(1);
+
+    // A tier someone has had cannot be deleted; one no one has had is, once its prices are no longer offered.
+    await page.goto("/admin/billing");
+    await expect(section.getByRole("button", { name: `Delete tier ${tier}` })).toHaveCount(0);
+    await page.getByRole("textbox", { name: "New tier's name" }).fill(spare);
+    await page.getByRole("button", { name: "Make a tier" }).click();
+    const spareSection = page.getByTestId("billing-tier").filter({ has: page.getByRole("heading", { name: spare }) });
+    await spareSection.getByRole("textbox", { name: `Amount of a new ${spare} price` }).fill("3");
+    await spareSection.getByRole("button", { name: "Add price" }).click();
+    await expect(spareSection.getByTestId("billing-price")).toHaveCount(1);
+
+    await spareSection.getByRole("button", { name: `Delete tier ${spare}` }).click();
+    await spareSection.getByRole("button", { name: "Keep" }).click();
+    await spareSection.getByRole("button", { name: `Delete tier ${spare}` }).click();
+    await spareSection.getByRole("button", { name: "Confirm delete" }).click();
+    await expect(page.getByTestId("billing-admin").getByRole("alert")).toHaveText(
+      "Stop offering this tier's prices first, then delete it."
+    );
+    await spareSection.getByRole("button", { name: "Stop offering €3.00 a month" }).click();
+    await expect(spareSection.locator('[data-testid="billing-price"][data-current="false"]')).toHaveCount(1);
+    await spareSection.getByRole("button", { name: "Confirm delete" }).click();
+    await expect(page.getByTestId("billing-tier").filter({ has: page.getByRole("heading", { name: spare }) })).toHaveCount(0);
+
+    await page.goto("/admin/changes?scope=tiers");
+    await expect(page.getByTestId("change-log").getByText(`tier "${spare}" deleted`)).toHaveCount(1);
   } finally {
     await takeTierOffSale(tier, email);
+    await takeTierOffSale(spare, email);
   }
 });

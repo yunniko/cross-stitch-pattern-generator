@@ -263,6 +263,11 @@ export class FakeBilling implements BillingGateway {
     this.emit("customer.subscription.updated", this.subscriptionObject(subscription));
   }
 
+  async priceInUse(priceId: string): Promise<boolean> {
+    this.reachable();
+    return [...this.subscriptions.values()].some((subscription) => subscription.priceId === priceId);
+  }
+
   /** A price held in memory, or else the one `resolvePrice` finds, which is then held. */
   private async knownPrice(id: string): Promise<ProviderPrice | undefined> {
     if (!this.prices.has(id) && this.resolvePrice) {
