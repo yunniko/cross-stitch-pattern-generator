@@ -43,13 +43,13 @@ Account track:
 3. **G-109** (limits): after G-103 and G-113. It makes generating and exporting need an account, so an account must be recoverable first. Waits on: the values and periods.
 4. **G-114** (backups): before the database holds anything a person cannot make again. The schedule on the host and the proven restore wait on nothing; the copy off the host waits on the Owner.
 5. **G-108** (saved charts), in two parts if the Owner agrees: saving and reopening (private and unlisted) first; the public gallery with **G-111**'s moderation second, since only the gallery waits on the shape of moderation and on advice about hosting other people's content.
-6. **G-106** (subscriptions): last. It prices tiers against limits (G-109), takes money against a confirmed address (G-113), must say what happens to saved charts (G-108), and waits on the most from outside (the Stripe account, terms, VAT).
+6. **G-106** (subscriptions), split on 2026-10-08 into G-106 (core), G-126 (payment failures), G-127 (admin) and G-128 (ready to sell): last. It prices tiers against limits (G-109), takes money against a confirmed address (G-113), must say what happens to saved charts (G-108), and waits on the most from outside (the Stripe account, terms, VAT).
 
 Outside both: G-111's comments follow G-112; G-097 comes after G-108, whose chart store it uses; G-101 after G-104 and G-110, since it must show a control for every key they add; G-030 stays unplanned.
 
 **Worked one at a time**, the two tracks interleaved so that the Owner's answers are asked for early and the editor work fills the waits: G-105, G-103, G-110, G-104, G-107, G-113, G-109, G-100, G-114, G-108 (saving), G-112, G-108 (gallery) with G-111, G-106; then G-097 and G-101.
 
-**The shortest road to selling**, if that becomes the aim: G-103, G-107, G-113, G-109, G-106. Saved charts, the gallery, the guide and the editor goals can all follow it; tiers would then differ by features and limits only, and G-106's "what happens to saved charts" has nothing to decide until G-108.
+**The shortest road to selling**, if that becomes the aim: G-103, G-107, G-113, G-109, G-106, G-126, G-127, G-128. Saved charts, the gallery, the guide and the editor goals can all follow it; tiers would then differ by features and limits only, and G-106's "what happens to saved charts" has nothing to decide until G-108.
 
 ### G-124 · Editing the photo in Photo: a Wand that deletes with hard edges, and adjustments that are applied — ACTIVE (accepted 2026-10-07, widened by the Owner the same day)
 - **What:** asked by the Owner, 2026-10-07: "We need to introduce Wand tool to photo mode. It should chose color on the photo and allow to delete it; it should have the same modes as select in edit mode (select, + and -); but also a threshold of sensitivity and button delete; Delete deletes with hard edges." Widened the same day: "The color adjustment now should be applied to photo on press new button Apply. Adjustment sliders should be reset after applying and photo should be saved in changed version; after pressing new button cancel or switching from tab or workspace it is reseted but adjustments are not applied. Both background remove and adjustments should be undoable; if adjustments happen when selection is active only selected area is affected."
@@ -81,16 +81,183 @@ Outside both: G-111's comments follow G-112; G-097 comes after G-108, whose char
 - 2026-10-07 — Owner accepted the plan, to run through all milestones. Answers: a click selects the connected area by default, with a Contiguous switch to select every similar pixel; the tool works any time in Photo, also once a chart exists (the next Generate makes a new try from the edited photo).
 - 2026-10-07 — goal created from the Owner's request; plan written.
 
-### G-106 · Subscriptions: Stripe, tiers that are sold, and the admin's controls — DRAFT (2026-10-06)
-- **What:** asked by the Owner, 2026-10-06. A person can subscribe to a tier, pay through Stripe (Checkout and the Customer Portal), and gets the tier's feature set (G-102) while the subscription is live; Stripe's webhooks keep `Subscription` current (renewal, failed payment, cancellation, end of period). The admin can make and price tiers, see each person's subscription and its history, give or take a tier by hand (a free month, a refund, a comp), and see revenue and counts.
-- **Why:** `Tier` and `Subscription` (with `stripePriceId`, `stripeCustomerId`) have waited since G-075; G-102 built what a tier unlocks.
-- **Acceptance criteria (draft):** end to end in Stripe's test mode: subscribe, renew, fail a payment, cancel, and each changes what the person can use within the feature list's refresh time; webhooks verified by signature and safe to receive twice; no card data ever touches this app's server; the admin actions logged with who and when, as feature changes are.
-- **Constraints:** **escalation-tier, needs the Owner:** creating the Stripe account, accepting its terms, the business identity it is held under, and switching to live mode (VALUES: no accounts, no money without approval). Built and verified in test mode only until the Owner says otherwise. Selling needs terms of service, a privacy policy, prices with VAT (EU) and invoices, which are the Owner's to decide and may need professional advice. G-030 withdrew a plain paywall-on-exports plan; whether this goal is part of G-030's social ecosystem or stands apart is the Owner's call.
-- **Tiers and prices, as a draft (Owner, 2026-10-06):** Personal 10 EUR a month or 100 EUR a year; Professional 20 EUR a month or 200 EUR a year; Enterprise 50 EUR a month. Not final: what each tier unlocks is still to be set (its G-102 feature set).
-- **Owner, 2026-10-06:** the Owner sets up the Stripe account themselves, later (its name, country and VAT handling with it). Until then this goal can be built in Stripe's test mode only.
-- **Owner, 2026-10-06:** what each tier unlocks, its prices and periods (Enterprise yearly or not), VAT included or added, a free trial, and what happens to saved charts when a subscription ends are the Owner's to decide in the admin area. So the admin pages must let each of these be set, not have them written into the code; the draft prices above are the starting values.
-- **Architecture fit (review, 2026-10-06):** (1) Stripe sits behind a billing contract in `lib/billing/` (start a checkout, open the portal, read an event, cancel) with a Stripe adapter and a fake one. The rest of the app, and every test below the end-to-end ones, uses the contract; no route or page imports the `stripe` package. (2) The webhook cannot go through `guardMutation`: `originRejected` (`lib/server/request-guard.ts`) refuses a request with no Origin, and Stripe's carry none. It gets a guard of its own: the signature over the raw body, and a table of event ids already handled, which is what "safe to receive twice" needs. (3) "The subscription is live" becomes one pure rule in `lib/`, read by the features (`lib/features/server.ts` holds it inline today, as a list of status words, and ignores `currentPeriodEnd`) and by G-109's limits; a tier given by hand for a month needs that end date honoured. (4) The schema: `Tier.stripePriceId` holds one price and the draft has monthly and yearly, and a price at Stripe is replaced, not edited, so prices become rows of their own; "history" needs an append-only record of subscription events, as `FeatureChange` is for features. (5) Deleting an account (`lib/auth/account-actions.ts`) deletes the rows and would leave the subscription charging at Stripe: deletion goes through the billing contract first. (6) The admin and account pages arrive as entries in G-107's lists. The `stripe` package is already in the portfolio (`listing-studio`), which the stack rule favours; recorded as a decision when planned.
-- **To settle (found by the review):** (a) the acceptance says "end to end in Stripe's test mode", and test mode itself needs a Stripe account. Until the Owner has made one, the goal can be built and verified only against the fake adapter; runs in Stripe's test mode wait for the account. Noted on 2026-10-06: `listing-studio`'s handover records Stripe verified in test mode, so test keys may already exist; whether they serve this project is the Owner's call. (b) Selling needs a confirmed email address and a way to reset a password; neither exists: G-113. (c) G-030 below still says the paid-tier plan is withdrawn. This goal reverses that, and G-030's wording is the Owner's to update.
+**Subscriptions and Stripe, planned 2026-10-08 (Owner: "build subscription and stripe integration goals. make sure that payment failures are correctly processed even after some succesfull subscription periods").** The draft G-106 of 2026-10-06 is split four ways, because selling has four separable parts and each waits on something different:
+
+- **G-106**: the billing core. The contract, the webhook, the subscription's state and the one rule for "what this person gets". It can be built now, against a fake adapter.
+- **G-126**: payment failures and recovery at any point in a subscription's life. This is the Owner's explicit requirement, so it is a goal of its own with its own acceptance, not a line inside G-106.
+- **G-127**: the admin's controls.
+- **G-128**: what has to be true before real money is taken. This is mostly the Owner's: the account, live mode, VAT, terms.
+
+Order: G-106, G-126, G-127, then G-128 to launch. G-126 builds on G-106's state, and G-127 on both.
+
+What everything depends on is stated once here:
+- **Test mode**: runs in Stripe's test mode need a Stripe account and its test keys, which are the Owner's (G-128 (1)). Until then each goal is built and verified against the fake adapter and recorded Stripe events, and its test-mode milestone is `BLOCKED:`.
+- **Charging**: no live-mode key ever reaches the app before G-128 is signed off.
+- **Keys**: keys are set by the Owner on the host. JulAI never enters them.
+- **Visibility**: buying stays a hidden feature (G-102) in production until then.
+
+### G-106 · Subscriptions, part 1: the billing core (contract, webhook, the subscription's state, what a person gets) — DRAFT, planned 2026-10-08, awaiting acceptance
+- **What:** asked by the Owner, 2026-10-06, and split on 2026-10-08 (see above).
+  - A signed-in person picks a tier and a period, pays through Stripe Checkout, and manages the card, period and cancellation through Stripe's Customer Portal.
+  - The app's record of the subscription is kept current from Stripe's webhooks and by a periodic reconciliation.
+  - One pure rule decides what the person gets: the tier's feature set (G-102) and limits (G-108/G-109), or Free.
+- **Why:** `Tier` and `Subscription` (with `stripePriceId`, `stripeCustomerId`) have waited since G-075, and G-102 built what a tier unlocks. Read on 2026-10-08 at 98fd6d8, the current rule (`subscriptionLive` in `lib/account/plan.ts`) has two faults:
+  - it counts `past_due` as live with no end, so a subscription whose payments keep failing would keep its tier for ever;
+  - nothing reads `currentPeriodEnd`.
+  Both must be fixed before anything is sold.
+- **Acceptance criteria:**
+  1. **The contract.** `lib/billing/` holds the contract: start a checkout, open the portal, read and verify an event, fetch a subscription, cancel, list prices. It has a Stripe adapter and a fake one. No route, page or test below the end-to-end ones imports the `stripe` package (a lint rule enforces this, as other import boundaries are).
+  2. **Prices.** Prices are rows of their own: a tier has a monthly and a yearly price, and a replaced price is a new row. Checkout is offered only for a price marked current.
+  3. **The webhook** (its own route, outside `guardMutation`, Architecture fit (2)):
+     - it verifies the signature over the raw body and refuses a bad, missing or stale one;
+     - it records each event id once, so a second delivery changes nothing;
+     - it never trusts the event's copy of the subscription: it re-fetches the subscription from Stripe and writes that snapshot. The result does not depend on the order events arrive in.
+     - Unit tests cover: every relevant event delivered twice, in shuffled order, and with one dropped then recovered by reconciliation.
+  4. **Reconciliation.** A scheduled pass re-reads from Stripe every subscription that is not final. It corrects any record that is wrong, and records what it corrected. It is a service of this project's compose file (Architecture fit (4)).
+  5. **Entitlement.** "What this person gets" is one pure function of the stored snapshot, the grace setting and the time now. It replaces `subscriptionLive`, and features, limits and the Plan section all read it. Every Stripe status is a named case, and the function is unit-tested over the full table of status × time:
+     - `incomplete` and `incomplete_expired` (a first payment that never succeeded) give Free;
+     - `trialing` and `active` give the tier until the period's end plus a small allowance for a late webhook;
+     - `past_due` is G-126's;
+     - `unpaid`, `canceled` and `paused` give Free.
+  6. **One live subscription.** A person never has two. Checkout is refused while one is live. A second one created anyway (two tabs) is detected by the webhook and shown to the admin; it is not silently kept charging.
+  7. **Account deletion.** Deleting an account cancels its subscription at Stripe first, through the contract, and refuses to delete the account if Stripe cannot be reached.
+  8. **Card data.** No card data ever reaches this app's server. Checkout and the Portal are Stripe's pages.
+  9. **Browser tests (fake adapter):** subscribe, see the tier's features, cancel at period end, keep the tier until the period ends, then Free. In Stripe's test mode, once keys exist: the same, with a test clock across two renewals.
+- **Constraints:**
+  - Built and verified in test mode or against the fake adapter only (VALUES: no money without approval).
+  - The `stripe` package at the version `listing-studio` pins (stack rule: already in the portfolio), recorded as a decision.
+  - Stripe's API version is pinned in the adapter. In the current versions, the period's end is read from the subscription item, not the subscription. To verify in M1 against Stripe's documentation, saved as a reference in `docs/reviews/`.
+  - The webhook's route and secret are new production configuration. Keys are set by the Owner (escalation: the Owner's credentials).
+  - Personal data, flagged: Stripe holds the name, email, card and address. The app stores only Stripe's ids, the status and dates, and the history of events (ids and types, no payload kept beyond what the rule reads).
+- **Architecture fit (review 2026-10-06, kept):**
+  1. Everything goes through `lib/billing/`'s contract.
+  2. The webhook has its own guard: signature and an event-id table, since `originRejected` refuses Stripe's requests, which carry no Origin.
+  3. "Live" is one pure rule in `lib/`.
+  4. Prices are rows of their own. History is an append-only `SubscriptionEvent`, as `FeatureChange` is for features.
+  5. Account deletion goes through the contract.
+  6. Pages are entries in G-107's lists.
+  Added 2026-10-08: the reconciliation is a compose service beside `db`, like G-114's backup, scoped to this project and needing no root.
+- **To settle (Owner):**
+  - (a) Start now against the fake adapter, before G-109's counted limits exist? Tiers would then differ by features and the saved-chart space only.
+  - (b) Stripe test keys: a new Stripe account for this project, or `listing-studio`'s (G-128 (1)).
+  - (c) G-030 still says the paid-tier plan is withdrawn; its wording is the Owner's to update.
+  - Answered earlier, kept: prices, periods, trial and what each tier unlocks are set in the admin area, not in code (Owner, 2026-10-06; built in G-127). The draft prices are the starting values: Personal 10 EUR a month or 100 a year, Professional 20 or 200, Enterprise 50 a month.
+
+**Milestones:**
+- [ ] M1 — The contract and the rule: `lib/billing/` contract, fake adapter, Stripe adapter (pinned version and API version); schema (`Price` rows, the subscription snapshot with period end, cancel-at-period-end and the first-failure date G-126 reads, `BillingEvent` ids, `SubscriptionEvent` history); the entitlement rule replacing `subscriptionLive`, unit-tested over the status × time table; the import-boundary lint; reference summary of the Stripe behaviour relied on; decisions (stack, snapshot-not-event, the rule).
+- [ ] M2 — The webhook and reconciliation: the route with signature, dedupe and re-fetch; the reconciliation service; account deletion through the contract; second-subscription detection; unit tests with duplicated, shuffled and dropped events.
+- [ ] M3 — Buying: the Plans page (prices from the database), Checkout, the Portal, return pages, the Plan section from the rule; buying a hidden feature; browser tests on the fake adapter in CI. Deploys to `cross-stitch.craftodejnice.cz` (existing target) with buying hidden and no Stripe keys, a release like any other.
+- [ ] M4 — Proof in Stripe's test mode (waits on (b)): a script drives a test clock through subscribe, two renewals and cancellation, feeding the real events through the same handler, and checks the rule's answer at each step. The run is recorded in `docs/reviews/`.
+
+**Progress log** (newest first; The Company appends at every stopping point):
+- 2026-10-08 — split from the 2026-10-06 draft and planned at the Owner's request; awaiting acceptance.
+- 2026-10-06 — goal created.
+
+### G-126 · Subscriptions, part 2: payment failures and recovery at any point in a subscription's life — DRAFT, planned 2026-10-08, awaiting acceptance
+- **What:** the Owner's requirement, 2026-10-08: "make sure that payment failures are correctly processed even after some succesfull subscription periods". A renewal can fail in any period, after any number of paid ones. When it does, the app:
+  - keeps the person's tier for a grace period that the admin sets;
+  - tells them, by email and on the account page, with a way to pay;
+  - follows Stripe's retries;
+  - restores everything the moment a payment succeeds;
+  - moves the person to Free when the grace runs out or Stripe gives up.
+  It does all this the same way in the 2nd period and the 20th, and as often as it happens.
+- **Why:** the first payment is the easy case: Checkout fails in front of the person. A renewal fails months later with nobody watching: the card expired, was replaced or ran short, or the bank asks for authentication. An app that handles only the first payment either gives away the tier for ever (today's rule would) or cuts off a paying customer over one declined retry.
+- **Acceptance criteria:**
+  1. **Scenarios.** Each scenario is a unit test driving a sequence of Stripe events, recorded or built from Stripe's shapes, through G-106's handler, checking the entitlement rule's answer and the emails sent at every step. Every scenario is also run with its events delivered twice and in shuffled order. The scenarios:
+     1. Three paid periods; the 4th renewal fails, a retry succeeds: the tier is kept throughout, the person is told once, and the recovery is noted.
+     2. Three paid periods; the 4th renewal fails and every retry fails. The tier is kept until the earlier of the grace's end and Stripe's last attempt, then Free. The subscription ends `canceled` or `unpaid`, whichever the Stripe setting chooses, and both cases are covered.
+     3. As (2), then the person pays the open invoice through the Portal or Stripe's invoice page while `unpaid`: back to the tier at once, with no new subscription.
+     4. A failure in period 3 is recovered and a second failure comes in period 6. The grace counts afresh from the new failure: it is not carried over or added up, and the old failure's dates leave no trace in the rule.
+     5. A renewal that needs authentication (`invoice.payment_action_required`): the email carries Stripe's link to authenticate, and the tier is kept as for a failure.
+     6. The card is replaced in the Portal during the grace and Stripe's retry succeeds: recovery.
+     7. Cancellation during the grace: Free at once, or at the period's end, as the Portal set it; no further dunning email.
+     8. A yearly subscription failing at its first renewal behaves as a monthly one does. The grace is days, not a share of the period.
+     9. A change of plan whose prorated payment fails: the person keeps the old plan, and the change is not applied as if paid.
+     10. A dispute or refund after paid periods is shown to the admin. What it does to access is (b) below.
+     11. The webhook is down for a day during a failure and its retries. The reconciliation pass alone brings the record and the rule's answer right.
+  2. **The grace setting.** The grace is the admin's setting, in days (an entry in the admin's settings, G-107). The rule counts it from the first failed attempt of the invoice now open. It is never derived from the event's arrival time.
+  3. **Emails.** They go through G-113's mail contract, each a message in `lib/mail/messages.ts`: payment failed (with the date of the next try and a link to update the card), action needed, last notice before Free, moved to Free, payment recovered. Each is sent once per failure, however many retries or duplicated events arrive.
+  4. **On the account page.** While a payment is failing, the Plan section says so and links to the Portal. It is gone after recovery.
+  5. **Moving to Free.** Nothing the person made is deleted. Saved charts and stamps over Free's space stay readable and exportable but cannot be added to (D353's space limit refuses new saves, as today). It all comes back with the tier.
+  6. **Browser test (fake adapter, CI):** fail, see the notice, recover, notice gone; fail, grace runs out (the clock set by the fake), Free, then pay, and the tier is back.
+  7. **In Stripe's test mode, once keys exist** (G-106 M4's script extended): a test clock with three paid monthly periods, then the card swapped for Stripe's always-declining test card, then the clock advanced through every retry. The rule's answer is checked after each step, and the same is done with recovery by a working card. Recorded in `docs/reviews/`.
+- **Constraints:**
+  - Emails need G-113's sender domain to reach people for real. Until then the mail stand-in proves what would be sent.
+  - The retry schedule and the final outcome (`canceled`, `unpaid` or left `past_due`) are Stripe dashboard settings. They are the Owner's to set (their account), and the app must be correct for every choice, not only the default (scenario (2) covers all three).
+  - Stripe's own failed-payment emails must be off if ours are on, so nobody gets two (G-128 (1)).
+  - Personal data: emails go to the account's address only, and nothing about the card beyond what Stripe's own page shows.
+- **Architecture fit:**
+  1. All of this lives in G-106's rule, contract and handler; there is no second path. The scenarios are data run through one test driver in `tests/unit/`, so a new scenario is a table entry.
+  2. The emails are entries in `MESSAGES`.
+  3. The notice is the account page's, through G-107's lists.
+  4. The grace is a setting declared where other admin settings are.
+  5. Every state change writes a `SubscriptionEvent`, so the admin's history (G-127) shows the whole failure and recovery.
+- **To settle (Owner):**
+  - (a) The grace's starting value: suggested 14 days, about Stripe's default retry window.
+  - (b) After a dispute or a refund: keep access to the period's end, or Free at once?
+  - (c) What Free means for saved charts beyond its space: the proposal above (kept, readable, no new saves), or something else.
+
+**Milestones:**
+- [ ] M1 — The life of a subscription: the scenario driver and all eleven scenarios as unit tests (twice-delivered and shuffled variants generated), the grace setting and the rule's `past_due` case, the first-failure date kept and cleared correctly across periods; decision on the grace's counting.
+- [ ] M2 — What the person sees: the five messages through the mail contract (sent once per failure), the account page's notice and Portal link, Free without deletion; browser tests on the fake adapter in CI. Deploys to `cross-stitch.craftodejnice.cz` (existing target), buying still hidden.
+- [ ] M3 — Proof in Stripe's test mode (waits on G-106 (b)): the test-clock run of scenario (1), (2) and (4) against the real API, recorded.
+
+**Progress log** (newest first; The Company appends at every stopping point):
+- 2026-10-08 — goal created and planned at the Owner's request; awaiting acceptance.
+
+### G-127 · Subscriptions, part 3: the admin's controls (tiers, prices, people's subscriptions, grants by hand, revenue) — DRAFT, planned 2026-10-08, awaiting acceptance
+- **What:** from the 2026-10-06 draft. The admin:
+  - makes tiers and prices them;
+  - sees each person's subscription and its whole history, including failures and recoveries (G-126);
+  - sees who is in a failing payment now;
+  - gives or takes a tier by hand (a free month, a comp), with an end date that the rule honours;
+  - refunds through Stripe;
+  - sees revenue and counts.
+- **Why:** the Owner set prices, periods, trial and what each tier unlocks as the admin's to change (2026-10-06), not code's.
+- **Acceptance criteria:**
+  1. **Prices.** A price is made through the contract (Stripe creates it; the app keeps the row). Changing a price makes a new one and leaves existing subscribers on theirs, unless the admin moves them.
+  2. **Grants by hand** are a subscription of their own kind, with no Stripe id and an end date. The rule gives the tier until that date, and the grant ends by itself.
+  3. **The log.** Every admin action is logged with who and when, as feature changes are, and appears in the person's history.
+  4. **What the admin sees:** the failing-payments list and the second-subscription warning (G-106 (6)). Revenue and counts are read from Stripe through the contract, not added up from webhooks.
+  5. **Tests.** Unit tests for the grant rule and price replacement, and browser tests on the fake adapter. Admin pages are never exercised live (standing rule).
+- **Architecture fit:**
+  - The pages are entries in G-107's admin lists.
+  - The log is `FeatureChange`'s pattern with a billing scope, not a second log.
+  - Prices go through G-106's contract.
+- **To settle:** (a) does the admin issue refunds here, or in Stripe's dashboard only? (b) Is a trial offered, and how long?
+
+**Milestones:**
+- [ ] M1 — Tiers and prices in the admin area (make, replace, mark current), grants by hand with an end date honoured by the rule, logging.
+- [ ] M2 — People's subscriptions: list, history, failing payments, second-subscription warnings, refunds if (a) says so, revenue and counts; tests; deploys to `cross-stitch.craftodejnice.cz` (existing target).
+
+**Progress log** (newest first; The Company appends at every stopping point):
+- 2026-10-08 — split from G-106's draft and planned; awaiting acceptance.
+
+### G-128 · Ready to sell: the Stripe account, live mode, VAT, invoices and terms — DRAFT, planned 2026-10-08, mostly the Owner's
+- **What:** everything that has to be true before the first real payment, and the switch itself. Each item is the Owner's or needs their approval; JulAI's part is the app's side and a checklist.
+- **The Owner's (escalation-tier: account, money, terms, credentials):**
+  1. **The Stripe account:** the business identity it is held under, its country, and accepting Stripe's terms. Then its dashboard settings:
+     - Smart Retries and their window;
+     - what happens after the last retry (cancel, mark unpaid, or leave past due);
+     - Stripe's own failed-payment and receipt emails off or on (G-126);
+     - the Customer Portal's allowed actions.
+     Test keys first, live keys at launch. The Owner sets them on the host and in CI's secrets.
+  2. **VAT:** EU VAT on digital services to consumers is due at the buyer's country's rate (OSS), so prices are either VAT-included or VAT-added. Either Stripe Tax collects it (it costs a fee) or the Owner handles it otherwise. This may need professional advice.
+  3. **Invoices:** Stripe's invoices and receipts, under the business's details and numbering.
+  4. **Terms of service and a privacy policy:** the privacy policy names Stripe as processor. They are the Owner's text, and may need professional advice.
+  5. **The right of withdrawal:** an EU consumer buying digital content has a 14-day right of withdrawal. It is lost only if they agree to immediate performance and acknowledge losing it. That needs a checkbox before Checkout, whose wording is the Owner's. Labelled an inference to be confirmed by advice, not legal advice.
+  6. **Approving the launch:** a feature that charges money (OPERATIONS §4).
+- **JulAI's:** the terms and privacy pages (the Owner's text) and the withdrawal checkbox. A launch checklist that checks, against production, that:
+  - the webhook is reachable and signed;
+  - the reconciliation service is running;
+  - the keys are live-mode;
+  - buying's feature state is set;
+  - the test-clock scenarios passed on this release.
+  Then one real, small purchase and refund by the Owner, as the final check.
+- **Milestones:** planned when the Owner takes it up. None of it starts without (1).
+
+**Progress log** (newest first; The Company appends at every stopping point):
+- 2026-10-08 — drafted from G-106's constraints at the Owner's request.
 
 ### G-108 · Charts saved to an account, a gallery, and who can see each (private by default) — DRAFT (part 2; part 1 signed off 2026-10-08)
 - **Part 1 (saving to the account, the account's Charts, previews) — DONE, Owner sign-off 2026-10-08;** archived in `docs/goals-archive/G-101-to-G-110.md`. Deployed in v0.15.0, v0.16.0 and v0.17.0.
