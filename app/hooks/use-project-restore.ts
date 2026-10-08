@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { SavedChartLink } from "@/lib/charts/saved-chart-link";
 import { logPatternLoadFailure } from "@/lib/editor/error-report";
 import { getProjectStore, restoreProject, type ProjectLoadFailure, type ProjectLoadResult } from "@/lib/editor/project-store";
 import { NO_SYMMETRY, type SymmetryAxes } from "@/lib/editor/symmetry";
@@ -7,11 +8,12 @@ import type { StitchPattern } from "@/lib/types";
 import { useLatest } from "./use-latest";
 
 /**
- * Restores the autosaved project once on mount (D100, D101), with the symmetry axes saved alongside it (G-037).
+ * Restores the autosaved project once on mount (D100, D101), with the symmetry axes saved alongside it (G-037) and the
+ * account chart it is saved as (G-108).
  * `restored` gates autosave, so the first render can't overwrite the saved project before it has been read back. A
  * failure is logged at once and kept for the banner.
  */
-export function useProjectRestore(onRestored: (pattern: StitchPattern, symmetry: SymmetryAxes) => void) {
+export function useProjectRestore(onRestored: (pattern: StitchPattern, symmetry: SymmetryAxes, savedChart: SavedChartLink | null) => void) {
   const [restored, setRestored] = useState(false);
   const [failure, setFailure] = useState<ProjectLoadFailure | null>(null);
   const onRestoredRef = useLatest(onRestored);
@@ -26,7 +28,7 @@ export function useProjectRestore(onRestored: (pattern: StitchPattern, symmetry:
           logPatternLoadFailure({ source: "auto-restore", error: result.failure.error });
           setFailure(result.failure);
         }
-        if (result.pattern) onRestoredRef.current(result.pattern, result.symmetry ?? NO_SYMMETRY);
+        if (result.pattern) onRestoredRef.current(result.pattern, result.symmetry ?? NO_SYMMETRY, result.savedChart ?? null);
         setRestored(true);
       });
     return () => {

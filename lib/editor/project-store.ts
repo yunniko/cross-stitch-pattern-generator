@@ -10,6 +10,7 @@ import {
 } from "./pattern-serialize";
 import { NO_SYMMETRY, type SymmetryAxes } from "./symmetry-axes";
 import type { BackstitchLine, RGB, SourceImageRef, StitchPattern, ThreadSwatchRef } from "../types";
+import { readSavedChartLink, type SavedChartLink } from "../charts/saved-chart-link";
 
 /**
  * The auto-saved project lives in IndexedDB, not localStorage: a large grid
@@ -78,6 +79,8 @@ export interface StoredProjectRecord {
   symmetry?: SerializedSymmetry;
   /** The backstitch on the chart (G-073); absent when there is none, and on records written before it. */
   backstitch?: BackstitchLine[];
+  /** The account chart this one is saved as (G-108, D355), so Save still overwrites it after a reload; absent when none. */
+  savedChart?: SavedChartLink;
 }
 
 export interface ProjectLoadFailure {
@@ -90,14 +93,19 @@ export interface ProjectLoadResult {
   pattern: StitchPattern | null;
   /** The symmetry axes saved with the project; off when absent or unreadable. */
   symmetry?: SymmetryAxes;
+  /** The account chart saved with the project, when it is one (G-108). */
+  savedChart?: SavedChartLink;
   /** Set when a saved project existed but couldn't be restored; the corrupt slot has been cleared so it won't fail again on the next load. */
   failure?: ProjectLoadFailure;
 }
 
 export interface ProjectStore {
   load(): Promise<ProjectLoadResult>;
-  /** Saves `pattern` with its symmetry axes, or clears the slot (and any stored photo) when null. Rejects when the underlying storage fails. */
-  save(pattern: StitchPattern | null, symmetry?: SymmetryAxes): Promise<void>;
+  /**
+   * Saves `pattern` with its symmetry axes and the account chart it is saved as, or clears the slot (and any stored photo)
+   * when null. Rejects when the underlying storage fails.
+   */
+  save(pattern: StitchPattern | null, symmetry?: SymmetryAxes, savedChart?: SavedChartLink | null): Promise<void>;
 }
 
 export function createProjectStore(kv: KeyValueStore): ProjectStore {
@@ -109,19 +117,21 @@ export function createProjectStore(kv: KeyValueStore): ProjectStore {
       const photo = photoKey ? await kv.get(photoKey) : undefined;
       try {
         const pattern = decodeRecord(record, photo);
-        return { pattern, symmetry: readSymmetry((record as { symmetry?: unknown }).symmetry, pattern.width, pattern.height) };
+        const { symmetry, savedChart } = record as { symmetry?: unknown; savedChart?: unknown };
+        return { pattern, symmetry: readSymmetry(symmetry, pattern.width, pattern.height), savedChart: readSavedChartLink(savedChart) };
       } catch (error) {
         await kv.delete(CURRENT_PROJECT_KEY).catch(() => {});
         return { pattern: null, failure: { error, payload: describeRecord(record, photo) } };
       }
     },
-    async save(pattern, symmetry = NO_SYMMETRY) {
+    async save(pattern, symmetry = NO_SYMMETRY, savedChart = null) {
       if (!pattern) {
         await kv.delete(CURRENT_PROJECT_KEY);
         await prunePhotos(kv, null);
         return;
       }
       const { record, photo } = await encodeRecord(pattern, symmetry);
+      if (savedChart) record.savedChart = { ...savedChart };
       // Photo first, then the record that references it: a failure in
       // between leaves an orphan photo (pruned on the next save), never a
       // record pointing at a missing photo.

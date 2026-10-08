@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
-import { openSmallChart, saveButton } from "./helpers/app";
+import { openSmallChart, saveToFile } from "./helpers/app";
 import { clickSelectionAction, selectionAction, selectionFinish, showSelectionTab } from "./helpers/selection";
 
 /** G-063: the Fill and Duplicate buttons, through the real UI (Owner, 2026-09-23). */
@@ -27,7 +27,7 @@ async function pickFirstThread(page: Page) {
  */
 async function exportChart(page: Page): Promise<{ width: number; height: number; cellPalette: number[] }> {
   await page.getByRole("tab", { name: "Threads" }).click();
-  const [download] = await Promise.all([page.waitForEvent("download"), saveButton(page).click()]);
+  const download = await saveToFile(page);
   return JSON.parse(await readFile((await download.path())!, "utf8"));
 }
 

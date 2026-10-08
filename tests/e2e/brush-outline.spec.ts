@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
-import { pickTool, saveButton, brushSize } from "./helpers/app";
+import { pickTool, saveToFile, brushSize } from "./helpers/app";
 
 /**
  * G-065: the outline the cursor carries. It says where a press would land and how big it would be, on a canvas of its
@@ -195,7 +195,7 @@ test("nothing it draws reaches the chart, the saved file or the stitch count", a
     await page.mouse.move(at.x, at.y);
   }
   await expect(page.getByText(new RegExp(`${WIDTH} × ${HEIGHT}, 0 stitches`))).toBeVisible();
-  const [download] = await Promise.all([page.waitForEvent("download"), saveButton(page).click()]);
+  const download = await saveToFile(page);
   const chart = JSON.parse(await readFile((await download.path())!, "utf8"));
   expect(
     chart.cellPalette.every((cell: number) => cell === 255),

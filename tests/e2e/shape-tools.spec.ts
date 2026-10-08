@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
-import { saveButton, brushSize } from "./helpers/app";
+import { saveToFile, brushSize } from "./helpers/app";
 
 /**
  * G-064 M3 and M4: the shape tools. A drag from one stitch to another draws a line, a rectangle or an oval, as thick
@@ -54,7 +54,7 @@ async function drag(
 
 /** The chart as saved: which thread each cell holds. */
 async function exportChart(page: Page): Promise<{ cellPalette: number[]; palette: { name: string }[] }> {
-  const [download] = await Promise.all([page.waitForEvent("download"), saveButton(page).click()]);
+  const download = await saveToFile(page);
   return JSON.parse(await readFile((await download.path())!, "utf8"));
 }
 

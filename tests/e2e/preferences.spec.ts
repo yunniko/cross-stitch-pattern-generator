@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
-import { FIXTURE, chooseExport, expectPhotoLoaded, openPreferences, openSmallChart, saveButton, showWorkspace } from "./helpers/app";
+import { FIXTURE, chooseExport, expectPhotoLoaded, openPreferences, openSmallChart, saveToFile, showWorkspace } from "./helpers/app";
 
 /**
  * G-095 M5, D299: Preferences, what is set once and then left. A new chart starts from them and every export reads
@@ -57,7 +57,7 @@ test("a preference never changes the chart that is open, and the chart's own fab
   await pressed(preferences.getByRole("group", { name: "Fabric count for a new chart" }), "18-count").click();
   await preferences.getByRole("button", { name: "Close" }).click();
   await expect(status(page)).toContainText("14-ct");
-  const [download] = await Promise.all([page.waitForEvent("download"), saveButton(page).click()]);
+  const download = await saveToFile(page);
   expect(JSON.parse(await readFile((await download.path())!, "utf8")).fabric).toEqual({ count: 14, unit: "cm" });
 
   // The chart to 11, in its own settings: the preference stays at 18.

@@ -42,6 +42,15 @@ async function photoKeys(kv: KeyValueStore): Promise<string[]> {
 }
 
 describe("project-store", () => {
+  it("keeps which account chart the open one is, and forgets it when saved without one (G-108)", async () => {
+    const store = createProjectStore(createMemoryKeyValueStore());
+    const link = { id: "ckabc123", version: 3, savedAt: "2026-10-08T10:00:00.000Z" };
+    await store.save(makePattern(), undefined, link);
+    expect((await store.load()).savedChart).toEqual(link);
+    await store.save(makePattern());
+    expect((await store.load()).savedChart).toBeUndefined();
+  });
+
   it("round-trips a pattern, recomputing counts and keeping name/brand/edge mode", async () => {
     const kv = createMemoryKeyValueStore();
     const store = createProjectStore(kv);

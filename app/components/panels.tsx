@@ -1,5 +1,6 @@
 import { Fragment } from "react";
 import type { ProjectLoadFailure } from "@/lib/editor/project-store";
+import type { AccountSaveMessage } from "../hooks/use-account-save";
 import { DISABLED_ICON, NoticeBar, PillButton } from "./ui";
 import { SkinIcon } from "../skin/skin";
 import type { InterfaceIconName } from "../skin/icons";
@@ -17,9 +18,12 @@ export interface WorkspaceNoticesProps {
   onDismissOpenNotice: () => void;
   exportError: string | null;
   onDismissExportError: () => void;
+  /** What a Save to the account came to (G-108): that it was saved, or why not. */
+  accountSaveMessage: AccountSaveMessage | null;
+  onDismissAccountSaveMessage: () => void;
 }
 
-/** The strips under the bar of tool options: a failed auto-restore (D101), and open and export errors. */
+/** The strips under the bar of tool options: a failed auto-restore (D101), open and export errors, and what a Save to the account came to. */
 export function WorkspaceNotices({
   restoreFailure,
   onDownloadRestoreReport,
@@ -30,6 +34,8 @@ export function WorkspaceNotices({
   onDismissOpenNotice,
   exportError,
   onDismissExportError,
+  accountSaveMessage,
+  onDismissAccountSaveMessage,
 }: WorkspaceNoticesProps) {
   return (
     <>
@@ -67,6 +73,13 @@ export function WorkspaceNotices({
       {exportError && (
         <NoticeBar key={exportError} tone="error" onDismiss={onDismissExportError}>
           {exportError}
+        </NoticeBar>
+      )}
+      {accountSaveMessage && (
+        <NoticeBar key={accountSaveMessage.text} tone={accountSaveMessage.tone} onDismiss={onDismissAccountSaveMessage}>
+          <span data-testid="account-save-message" data-tone={accountSaveMessage.tone}>
+            {accountSaveMessage.text}
+          </span>
         </NoticeBar>
       )}
     </>

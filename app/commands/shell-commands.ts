@@ -40,6 +40,11 @@ export interface ShellState {
   photoLoading: boolean;
   generating: boolean;
   exporting: boolean;
+  /** Signed in, so there is an account to save to (G-108). */
+  signedIn: boolean;
+  /** The open chart is saved to the account, so a copy of it can be. */
+  savedToAccount: boolean;
+  savingToAccount: boolean;
   canUndo: boolean;
   canRedo: boolean;
   /** The photo sliders are all centred. */
@@ -56,6 +61,8 @@ export interface ShellActions {
   exportSelected: () => void;
   exportAll: () => void;
   exportEditable: () => unknown;
+  saveToAccount: () => void;
+  saveCopy: () => void;
   generate: () => unknown;
   cancelGeneration: () => void;
   resetSliders: () => void;
@@ -106,6 +113,8 @@ export function shellCommandStates(s: ShellState, a: ShellActions): Record<Shell
     "file.export": act(exportFree, a.exportSelected),
     "file.export-all": act(exportFree, a.exportAll),
     "file.export-editable": act(exportFree, a.exportEditable),
+    "file.save-to-account": act(chartShown && s.signedIn && !s.savingToAccount, a.saveToAccount),
+    "file.save-copy": act(chartShown && s.signedIn && s.savedToAccount && !s.savingToAccount, a.saveCopy),
     "generate.run": act(s.photoShown && !s.generating && !s.photoLoading, a.generate),
     "generate.cancel": act(s.generating, a.cancelGeneration),
     "generate.reset-adjustment": act(s.photoShown && !s.slidersNeutral, a.resetSliders),

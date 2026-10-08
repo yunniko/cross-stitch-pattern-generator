@@ -20,6 +20,9 @@ const EDITING: ShellState = {
   photoLoading: false,
   generating: false,
   exporting: false,
+  signedIn: true,
+  savedToAccount: true,
+  savingToAccount: false,
   canUndo: true,
   canRedo: true,
   slidersNeutral: false,
@@ -35,6 +38,8 @@ function actions(): ShellActions & Record<string, ReturnType<typeof vi.fn>> {
     "exportSelected",
     "exportAll",
     "exportEditable",
+    "saveToAccount",
+    "saveCopy",
     "generate",
     "cancelGeneration",
     "resetSliders",
@@ -118,6 +123,18 @@ describe("the editor's own commands", () => {
     expect(available(generating)).toContain("generate.cancel");
   });
 
+  it("saving to the account needs someone signed in; a copy needs the chart saved first; both wait while saving (G-108)", () => {
+    expect(unavailableIn({ ...EDITING, signedIn: false })).toEqual(["file.save-to-account", "file.save-copy"]);
+    expect(unavailableIn({ ...EDITING, savedToAccount: false })).toEqual(["file.save-copy"]);
+    expect(unavailableIn({ ...EDITING, savingToAccount: true })).toEqual(["file.save-to-account", "file.save-copy"]);
+    const a = actions();
+    const commands = shellCommandStates(EDITING, a);
+    commands["file.save-to-account"].run();
+    commands["file.save-copy"].run();
+    expect(a.saveToAccount).toHaveBeenCalledTimes(1);
+    expect(a.saveCopy).toHaveBeenCalledTimes(1);
+  });
+
   it("while a photo is being read, a new photo and generate go", () => {
     expect(unavailableIn({ ...EDITING, photoLoading: true })).toEqual(["file.choose-photo", "generate.run"]);
   });
@@ -156,6 +173,8 @@ describe("the editor's own commands", () => {
       "file.export",
       "file.export-all",
       "file.export-editable",
+      "file.save-to-account",
+      "file.save-copy",
       "generate.run",
       "generate.reset-adjustment",
       "colours.isolate",

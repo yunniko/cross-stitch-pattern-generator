@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import path from "node:path";
-import { expectPhotoLoaded, saveButton, showWorkspace } from "./helpers/app";
+import { expectPhotoLoaded, saveToFile, showWorkspace } from "./helpers/app";
 
 // G-033: the swatch-aware color editor. Opens on the color's own swatch, compares swatches on hover and focus, applies
 // picks while staying open, and closes with Done, Cancel, Escape or a click outside.
@@ -172,7 +172,7 @@ test("a color picked from the DMC tab reopens on DMC with its swatch marked, als
     await panel.getByRole("button", { name: "Done" }).click();
   };
   await reopenAndCheck();
-  const [download] = await Promise.all([page.waitForEvent("download"), saveButton(page).click()]);
+  const download = await saveToFile(page);
   await page.getByLabel("Open pattern file").setInputFiles((await download.path())!);
   // The thread's button is on screen before and after, so it is no sign the file has replaced the chart; an editor opened
   // on the old chart is closed when the new one arrives. Undo having nothing to step back to is the sign.

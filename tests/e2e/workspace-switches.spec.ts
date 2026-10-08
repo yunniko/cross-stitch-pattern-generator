@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { test, expect, type Page } from "@playwright/test";
-import { FIXTURE, SAMPLE_CHART, expectPhotoLoaded, openSmallChart, saveButton } from "./helpers/app";
+import { FIXTURE, SAMPLE_CHART, expectPhotoLoaded, openSmallChart, saveButton, saveMenuItem } from "./helpers/app";
 import { clearSiteFeatures, setSiteFeatures } from "./helpers/features";
 
 /**
@@ -123,11 +123,15 @@ test("Edit hidden: no tab, and its commands are gone from the list @alone", asyn
   await expect(row(page, "edit.undo")).toHaveCount(1);
 });
 
-test("Export hidden: no tab, no Save, and starting new offers no export first @alone", async ({ page }) => {
+test("Export hidden: no tab, no Save to file, and starting new offers no export first @alone", async ({ page }) => {
   await setSiteFeatures({ "workspace.export": "hidden" });
   await openSmallChart(page);
   await expect(tab(page, "Export")).toHaveCount(0);
-  await expect(saveButton(page)).toHaveCount(0);
+  // Save stays for the account (G-108); only its file item goes.
+  await saveButton(page).click();
+  await expect(saveMenuItem(page, "Save")).toBeVisible();
+  await expect(saveMenuItem(page, "Save to file")).toHaveCount(0);
+  await page.keyboard.press("Escape");
   const dialog = await askToStartNew(page);
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole("button", { name: "Export, then start new" })).toHaveCount(0);
@@ -138,9 +142,12 @@ test("Export locked: the tab, Save and Export-then-start-new are greyed with the
   await setSiteFeatures({ "workspace.export": "locked" });
   await openSmallChart(page);
   await expect(tab(page, "Export")).toBeDisabled();
-  await expect(saveButton(page)).toBeDisabled();
-  await expect(saveButton(page)).toHaveAttribute("data-feature-locked", "workspace.export");
-  await expect(saveButton(page)).toHaveAttribute("title", "Export is not available to you.");
+  await saveButton(page).click();
+  const toFile = saveMenuItem(page, "Save to file");
+  await expect(toFile).toBeDisabled();
+  await expect(toFile).toHaveAttribute("data-feature-locked", "workspace.export");
+  await expect(toFile).toHaveAttribute("title", "Export is not available to you.");
+  await page.keyboard.press("Escape");
   const dialog = await askToStartNew(page);
   const exportFirst = dialog.getByRole("button", { name: "Export, then start new" });
   await expect(exportFirst).toBeDisabled();

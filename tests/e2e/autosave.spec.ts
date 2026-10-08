@@ -3,7 +3,7 @@ import path from "node:path";
 import { readFile } from "node:fs/promises";
 import { CURRENT_PROJECT_KEY, PROJECT_DB_NAME, PROJECT_DB_VERSION, PROJECT_OBJECT_STORE } from "../../lib/editor/project-store";
 import { LEGACY_PROJECT_KEY } from "../../lib/editor/workspace-storage";
-import { expectPhotoLoaded, saveButton, showWorkspace } from "./helpers/app";
+import { expectPhotoLoaded, saveToFile, showWorkspace } from "./helpers/app";
 
 const FIXTURE = path.join(__dirname, "fixtures", "sample.png");
 
@@ -152,7 +152,7 @@ test("a project autosaved by the previous localStorage build is migrated on firs
   await page.getByLabel("Image").setInputFiles(FIXTURE);
   await generateSmall(page);
   // Grab a real serialized pattern via the Export dropdown, then plant it in the legacy slot.
-  const [download] = await Promise.all([page.waitForEvent("download"), saveButton(page).click()]);
+  const download = await saveToFile(page);
   const savedPath = test.info().outputPath("legacy-pattern.json");
   await download.saveAs(savedPath);
   const json = await readFile(savedPath, "utf8");

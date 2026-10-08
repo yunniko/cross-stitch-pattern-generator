@@ -51,7 +51,7 @@ test("an admin sets the space for saved charts per layer; each shows what it giv
 
     // Refused input says what is allowed and changes nothing.
     await setLimit(page, "guests", "lots");
-    await expect(page.getByRole("alert")).toContainText('a whole number of MB, or "unlimited"');
+    await expect(page.getByTestId("limits").getByRole("alert")).toContainText('a whole number of MB, or "unlimited"');
     expect(await storedLimit("AudienceLimit", `"audience" = 'guests'`, [])).toBeUndefined();
 
     // Kept, as stored values: a number, and null for unlimited.

@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
-import { openSmallChart, pickTool, saveButton } from "./helpers/app";
+import { openSmallChart, pickTool, saveToFile } from "./helpers/app";
 import { chartBox, drawChain, pickThread, threadName } from "./helpers/backstitch";
 import { clearSiteFeatures, setSiteFeatures } from "./helpers/features";
 
@@ -41,7 +41,7 @@ async function paintCell(page: Page, nth: number, cx: number, cy: number): Promi
 /** The thread a cell holds, read from the saved chart: the only place cells and names can be read together. */
 async function savedThreadAt(page: Page, cx: number, cy: number): Promise<string> {
   await page.getByRole("tab", { name: "Threads" }).click();
-  const [download] = await Promise.all([page.waitForEvent("download"), saveButton(page).click()]);
+  const download = await saveToFile(page);
   const chart = JSON.parse(await readFile((await download.path())!, "utf8"));
   await page.getByRole("tab", { name: "Chart" }).click();
   return chart.palette[chart.cellPalette[cy * chart.width + cx]].name;

@@ -16,6 +16,7 @@ import { applyQuickMirrorWithSelection, fillSymmetric, type QuickMirror } from "
 import { useDocumentHistory } from "./hooks/use-document-history";
 import type { StitchPattern } from "@/lib/types";
 import { ConfirmNewChart } from "./components/confirm-new-chart";
+import { SaveConflict } from "./components/save-conflict";
 import { AppBar } from "./components/app-bar";
 import { EditorLayout } from "./components/editor-layout";
 import { QuickBar } from "./components/quick-bar";
@@ -31,6 +32,7 @@ import { ToolRail } from "./components/tool-rail";
 import { cellIndexFromEvent, chartOrigin, computeCellSize } from "./editor-geometry";
 import { useChartRenderer, type ChartRenderer } from "./hooks/use-chart-renderer";
 import { paginatesAsA4, useExports } from "./hooks/use-exports";
+import { useAccountSave } from "./hooks/use-account-save";
 import { PageCuts } from "./components/page-cuts";
 import { Preferences } from "./components/preferences";
 import { longerSideFor, useGeneration } from "./hooks/use-generation";
@@ -295,6 +297,8 @@ export default function Workspace({ account }: WorkspaceProps) {
   });
 
   const exports = useExports(pattern, options, liveSymmetry);
+  // Saving to the account (G-108): which saved chart this is, kept by the replace table and autosaved with the chart.
+  const accountSave = useAccountSave(pattern, liveSymmetry);
   // Every way a chart arrives or leaves (`use-chart-lifecycle.ts`). What it is handed here is the state other owners keep
   // that a new chart resets; which of them a given way in resets is the table in `lib/editor/document-replace.ts`.
   const lifecycle = useChartLifecycle({
@@ -303,6 +307,7 @@ export default function Workspace({ account }: WorkspaceProps) {
     browserOptions,
     fabricNow,
     symmetry: liveSymmetry,
+    savedChart: accountSave.link,
     startingNew,
     setStartingNew,
     setPhotoError: (message) => generation.setError(message),
@@ -329,6 +334,7 @@ export default function Workspace({ account }: WorkspaceProps) {
       setPhotoAdjust: (adjust) => updateOption("photoAdjust", adjust),
       showWorkspace: view.showWorkspace,
       awaitRecommendedCount: () => recommendedCount.awaitNext(),
+      setSavedChart: accountSave.setLink,
     },
   });
   // A dropped photo is the photo choice by another road, so it goes under that command's gate (D313); a locked one takes none either.
@@ -485,6 +491,9 @@ export default function Workspace({ account }: WorkspaceProps) {
       photoLoading: source.isLoading,
       generating: generation.isProcessing,
       exporting: exports.isExporting || exports.isExportingAll,
+      signedIn: account !== null,
+      savedToAccount: accountSave.link !== null,
+      savingToAccount: accountSave.busy,
       // With the photo itself up, Undo and Redo step through the photo's edits, not the chart's (G-124).
       canUndo: photoStageShown ? photoHistory.canUndo : history.canUndo,
       canRedo: photoStageShown ? photoHistory.canRedo : history.canRedo,
@@ -499,6 +508,8 @@ export default function Workspace({ account }: WorkspaceProps) {
       exportSelected: exports.exportSelected,
       exportAll: exports.exportAll,
       exportEditable: exports.exportEditableNow,
+      saveToAccount: accountSave.save,
+      saveCopy: accountSave.saveCopy,
       generate: generation.generate,
       cancelGeneration: generation.cancel,
       resetSliders: () => updateOption("photoAdjust", NEUTRAL_ADJUST),
@@ -538,9 +549,22 @@ export default function Workspace({ account }: WorkspaceProps) {
   // The skin in force (G-095, D295). One is shipped; choosing between skins is a later goal's.
   const skin = ATELIER;
   const chartShown = pattern !== null && !startingNew;
-  /** Save is the editable export, so it goes with Export's switch (G-103), and there is something to save only with a chart shown. */
-  const saveAction = (action: ReturnType<typeof gatedAction>) =>
-    chartShown && action ? { ...action, busy: exports.isExporting || exports.isExportingAll } : null;
+  /**
+   * The Save menu (G-108): the account's group under its own switch, the file under Export's (G-103). There is something to
+   * save only with a chart shown, and no menu with both groups hidden.
+   */
+  const saveMenu = (() => {
+    if (!chartShown) return null;
+    const toFile = gatedAction("file.export-editable", features, () => void exports.exportEditableNow());
+    const save = gatedAction("file.save-to-account", features, accountSave.save);
+    const copy = gatedAction("file.save-copy", features, accountSave.saveCopy);
+    const accountGroup =
+      save && copy
+        ? { signedIn: account !== null, locked: save.locked, saved: accountSave.link, save: save.run, saveCopy: copy.run }
+        : null;
+    if (!accountGroup && !toFile) return null;
+    return { busy: exports.isExporting || exports.isExportingAll || accountSave.busy, account: accountGroup, toFile };
+  })();
   const toolTabUp = tools.tab !== null && chartShown && toolTabShown(tools.activation, toolTabClosedAt);
 
   return (
@@ -562,6 +586,14 @@ export default function Workspace({ account }: WorkspaceProps) {
           onPixelArt={(file) => void lifecycle.pixelArtChosen(file)}
           photoDisabled={source.isLoading || generation.isProcessing}
         />
+        {accountSave.conflict && (
+          <SaveConflict
+            savedAt={accountSave.conflict.savedAt}
+            onSaveCopy={accountSave.conflict.saveCopy}
+            onReplace={accountSave.conflict.replace}
+            onCancel={accountSave.conflict.cancel}
+          />
+        )}
         {lifecycle.confirm && (
           <ConfirmNewChart
             pattern={lifecycle.confirm.pattern}
@@ -598,7 +630,7 @@ export default function Workspace({ account }: WorkspaceProps) {
                 }
                 onNewChart={() => setStartingNew(true)}
                 newChartDisabled={startScreenVisible}
-                save={saveAction(gatedAction("file.export-editable", features, () => void exports.exportEditableNow()))}
+                save={saveMenu}
                 onOpenCommands={() => setCommandListOpen(true)}
                 commandsDisabled={startingNew}
                 commandsButtonRef={commandsButtonRef}
@@ -660,6 +692,8 @@ export default function Workspace({ account }: WorkspaceProps) {
                 onDismissOpenNotice={lifecycle.messages.dismissOpenNotice}
                 exportError={exports.exportError}
                 onDismissExportError={exports.dismissExportError}
+                accountSaveMessage={accountSave.message}
+                onDismissAccountSaveMessage={accountSave.dismissMessage}
               />
             }
             stage={

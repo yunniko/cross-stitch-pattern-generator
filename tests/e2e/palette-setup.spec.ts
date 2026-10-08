@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { FIXTURE, openSmallChart, saveButton, showWorkspace, chooseExport, showPhotoTab } from "./helpers/app";
+import { FIXTURE, openSmallChart, saveToFile, showWorkspace, chooseExport, showPhotoTab } from "./helpers/app";
 
 /**
  * G-087: "Set up palette" -- the user chooses the colours a chart is made from, can fill them from the picture's predicted
@@ -164,7 +164,7 @@ test("the editable file carries the set and restores it; a file without one rese
   await page.getByRole("button", { name: "Add colour" }).click();
   await page.getByRole("button", { name: "Generate pattern" }).click();
   await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 30_000 });
-  const [download] = await Promise.all([page.waitForEvent("download"), saveButton(page).click()]);
+  const download = await saveToFile(page);
   const file = path.join(test.info().outputDir, "sample_editable.json");
   await download.saveAs(file);
   const saved = JSON.parse(await readFile(file, "utf8"));

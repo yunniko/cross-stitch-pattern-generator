@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { expectPhotoLoaded, pickTool, saveButton, showWorkspace, openViewSettings } from "./helpers/app";
+import { expectPhotoLoaded, pickTool, saveToFile, showWorkspace, openViewSettings } from "./helpers/app";
 import { clickSelectionAction, selectionFinish } from "./helpers/selection";
 
 /**
@@ -72,7 +72,7 @@ test("the canvas colour is with the view settings only, and opens the colour pic
 /** The chart as the editable save writes it, which is where the cells can actually be read. */
 async function savedCells(page: Page): Promise<number[]> {
   await page.getByRole("tab", { name: "Threads" }).click();
-  const [download] = await Promise.all([page.waitForEvent("download"), saveButton(page).click()]);
+  const download = await saveToFile(page);
   const saved = JSON.parse(await readFile((await download.path())!, "utf8")) as { cellPalette: number[] };
   await page.getByRole("tab", { name: "Chart" }).click();
   return saved.cellPalette;

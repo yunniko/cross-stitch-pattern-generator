@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import type { SavedChartLink } from "@/lib/charts/saved-chart-link";
 import { createBlankPattern } from "@/lib/editor/blank-pattern";
 import { replaceDocument, type ReplaceEffects, type ReplaceExtras } from "@/lib/editor/document-replace-run";
 import type { ReplaceReason } from "@/lib/editor/document-replace";
@@ -45,6 +46,8 @@ export interface ChartLifecycleInputs {
   fabricNow: ChartFabric;
   /** The axes in force, saved with the chart. */
   symmetry: SymmetryAxes;
+  /** The account chart the open one is saved as (G-108), autosaved with it. */
+  savedChart: SavedChartLink | null;
   startingNew: boolean;
   setStartingNew: (on: boolean) => void;
   resets: LifecycleResets;
@@ -60,6 +63,7 @@ export function useChartLifecycle({
   browserOptions,
   fabricNow,
   symmetry,
+  savedChart,
   startingNew,
   setStartingNew,
   resets,
@@ -103,15 +107,16 @@ export function useChartLifecycle({
     loaded: StitchPattern,
     fallbackName: string,
     savedSymmetry: SymmetryAxes = NO_SYMMETRY,
-    reason: "open" | "restore" = "open"
+    reason: "open" | "restore" = "open",
+    link: SavedChartLink | null = null
   ) {
-    return replace(reason, { ...loaded, name: loaded.name ?? fallbackName }, { symmetry: savedSymmetry, fallbackName });
+    return replace(reason, { ...loaded, name: loaded.name ?? fallbackName }, { symmetry: savedSymmetry, fallbackName, savedChart: link });
   }
 
   const restore = useProjectRestore(
-    (restored, savedSymmetry) => void open(restored, restored.name ?? DEFAULT_CHART_NAME, savedSymmetry, "restore")
+    (restored, savedSymmetry, link) => void open(restored, restored.name ?? DEFAULT_CHART_NAME, savedSymmetry, "restore", link)
   );
-  const autosaveStatus = useProjectAutosave(pattern, restore.restored, getProjectStore(), symmetry);
+  const autosaveStatus = useProjectAutosave(pattern, restore.restored, getProjectStore(), symmetry, savedChart);
 
   /**
    * Reaching the start screen costs nothing; choosing a card is what replaces the one autosaved chart, so that is where the

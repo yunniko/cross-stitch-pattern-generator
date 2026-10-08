@@ -2,6 +2,7 @@ import { NEUTRAL_ADJUST, type PhotoAdjust } from "../pipeline/photo-adjust";
 import type { GenerationPalette, StitchPattern } from "../types";
 import { REPLACE_PLANS, type ReplaceReason } from "./document-replace";
 import type { SymmetryAxes } from "./symmetry";
+import type { SavedChartLink } from "../charts/saved-chart-link";
 
 /**
  * Carries out a row of `REPLACE_PLANS` (G-091). It knows the order and nothing else: every effect is handed in, so the editor
@@ -33,6 +34,8 @@ export interface ReplaceEffects {
   forgetAutosave(): void;
   /** The next colour recommendation to arrive sets the colour count. */
   awaitRecommendedCount(): void;
+  /** The account chart Save overwrites, or none. */
+  setSavedChart(link: SavedChartLink | null): void;
 }
 
 export interface ReplaceExtras {
@@ -40,6 +43,8 @@ export interface ReplaceExtras {
   symmetry?: SymmetryAxes;
   /** The name a photo adopted from the chart goes by when the chart has none. */
   fallbackName?: string;
+  /** The account chart that arrives with the chart: the reloaded one's, or the saved chart opened. */
+  savedChart?: SavedChartLink | null;
 }
 
 export async function replaceDocument(
@@ -51,6 +56,9 @@ export async function replaceDocument(
   const plan = REPLACE_PLANS[reason];
 
   if (plan.forgetAutosave) effects.forgetAutosave();
+
+  if (plan.savedChart === "forget") effects.setSavedChart(null);
+  else if (plan.savedChart === "given") effects.setSavedChart(extras.savedChart ?? null);
 
   // The sliders are a preview of the photo in hand (G-124), so a chart arriving puts them in the middle or leaves them.
   if (plan.photoAdjust === "neutral") effects.setPhotoAdjust(NEUTRAL_ADJUST);

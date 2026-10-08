@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
-import { FIXTURE, expectPhotoLoaded, generateAndWait, openSmallChart, pickTool, saveButton, showWorkspace } from "./helpers/app";
+import { FIXTURE, expectPhotoLoaded, generateAndWait, openSmallChart, pickTool, saveToFile, showWorkspace } from "./helpers/app";
 import { selectionFinish } from "./helpers/selection";
 
 /**
@@ -18,7 +18,7 @@ const toolNames = (page: Page) =>
 const frame = (page: Page) => page.getByTestId("chart-frame");
 
 async function savedCells(page: Page): Promise<number[]> {
-  const [download] = await Promise.all([page.waitForEvent("download"), saveButton(page).click()]);
+  const download = await saveToFile(page);
   return (JSON.parse(await readFile((await download.path())!, "utf8")) as { cellPalette: number[] }).cellPalette;
 }
 
@@ -186,7 +186,7 @@ test("Save is in the bar above in every workspace, and saves the editable file",
   await openSmallChart(page);
   for (const name of ["Edit", "Photo", "Export"] as const) {
     await showWorkspace(page, name);
-    const [download] = await Promise.all([page.waitForEvent("download"), saveButton(page).click()]);
+    const download = await saveToFile(page);
     expect(download.suggestedFilename(), name).toBe("sample_editable.json");
   }
 });

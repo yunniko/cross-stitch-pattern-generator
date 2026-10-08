@@ -39,6 +39,8 @@ describe("the command table", () => {
       "file.export",
       "file.export-all",
       "file.export-editable",
+      "file.save-to-account",
+      "file.save-copy",
       "generate.run",
       "generate.cancel",
       "generate.reset-adjustment",

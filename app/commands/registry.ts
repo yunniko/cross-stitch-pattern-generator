@@ -58,6 +58,21 @@ const SHELL_COMMANDS = [
     group: "File",
     when: "A chart; no export running",
   },
+  // Saving to an account is one feature, so the server refuses what the menu greys (G-108, D355).
+  {
+    id: "file.save-to-account",
+    feature: "charts.account",
+    name: "Save to your account",
+    group: "File",
+    when: "Signed in; a chart; not while saving",
+  },
+  {
+    id: "file.save-copy",
+    feature: "charts.account",
+    name: "Save a copy to your account",
+    group: "File",
+    when: "Signed in; a chart already saved to your account; not while saving",
+  },
 
   {
     id: "generate.run",

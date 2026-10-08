@@ -1,6 +1,6 @@
 import { expect, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
-import { saveButton } from "./app";
+import { saveToFile } from "./app";
 
 /**
  * A 40 × 20 empty grid with one thread, driven stitch by stitch and read back from the editable save, which carries
@@ -66,7 +66,7 @@ export async function click(page: Page, x: number, y: number) {
 /** The chart as the editable save holds it. */
 export async function saved(page: Page): Promise<{ cells: number[]; kinds: number[] }> {
   await page.getByRole("tab", { name: "Threads" }).click();
-  const [download] = await Promise.all([page.waitForEvent("download"), saveButton(page).click()]);
+  const download = await saveToFile(page);
   const chart = JSON.parse(await readFile((await download.path())!, "utf8")) as { cellPalette: number[]; cellKind?: number[] };
   await page.getByRole("tab", { name: "Chart" }).click();
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());

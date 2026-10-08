@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { openSmallChart, expectPhotoLoaded, saveButton, showWorkspace, chooseExport } from "./helpers/app";
+import { openSmallChart, expectPhotoLoaded, saveToFile, showWorkspace, chooseExport } from "./helpers/app";
 import JSZip from "jszip";
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -245,7 +245,7 @@ test("the toggles are saved with the document: restored after a reload and on re
   await toggle(page, "Horizontal symmetry").click();
   await toggle(page, "Diagonal symmetry ↙").click();
   await expect(page.getByText("Autosaved")).toBeVisible({ timeout: 10_000 });
-  const [download] = await Promise.all([page.waitForEvent("download"), saveButton(page).click()]);
+  const download = await saveToFile(page);
   const saved = testInfo.outputPath("saved-with-symmetry.json");
   await download.saveAs(saved);
 

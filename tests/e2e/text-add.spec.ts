@@ -1,5 +1,5 @@
 import { test, expect, type Page, type Request } from "@playwright/test";
-import { pickTool, saveButton } from "./helpers/app";
+import { pickTool, saveToFile } from "./helpers/app";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { clickSelectionAction, selectionFinish } from "./helpers/selection";
@@ -44,7 +44,7 @@ async function type(page: Page, text: string, size = 12) {
 /** The chart as the editable save writes it, which is where the cells can be read. */
 async function savedCells(page: Page): Promise<number[]> {
   await page.getByRole("tab", { name: "Threads" }).click();
-  const [download] = await Promise.all([page.waitForEvent("download"), saveButton(page).click()]);
+  const download = await saveToFile(page);
   const saved = JSON.parse(await readFile((await download.path())!, "utf8")) as { cellPalette: number[] };
   // The tool in hand is left as it was: picking Text again would apply a piece still in hand.
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());

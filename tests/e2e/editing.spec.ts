@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { openSmallChart, saveButton, showWorkspace, chooseExport } from "./helpers/app";
+import { openSmallChart, saveToFile, showWorkspace, chooseExport } from "./helpers/app";
 
 test("generate, merge two colors, undo/redo, download editable, and reopen it", async ({ page }) => {
   await openSmallChart(page);
@@ -22,7 +22,7 @@ test("generate, merge two colors, undo/redo, download editable, and reopen it", 
 
   // Download editable (via the consolidated Export dropdown), then reopen
   // it fresh and confirm the same state comes back.
-  const [download] = await Promise.all([page.waitForEvent("download"), saveButton(page).click()]);
+  const download = await saveToFile(page);
   const savedPath = test.info().outputPath("saved-pattern.json");
   await download.saveAs(savedPath);
 

@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { expectPhotoLoaded, saveButton, generateAndWait } from "./helpers/app";
+import { expectPhotoLoaded, saveToFile, generateAndWait } from "./helpers/app";
 
 /**
  * G-061: the Color detail switch, end to end through the real UI and the processor.
@@ -39,7 +39,7 @@ interface ExportedChart {
 
 async function generateAndExport(page: Page): Promise<ExportedChart> {
   await generateAndWait(page);
-  const [download] = await Promise.all([page.waitForEvent("download"), saveButton(page).click()]);
+  const download = await saveToFile(page);
   return JSON.parse(await readFile((await download.path())!, "utf8")) as ExportedChart;
 }
 

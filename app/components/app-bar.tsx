@@ -7,6 +7,7 @@ import { featureState } from "@/lib/features/features";
 import { useFeatures } from "../features/features-context";
 import { SkinIcon } from "../skin/skin";
 import { lockedControlProps } from "./feature-gate";
+import { SaveMenu, type SaveMenuProps } from "./save-menu";
 import { DISABLED_ICON, DISABLED_TEXT, PillButton } from "./ui";
 
 /**
@@ -37,10 +38,10 @@ export interface AppBarProps {
   /** The start screen is what New opens, so New has nothing to do while it is already up. */
   newChartDisabled: boolean;
   /**
-   * Downloads the editable file, which is the chart's save file; absent with no chart to save, or with Export hidden.
-   * `locked` is the note when Export is locked (G-103): Save is shown greyed with it.
+   * The Save menu (G-108): the account's Save and Save as copy, and the editable file. Absent with no chart to save, or
+   * with both groups switched off.
    */
-  save: { run: () => void; busy: boolean; locked?: string } | null;
+  save: Omit<SaveMenuProps, "buttonClassName" | "wordClassName"> | null;
   /** Opens the command list (G-093); Ctrl+K does the same (D288). */
   onOpenCommands: () => void;
   commandsDisabled: boolean;
@@ -81,20 +82,7 @@ export function AppBar({
           <SkinIcon name="new" className="h-[15px] w-[15px]" />
           <span className={WORD}>New</span>
         </button>
-        {save && (
-          <button
-            type="button"
-            onClick={save.run}
-            disabled={save.busy || save.locked !== undefined}
-            aria-label="Save"
-            data-feature-locked={save.locked !== undefined ? "workspace.export" : undefined}
-            title={save.locked ?? "Save: download the editable pattern (.json), which opens here again with everything in it"}
-            className={APP_BUTTON}
-          >
-            <SkinIcon name="download" />
-            <span className={WORD}>Save</span>
-          </button>
-        )}
+        {save && <SaveMenu {...save} buttonClassName={APP_BUTTON} wordClassName={WORD} />}
         {chartName !== null && (
           <span
             className="min-w-0 truncate text-[13px] text-ink"

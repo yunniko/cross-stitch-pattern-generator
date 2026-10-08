@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
-import { openSmallChart, saveButton, brushSize } from "./helpers/app";
+import { openSmallChart, saveToFile, brushSize } from "./helpers/app";
 
 /**
  * G-064 M2: one press of the brush covers a stamp rather than a stitch (Owner, 2026-09-23). Sizes are odd only, so
@@ -18,7 +18,7 @@ async function generate(page: Page) {
 
 async function exportChart(page: Page): Promise<{ cellPalette: number[]; width: number; height: number }> {
   await page.getByRole("tab", { name: "Threads" }).click();
-  const [download] = await Promise.all([page.waitForEvent("download"), saveButton(page).click()]);
+  const download = await saveToFile(page);
   const chart = JSON.parse(await readFile((await download.path())!, "utf8"));
   await page.getByRole("tab", { name: "Chart" }).click();
   return chart;

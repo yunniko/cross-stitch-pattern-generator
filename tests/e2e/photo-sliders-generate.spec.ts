@@ -2,7 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 import { readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { expectPhotoLoaded, saveButton, showWorkspace, generateAndWait, showPhotoTab } from "./helpers/app";
+import { expectPhotoLoaded, saveToFile, showWorkspace, generateAndWait, showPhotoTab } from "./helpers/app";
 import { applySliders, changingPhoto, photoControls, photoSlider, setSlider, stageDigest } from "./helpers/photo";
 import { expectView, showOverPhoto } from "./helpers/view";
 
@@ -36,7 +36,7 @@ interface ExportedChart {
 }
 
 async function exportEditable(page: Page): Promise<ExportedChart> {
-  const [download] = await Promise.all([page.waitForEvent("download"), saveButton(page).click()]);
+  const download = await saveToFile(page);
   return JSON.parse(await readFile((await download.path())!, "utf8")) as ExportedChart;
 }
 

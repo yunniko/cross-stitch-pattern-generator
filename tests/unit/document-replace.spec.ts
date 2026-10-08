@@ -40,6 +40,7 @@ function recorder() {
     adoptPhoto: async (_chart, name) => void calls.push(`adoptPhoto:${name}`),
     forgetAutosave: note("forgetAutosave"),
     awaitRecommendedCount: note("awaitRecommendedCount"),
+    setSavedChart: (link) => calls.push(link ? `savedChart:${link.id}` : "savedChart:none"),
   };
   return { calls, effects };
 }
@@ -53,6 +54,7 @@ describe("what each way of replacing the chart resets", () => {
     const { calls, effects } = recorder();
     await replaceDocument("photo", null, effects);
     expect(calls).toEqual([
+      "savedChart:none",
       "photoAdjust:neutral",
       "awaitRecommendedCount",
       "resetPaletteSet",
@@ -75,6 +77,7 @@ describe("what each way of replacing the chart resets", () => {
     await replaceDocument("open", opened, effects, { symmetry: AXES, fallbackName: "file" });
     // The chart keeps the adjustment it was made with; the sliders are a preview of the next Apply, not that adjustment.
     expect(calls).toEqual([
+      "savedChart:none",
       "photoAdjust:neutral",
       "restorePaletteSet",
       "clearMessages",
@@ -97,6 +100,20 @@ describe("what each way of replacing the chart resets", () => {
     expect(asOpened.calls).toContain("resetChartView");
   });
 
+  it("the account chart Save overwrites comes back with the reload, stays through a regenerate, and goes with any other chart (G-108)", async () => {
+    const link = { id: "c1", version: 3, savedAt: "2026-10-08T10:00:00.000Z" };
+    const restored = recorder();
+    await replaceDocument("restore", chart(), restored.effects, { savedChart: link });
+    expect(restored.calls[0]).toBe("savedChart:c1");
+    const regenerated = recorder();
+    await replaceDocument("regenerate", chart(), regenerated.effects);
+    expect(regenerated.calls.some((call) => call.startsWith("savedChart"))).toBe(false);
+    // An opened file is not the saved chart, even when it was downloaded from one.
+    const opened = recorder();
+    await replaceDocument("open", chart(), opened.effects, { savedChart: link });
+    expect(opened.calls[0]).toBe("savedChart:none");
+  });
+
   it("an opened file with no photo puts the sliders in the middle too, and one with no set resets the set", async () => {
     const { calls, effects } = recorder();
     await replaceDocument("open", chart(), effects, { fallbackName: "file" });
@@ -112,6 +129,7 @@ describe("what each way of replacing the chart resets", () => {
       const { calls, effects } = recorder();
       await replaceDocument(reason, chart(), effects);
       expect(calls).toEqual([
+        "savedChart:none",
         "photoAdjust:neutral",
         "resetPaletteSet",
         "clearMessages",
@@ -128,7 +146,7 @@ describe("what each way of replacing the chart resets", () => {
   it("the first Generate is a new document like any other: the undo baseline, symmetry off, the view reset in full", async () => {
     const { calls, effects } = recorder();
     await replaceDocument("first-generate", chart(), effects);
-    expect(calls).toEqual(["clearMessages", "resetHistory", ...FULL_VIEW, "setSymmetry:off", "showWorkspace:photo"]);
+    expect(calls).toEqual(["savedChart:none", "clearMessages", "resetHistory", ...FULL_VIEW, "setSymmetry:off", "showWorkspace:photo"]);
   });
 
   it("a later Generate is one undoable step: only the piece in hand goes, and the axes stay", async () => {
@@ -140,7 +158,7 @@ describe("what each way of replacing the chart resets", () => {
   it("giving the chart up forgets the autosave and clears everything, but stays on the start screen", async () => {
     const { calls, effects } = recorder();
     await replaceDocument("discard", null, effects);
-    expect(calls).toEqual(["forgetAutosave", "clearMessages", "resetHistory", ...FULL_VIEW, "setSymmetry:off"]);
+    expect(calls).toEqual(["forgetAutosave", "savedChart:none", "clearMessages", "resetHistory", ...FULL_VIEW, "setSymmetry:off"]);
   });
 });
 

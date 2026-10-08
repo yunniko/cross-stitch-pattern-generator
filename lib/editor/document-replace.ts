@@ -63,6 +63,11 @@ export interface ReplacePlan {
   forgetAutosave: boolean;
   /** The colour count takes the next recommendation that arrives (G-087). */
   recommendColorCount: boolean;
+  /**
+   * The account chart Save overwrites (G-108, D355): `forget` it, since what arrives is another chart; `keep` it, for the same
+   * chart changed; or take the one `given` with what arrives (the reload, and a saved chart opened).
+   */
+  savedChart: "forget" | "keep" | "given";
 }
 
 export const REPLACE_PLANS: Record<ReplaceReason, ReplacePlan> = {
@@ -79,6 +84,7 @@ export const REPLACE_PLANS: Record<ReplaceReason, ReplacePlan> = {
     adoptPhoto: false,
     forgetAutosave: false,
     recommendColorCount: true,
+    savedChart: "forget",
   },
   open: {
     history: "reset",
@@ -93,6 +99,7 @@ export const REPLACE_PLANS: Record<ReplaceReason, ReplacePlan> = {
     adoptPhoto: true,
     forgetAutosave: false,
     recommendColorCount: false,
+    savedChart: "forget",
   },
   restore: {
     history: "reset",
@@ -107,6 +114,7 @@ export const REPLACE_PLANS: Record<ReplaceReason, ReplacePlan> = {
     adoptPhoto: true,
     forgetAutosave: false,
     recommendColorCount: false,
+    savedChart: "given",
   },
   blank: {
     history: "reset",
@@ -121,6 +129,7 @@ export const REPLACE_PLANS: Record<ReplaceReason, ReplacePlan> = {
     adoptPhoto: true,
     forgetAutosave: false,
     recommendColorCount: false,
+    savedChart: "forget",
   },
   "pixel-art": {
     history: "reset",
@@ -135,6 +144,7 @@ export const REPLACE_PLANS: Record<ReplaceReason, ReplacePlan> = {
     adoptPhoto: true,
     forgetAutosave: false,
     recommendColorCount: false,
+    savedChart: "forget",
   },
   "first-generate": {
     history: "reset",
@@ -149,6 +159,7 @@ export const REPLACE_PLANS: Record<ReplaceReason, ReplacePlan> = {
     adoptPhoto: false,
     forgetAutosave: false,
     recommendColorCount: false,
+    savedChart: "forget",
   },
   regenerate: {
     history: "push",
@@ -163,6 +174,7 @@ export const REPLACE_PLANS: Record<ReplaceReason, ReplacePlan> = {
     adoptPhoto: false,
     forgetAutosave: false,
     recommendColorCount: false,
+    savedChart: "keep",
   },
   discard: {
     history: "reset",
@@ -177,5 +189,6 @@ export const REPLACE_PLANS: Record<ReplaceReason, ReplacePlan> = {
     adoptPhoto: false,
     forgetAutosave: true,
     recommendColorCount: false,
+    savedChart: "forget",
   },
 };

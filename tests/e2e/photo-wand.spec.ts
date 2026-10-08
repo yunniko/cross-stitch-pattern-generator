@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import path from "node:path";
 import { readFile } from "node:fs/promises";
-import { expectPhotoLoaded, generateAndWait, pickTool, saveButton, showPhotoTab } from "./helpers/app";
+import { expectPhotoLoaded, generateAndWait, pickTool, saveToFile, showPhotoTab } from "./helpers/app";
 import { applySliders, changingPhoto, photoControls, setSlider } from "./helpers/photo";
 
 /**
@@ -151,7 +151,7 @@ test("a deleted part of the photo becomes empty stitches in the chart Generate m
   await changingPhoto(page, () => page.keyboard.press("Delete"));
 
   await generateAndWait(page, 60_000);
-  const [download] = await Promise.all([page.waitForEvent("download"), saveButton(page).click()]);
+  const download = await saveToFile(page);
   const chart = JSON.parse(await readFile((await download.path())!, "utf8")) as { cellPalette: number[] };
   const empty = chart.cellPalette.filter((cell) => cell === 255).length / chart.cellPalette.length;
   expect(empty, "the deleted field is left unstitched").toBeGreaterThan(0.1);

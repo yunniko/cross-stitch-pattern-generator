@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import JSZip from "jszip";
-import { generateSmallPattern, openSmallChart, saveButton, showWorkspace } from "./helpers/app";
+import { generateSmallPattern, openSmallChart, saveToFile, showWorkspace } from "./helpers/app";
 
 /**
  * G-094 (D290): fabric count and unit belong to the chart. They are saved in its file and come back with it, in a browser
@@ -15,7 +15,7 @@ const count = (page: Page, value: string) =>
 
 async function saveEditable(page: Page): Promise<{ path: string; chart: Record<string, unknown> }> {
   await page.getByRole("tab", { name: "Threads" }).click();
-  const [download] = await Promise.all([page.waitForEvent("download"), saveButton(page).click()]);
+  const download = await saveToFile(page);
   const path = (await download.path())!;
   return { path, chart: JSON.parse(await readFile(path, "utf8")) };
 }

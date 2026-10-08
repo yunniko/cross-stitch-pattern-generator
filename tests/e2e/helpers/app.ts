@@ -1,4 +1,4 @@
-import { expect, type Page } from "@playwright/test";
+import { expect, type Download, type Page } from "@playwright/test";
 import path from "node:path";
 
 /**
@@ -104,6 +104,17 @@ export async function showPhotoTab(page: Page, name: "Picture" | "Chart settings
 
 /** The Save button in the bar above: it downloads the editable file from any workspace, leaving what is in hand alone. */
 export const saveButton = (page: Page) => page.getByRole("button", { name: "Save", exact: true });
+
+/** An item of the Save menu (G-108): "Save" and "Save as copy" to the account, "Save to file". The menu must be open. */
+export const saveMenuItem = (page: Page, name: "Save" | "Save as copy" | "Save to file") =>
+  page.getByRole("menu", { name: "Save" }).getByRole("menuitem", { name, exact: true });
+
+/** Saves the chart to a file through the Save menu, and gives back the download. */
+export async function saveToFile(page: Page): Promise<Download> {
+  await saveButton(page).click();
+  const [download] = await Promise.all([page.waitForEvent("download"), saveMenuItem(page, "Save to file").click()]);
+  return download;
+}
 
 /**
  * The chart `generateSmallPattern` makes, as the editable file it was saved to (G-096): the same photo, the same 50 × 31
