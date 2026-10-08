@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { billingGateway } from "@/lib/billing/gateway";
+import { deliverQueuedNotices } from "@/lib/billing/notice-delivery";
 import { prismaBillingStore } from "@/lib/billing/prisma-store";
 import { handleWebhook } from "@/lib/billing/sync";
+import { billingPolicy } from "@/lib/settings/server";
 
 /**
  * The provider's webhook (G-106 M2, Architecture fit (2)). Outside `guardMutation`: the provider sends no Origin, so its
@@ -24,8 +26,17 @@ export async function POST(req: Request): Promise<Response> {
   const rawBody = await req.text();
   if (Buffer.byteLength(rawBody) > MAX_BODY_BYTES) return NextResponse.json({ error: "body too large" }, { status: 413 });
   try {
-    const answer = await handleWebhook(gateway, prismaBillingStore, rawBody, req.headers.get("stripe-signature"), new Date());
+    const now = new Date();
+    const answer = await handleWebhook(
+      gateway,
+      prismaBillingStore,
+      rawBody,
+      req.headers.get("stripe-signature"),
+      now,
+      await billingPolicy()
+    );
     if (answer.status === 400) return NextResponse.json({ error: answer.error }, { status: 400 });
+    await deliverQueuedNotices(now);
     return NextResponse.json({ received: true, outcome: answer.outcome.kind });
   } catch (error) {
     console.error("[billing] webhook event not written:", error instanceof Error ? error.message : error);

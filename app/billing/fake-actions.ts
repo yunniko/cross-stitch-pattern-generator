@@ -5,10 +5,15 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { fakeBillingGateway, currentBillingSettings } from "@/lib/billing/gateway";
 import { deliverFakeEvents } from "@/lib/billing/fake-delivery";
+import { deliverQueuedNotices } from "@/lib/billing/notice-delivery";
+import { prismaBillingStore } from "@/lib/billing/prisma-store";
+import { reconcile } from "@/lib/billing/sync";
+import { billingPolicy } from "@/lib/settings/server";
 
 /**
- * What the person does on the fake provider's pages (G-106 M3, D373): pay a Checkout, cancel in the Portal, and — the
- * one thing no real page offers — end the period now, so a test need not wait a month. Each answers only while the fake
+ * What the person does on the fake provider's pages (G-106 M3, D373): pay a Checkout, cancel in the Portal, pay a failing
+ * invoice (G-126 M2), and what no real page offers — end the period now, with its renewal paid or failing, and move a
+ * failure back past the grace — so a test need not wait a month. Each answers only while the fake
  * is the adapter, which `settings.ts` allows on a local address alone; anywhere else they are not found.
  */
 
@@ -58,5 +63,39 @@ export async function endFakePeriodAction(formData: FormData): Promise<void> {
   const { gateway, siteUrl, id } = await ownSubscription(formData);
   gateway.endPeriod(id, "paid");
   await deliverFakeEvents(gateway, siteUrl);
+  redirect("/account/plan");
+}
+
+export async function failFakeRenewalAction(formData: FormData): Promise<void> {
+  const { gateway, siteUrl, id } = await ownSubscription(formData);
+  gateway.endPeriod(id, "failed");
+  await deliverFakeEvents(gateway, siteUrl);
+  redirect("/account/plan");
+}
+
+export async function payFakeInvoiceAction(formData: FormData): Promise<void> {
+  const { gateway, siteUrl, id } = await ownSubscription(formData);
+  gateway.pay(id);
+  await deliverFakeEvents(gateway, siteUrl);
+  redirect("/account/plan");
+}
+
+/**
+ * The failure moved back a day past the grace, as if that time had passed: the notices already queued for it move with
+ * it, as they are keyed by its date (D377). No event comes of it, so the app reconciles as its hourly pass would.
+ */
+export async function backdateFakeFailureAction(formData: FormData): Promise<void> {
+  const { gateway, id } = await ownSubscription(formData);
+  const policy = await billingPolicy();
+  const failedAt = (await gateway.fetchSubscription(id))?.firstFailedAt;
+  if (!failedAt) notFound();
+  const moved = gateway.backdateFailure(id, policy.graceDays + 1).firstFailedAt!;
+  await prisma.billingNotice.updateMany({
+    where: { failedAt, subscription: { stripeSubscriptionId: id } },
+    data: { failedAt: moved },
+  });
+  const now = new Date();
+  await reconcile(gateway, prismaBillingStore, now, policy);
+  await deliverQueuedNotices(now);
   redirect("/account/plan");
 }

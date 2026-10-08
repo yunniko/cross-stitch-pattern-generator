@@ -43,7 +43,7 @@ function setUp() {
     const answers = [];
     for (const event of events) {
       const { rawBody, signature } = fake.delivery(event);
-      answers.push(await handleWebhook(fake, store, rawBody, signature, clock.now()));
+      answers.push(await handleWebhook(fake, store, rawBody, signature, clock.now(), POLICY));
     }
     return answers;
   };
@@ -114,6 +114,9 @@ describe("a subscription stored from the webhook", () => {
       cancelAtPeriodEnd: false,
       endedAt: null,
       firstFailedAt: null,
+      nextAttemptAt: null,
+      payUrl: null,
+      actionNeeded: false,
     });
     expect(world.store.historyOf("user_1").map((entry) => [entry.kind, entry.after, entry.source])).toEqual([
       ["created", "active", "webhook"],
@@ -144,7 +147,7 @@ describe("a subscription stored from the webhook", () => {
       store.users.add("user_1");
       for (const event of shuffled(events, seed)) {
         const { rawBody, signature } = world.fake.delivery(event);
-        await handleWebhook(world.fake, store, rawBody, signature, world.clock.now());
+        await handleWebhook(world.fake, store, rawBody, signature, world.clock.now(), POLICY);
       }
       expect({ seed, status: store.row("user_1")?.status, endedAt: store.row("user_1")?.endedAt }).toEqual({
         seed,
@@ -257,7 +260,7 @@ describe("the reconciliation", () => {
     world.fresh(); // dropped
     expect(world.store.row("user_1")!.status).toBe("active");
 
-    const report = await reconcile(world.fake, world.store, world.clock.now());
+    const report = await reconcile(world.fake, world.store, world.clock.now(), POLICY);
     expect(report).toEqual({ checked: 1, corrected: 1, failed: [] });
     expect(world.store.row("user_1")).toMatchObject({ status: "past_due", currentPeriodEnd: new Date(T0.getTime() + 60 * DAY) });
     expect(
@@ -266,7 +269,7 @@ describe("the reconciliation", () => {
         .filter((entry) => entry.source === "reconcile")
         .map((entry) => entry.kind)
     ).toEqual(["status", "period", "failure"]);
-    expect(await reconcile(world.fake, world.store, world.clock.now())).toEqual({ checked: 1, corrected: 0, failed: [] });
+    expect(await reconcile(world.fake, world.store, world.clock.now(), POLICY)).toEqual({ checked: 1, corrected: 0, failed: [] });
   });
 
   it("leaves an ended subscription alone, and reports one it cannot read", async () => {
@@ -274,13 +277,13 @@ describe("the reconciliation", () => {
     const { id } = await world.checkout();
     await world.deliver(world.fresh());
     world.fake.unavailable = true;
-    expect((await reconcile(world.fake, world.store, world.clock.now())).failed).toEqual([
+    expect((await reconcile(world.fake, world.store, world.clock.now(), POLICY)).failed).toEqual([
       { id, error: "the fake provider is set unavailable" },
     ]);
     world.fake.unavailable = false;
     await world.fake.cancelSubscription(id, { atPeriodEnd: false });
     await world.deliver(world.fresh());
-    expect(await reconcile(world.fake, world.store, world.clock.now())).toEqual({ checked: 0, corrected: 0, failed: [] });
+    expect(await reconcile(world.fake, world.store, world.clock.now(), POLICY)).toEqual({ checked: 0, corrected: 0, failed: [] });
   });
 });
 
@@ -323,10 +326,12 @@ describe("what the webhook refuses or cannot place", () => {
     const world = setUp();
     await world.checkout();
     const [event] = world.fresh();
-    expect(await handleWebhook(world.fake, world.store, event.rawBody, "t=1,v1=00", world.clock.now())).toMatchObject({ status: 400 });
+    expect(await handleWebhook(world.fake, world.store, event.rawBody, "t=1,v1=00", world.clock.now(), POLICY)).toMatchObject({
+      status: 400,
+    });
     const body = "not json";
     const { signature } = world.fake.delivery({ ...event, rawBody: body });
-    expect(await handleWebhook(world.fake, world.store, body, signature, world.clock.now())).toMatchObject({ status: 400 });
+    expect(await handleWebhook(world.fake, world.store, body, signature, world.clock.now(), POLICY)).toMatchObject({ status: 400 });
     expect(world.store.state.events.size).toBe(0);
   });
 
@@ -365,6 +370,10 @@ describe("planSync, the decision alone", () => {
     cancelAtPeriodEnd: false,
     endedAt: null,
     firstFailedAt: null,
+    nextAttemptAt: null,
+    payUrl: null,
+    actionNeeded: false,
+    canceledFor: null,
     userId: "user_1",
   };
   it("stores a subscription that ended before it was seen, which then gives Free", () => {

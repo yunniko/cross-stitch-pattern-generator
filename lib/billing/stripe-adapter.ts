@@ -1,7 +1,7 @@
 import Stripe from "stripe";
 import { BillingSignatureError, BillingUnavailableError, type BillingGateway } from "./contract";
 import { readEventObject } from "./event-reference";
-import { priceFromStripe, snapshotFromStripe } from "./stripe-mapping";
+import { failingInvoice, invoicePaymentIntentId, priceFromStripe, snapshotFromStripe } from "./stripe-mapping";
 
 /**
  * The Stripe adapter of the billing contract (G-106 M1, D366): the one module that loads the `stripe` package (an
@@ -35,6 +35,16 @@ async function call<T>(what: string, request: () => Promise<T>): Promise<T> {
 
 export function createStripeGateway(settings: { secretKey: string; webhookSecret: string }): BillingGateway {
   const stripe = new Stripe(settings.secretKey, { apiVersion: STRIPE_API_VERSION, maxNetworkRetries: 2, timeout: 20_000 });
+
+  // A failing invoice's payment may wait on the person (3-D Secure) rather than be declined: its payment intent says
+  // which, so it is read for a failing subscription only (D378; unverified until the test keys, G-126 M3).
+  const snapshot = async (subscription: Stripe.Subscription) => {
+    const failing = failingInvoice(subscription);
+    const intentId = failing ? invoicePaymentIntentId(failing) : null;
+    const intent = intentId ? await stripe.paymentIntents.retrieve(intentId) : null;
+    return snapshotFromStripe(subscription, intent?.status === "requires_action");
+  };
+  const EXPAND = ["latest_invoice.payments"];
 
   return {
     id: "stripe",
@@ -76,7 +86,7 @@ export function createStripeGateway(settings: { secretKey: string; webhookSecret
     fetchSubscription: (id) =>
       call("read a subscription", async () => {
         try {
-          return snapshotFromStripe(await stripe.subscriptions.retrieve(id, { expand: ["latest_invoice"] }));
+          return await snapshot(await stripe.subscriptions.retrieve(id, { expand: EXPAND }));
         } catch (error) {
           if (error instanceof Stripe.errors.StripeInvalidRequestError && error.statusCode === 404) return null;
           throw error;
@@ -85,16 +95,22 @@ export function createStripeGateway(settings: { secretKey: string; webhookSecret
 
     listSubscriptions: (customerId) =>
       call("list subscriptions", async () => {
-        const list = await stripe.subscriptions.list({ customer: customerId, status: "all", limit: 100, expand: ["data.latest_invoice"] });
-        return list.data.map(snapshotFromStripe).filter((snapshot) => snapshot.endedAt === null);
+        const list = await stripe.subscriptions.list({
+          customer: customerId,
+          status: "all",
+          limit: 100,
+          expand: ["data.latest_invoice.payments"],
+        });
+        const open = list.data.filter((subscription) => subscription.ended_at === null);
+        return Promise.all(open.map(snapshot));
       }),
 
     cancelSubscription: (id, { atPeriodEnd }) =>
       call("cancel a subscription", async () =>
-        snapshotFromStripe(
+        snapshot(
           atPeriodEnd
-            ? await stripe.subscriptions.update(id, { cancel_at_period_end: true, expand: ["latest_invoice"] })
-            : await stripe.subscriptions.cancel(id, { expand: ["latest_invoice"] })
+            ? await stripe.subscriptions.update(id, { cancel_at_period_end: true, expand: EXPAND })
+            : await stripe.subscriptions.cancel(id, { expand: EXPAND })
         )
       ),
 

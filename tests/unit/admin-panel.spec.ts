@@ -45,6 +45,7 @@ describe("the Change log's groups (D348)", () => {
     expect(groupLabelOf("AUDIENCE")).toBe("Features");
     expect(groupLabelOf("TIER")).toBe("Tiers");
     expect(groupLabelOf("ACCOUNT")).toBe("Users");
+    expect(groupLabelOf("SETTING")).toBe("Settings");
     expect(groupLabelOf("OTHER")).toBe("OTHER");
   });
 

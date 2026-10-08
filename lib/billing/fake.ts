@@ -32,6 +32,8 @@ interface FakeSubscription extends SubscriptionSnapshot {
 
 const DAY = 24 * 3_600_000;
 const PERIOD_MS: Record<BillingInterval, number> = { MONTH: 30 * DAY, YEAR: 365 * DAY };
+/** How long after a failed attempt the fake tries again: Stripe's schedule is the account's, and this is any one schedule. */
+const RETRY_MS = 3 * DAY;
 
 export class FakeBilling implements BillingGateway {
   readonly id = "fake" as const;
@@ -145,6 +147,7 @@ export class FakeBilling implements BillingGateway {
     else {
       subscription.status = "canceled";
       subscription.endedAt = this.now();
+      subscription.canceledFor = "request";
       this.emit("customer.subscription.deleted", this.subscriptionObject(subscription));
       return this.snapshot(subscription);
     }
@@ -204,6 +207,10 @@ export class FakeBilling implements BillingGateway {
       cancelAtPeriodEnd: false,
       endedAt: null,
       firstFailedAt: null,
+      nextAttemptAt: null,
+      payUrl: null,
+      actionNeeded: false,
+      canceledFor: null,
       userId: input.userId,
       interval: price.interval,
       invoiceId: this.nextId("in"),
@@ -231,6 +238,7 @@ export class FakeBilling implements BillingGateway {
     if (subscription.cancelAtPeriodEnd) {
       subscription.status = "canceled";
       subscription.endedAt = subscription.currentPeriodEnd;
+      subscription.canceledFor = "request";
       this.emit("customer.subscription.deleted", this.subscriptionObject(subscription));
       return this.snapshot(subscription);
     }
@@ -254,6 +262,10 @@ export class FakeBilling implements BillingGateway {
     const subscription = this.get(id);
     subscription.status = "past_due";
     subscription.firstFailedAt ??= this.now();
+    subscription.nextAttemptAt = new Date(this.now().getTime() + RETRY_MS);
+    subscription.actionNeeded = type === "invoice.payment_action_required";
+    // The fake's stand-in for the invoice's own payment page is its Portal, whose button pays the open invoice.
+    subscription.payUrl = `${this.siteUrl}/billing/fake-portal?customer=${encodeURIComponent(subscription.customerId)}`;
     this.emit(type, this.invoiceObject(subscription));
     this.emit("customer.subscription.updated", this.subscriptionObject(subscription));
     return this.snapshot(subscription);
@@ -293,7 +305,26 @@ export class FakeBilling implements BillingGateway {
   /** A new invoice becomes the latest: the failure date, read from the latest invoice as Stripe's mapping does, starts again. */
   private newInvoice(subscription: FakeSubscription): void {
     subscription.invoiceId = this.nextId("in");
+    this.clearFailure(subscription);
+  }
+
+  /** The latest invoice is no longer failing: what Stripe's mapping reads of a failure goes with it. */
+  private clearFailure(subscription: FakeSubscription): void {
     subscription.firstFailedAt = null;
+    subscription.nextAttemptAt = null;
+    subscription.payUrl = null;
+    subscription.actionNeeded = false;
+  }
+
+  /**
+   * The open invoice's first failure moved back by whole days, as if it had failed earlier: how a browser test reaches the
+   * end of the grace without waiting for it. Only the date moves and no event is emitted; the app reads it on reconciling.
+   */
+  backdateFailure(id: string, days: number): SubscriptionSnapshot {
+    const subscription = this.get(id);
+    if (!subscription.firstFailedAt) throw new Error(`the fake provider's subscription ${id} has no failing invoice`);
+    subscription.firstFailedAt = new Date(subscription.firstFailedAt.getTime() - days * DAY);
+    return this.snapshot(subscription);
   }
 
   private charge(subscription: FakeSubscription): void {
@@ -304,7 +335,7 @@ export class FakeBilling implements BillingGateway {
   pay(id: string): SubscriptionSnapshot {
     const subscription = this.get(id);
     subscription.status = "active";
-    subscription.firstFailedAt = null;
+    this.clearFailure(subscription);
     this.charge(subscription);
     this.emit("invoice.paid", this.invoiceObject(subscription));
     this.emit("customer.subscription.updated", this.subscriptionObject(subscription));
@@ -315,8 +346,11 @@ export class FakeBilling implements BillingGateway {
   giveUp(id: string, outcome: "canceled" | "unpaid" | "past_due"): SubscriptionSnapshot {
     const subscription = this.get(id);
     subscription.status = outcome;
+    // The retries have ended; whatever the outcome, no further try is planned.
+    subscription.nextAttemptAt = null;
     if (outcome === "canceled") {
       subscription.endedAt = this.now();
+      subscription.canceledFor = "payment";
       this.emit("customer.subscription.deleted", this.subscriptionObject(subscription));
     } else this.emit("customer.subscription.updated", this.subscriptionObject(subscription));
     return this.snapshot(subscription);

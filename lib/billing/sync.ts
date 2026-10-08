@@ -1,4 +1,6 @@
 import { BillingSignatureError, type BillingEventRead, type BillingGateway, type SubscriptionSnapshot } from "./contract";
+import type { BillingPolicy } from "./entitlement";
+import { planNotices, type NoticeSlot, type PlannedNotice } from "./notices";
 
 /**
  * The one write path of a subscription (G-106 M2, D369): the webhook and the reconciliation both come here. An event
@@ -23,6 +25,9 @@ export interface StoredSubscription {
   cancelAtPeriodEnd: boolean;
   endedAt: Date | null;
   firstFailedAt: Date | null;
+  nextAttemptAt: Date | null;
+  payUrl: string | null;
+  actionNeeded: boolean;
 }
 
 export type SubscriptionFields = Omit<StoredSubscription, "id">;
@@ -49,8 +54,12 @@ export interface BillingTx {
   userExists(userId: string): Promise<boolean>;
   /** The app's price row for a provider price id, with the tier it belongs to. */
   priceByProviderId(id: string): Promise<{ id: string; tierId: string } | null>;
-  /** Writes the person's one row (creating it when `id` is null) and appends its history. */
-  save(id: string | null, fields: SubscriptionFields, history: HistoryEntry[], meta: HistoryMeta): Promise<void>;
+  /** Writes the person's one row (creating it when `id` is null) and appends its history; returns the row's id. */
+  save(id: string | null, fields: SubscriptionFields, history: HistoryEntry[], meta: HistoryMeta): Promise<string>;
+  /** The notices queued for a row, sent or not: what `planNotices` must not queue again. */
+  noticesOf(subscriptionId: string): Promise<{ failedAt: Date; slot: NoticeSlot }[]>;
+  /** Queues notices for delivery after the transaction. */
+  queueNotices(subscriptionId: string, notices: PlannedNotice[]): Promise<void>;
   /** Appends history to a row without changing it. */
   appendHistory(id: string, history: HistoryEntry[], meta: HistoryMeta): Promise<void>;
 }
@@ -117,6 +126,9 @@ function fieldsOf(snapshot: SubscriptionSnapshot, userId: string, price: { id: s
     cancelAtPeriodEnd: snapshot.cancelAtPeriodEnd,
     endedAt: snapshot.endedAt,
     firstFailedAt: snapshot.firstFailedAt,
+    nextAttemptAt: snapshot.nextAttemptAt,
+    payUrl: snapshot.payUrl,
+    actionNeeded: snapshot.actionNeeded,
   };
 }
 
@@ -213,7 +225,13 @@ export async function syncSubscription(
   gateway: BillingGateway,
   store: BillingStore,
   providerId: string,
-  context: { source: HistorySource; event: { id: string; type: string } | null; userIdHint: string | null; now: Date }
+  context: {
+    source: HistorySource;
+    event: { id: string; type: string } | null;
+    userIdHint: string | null;
+    policy: BillingPolicy;
+    now: Date;
+  }
 ): Promise<SyncOutcome> {
   const meta: HistoryMeta = { source: context.source, eventId: context.event?.id ?? null, at: context.now };
   return store.locked(`billing:${providerId}`, async (tx): Promise<SyncOutcome> => {
@@ -245,7 +263,18 @@ export async function syncSubscription(
       return done({ kind: "second" });
     }
     if (plan.cancelNow) await gateway.cancelSubscription(plan.cancelNow, { atPeriodEnd: false });
-    await tx.save(plan.id, plan.fields, plan.history, meta);
+    const rowId = await tx.save(plan.id, plan.fields, plan.history, meta);
+    // A row taken over from another subscription starts its notices afresh: the old one's failure is not this one's.
+    const before = byProviderId && byProviderId.id === plan.id ? byProviderId : null;
+    const notices = planNotices({
+      before,
+      after: plan.fields,
+      canceledFor: snapshot.canceledFor,
+      queued: before ? await tx.noticesOf(rowId) : [],
+      policy: context.policy,
+      now: context.now,
+    });
+    if (notices.length > 0) await tx.queueNotices(rowId, notices);
     return done({ kind: "saved", changes: plan.history.length });
   });
 }
@@ -295,7 +324,8 @@ export async function handleWebhook(
   store: BillingStore,
   rawBody: string,
   signature: string | null,
-  now: Date
+  now: Date,
+  policy: BillingPolicy
 ): Promise<WebhookAnswer> {
   let event;
   try {
@@ -315,6 +345,7 @@ export async function handleWebhook(
     source: "webhook",
     event: { id: event.id, type: event.type },
     userIdHint: event.userId,
+    policy,
     now,
   });
   return { status: 200, outcome };
@@ -326,13 +357,16 @@ export interface ReconcileReport {
   failed: { id: string; error: string }[];
 }
 
-/** Re-reads every stored subscription that has not ended and corrects what differs (Acceptance 4). */
-export async function reconcile(gateway: BillingGateway, store: BillingStore, now: Date): Promise<ReconcileReport> {
+/**
+ * Re-reads every stored subscription that has not ended and corrects what differs (Acceptance 4). It is also what moves
+ * time on: a grace that has run out, or a last notice now due, is written and queued here when no event comes (D377).
+ */
+export async function reconcile(gateway: BillingGateway, store: BillingStore, now: Date, policy: BillingPolicy): Promise<ReconcileReport> {
   const report: ReconcileReport = { checked: 0, corrected: 0, failed: [] };
   for (const id of await store.openSubscriptionIds()) {
     report.checked += 1;
     try {
-      const outcome = await syncSubscription(gateway, store, id, { source: "reconcile", event: null, userIdHint: null, now });
+      const outcome = await syncSubscription(gateway, store, id, { source: "reconcile", event: null, userIdHint: null, policy, now });
       if ((outcome.kind === "saved" && outcome.changes > 0) || outcome.kind === "second") report.corrected += 1;
     } catch (error) {
       report.failed.push({ id, error: error instanceof Error ? error.message : String(error) });

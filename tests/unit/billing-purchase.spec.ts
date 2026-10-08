@@ -5,7 +5,9 @@ import {
   checkoutRefusal,
   formatPrice,
   offeredTiers,
+  paymentNotice,
   planStatusLine,
+  safePayUrl,
   type PriceRow,
   type StoredForStatus,
 } from "../../lib/billing/purchase";
@@ -156,5 +158,60 @@ describe("the fake on a local server (G-106 M3)", () => {
     const [update] = fake.takeUndelivered();
     expect(update.type).toBe("customer.subscription.updated");
     expect(fake.readEvent(update.rawBody, fake.delivery(update).signature).subscriptionId).toBe(subscription.id);
+  });
+});
+
+describe("paymentNotice (G-126 M2)", () => {
+  const failing = {
+    status: "past_due",
+    currentPeriodEnd: new Date(NOW.getTime() + 25 * DAY),
+    firstFailedAt: new Date(NOW.getTime() - 5 * DAY),
+    nextAttemptAt: new Date(NOW.getTime() + 2 * DAY),
+    payUrl: "https://invoice.stripe.com/i/acct/test",
+    actionNeeded: false,
+  };
+
+  it("says nothing while no payment fails", () => {
+    expect(paymentNotice(null, POLICY, NOW)).toBeNull();
+    expect(paymentNotice({ ...failing, status: "active", firstFailedAt: null }, POLICY, NOW)).toBeNull();
+    expect(paymentNotice({ ...failing, status: "canceled" }, POLICY, NOW)).toBeNull();
+  });
+
+  it("names the grace's end, the next try and the way to pay while the plan is kept", () => {
+    const notice = paymentNotice(failing, POLICY, NOW)!;
+    expect(notice.tone).toBe("warning");
+    expect(notice.lines.join(" ")).toBe(
+      "A payment for your plan did not go through. The card will be tried again on 10 October 2026. To pay with another card, " +
+        "use Manage billing. Your plan stays as it is until 17 October 2026. If it is still unpaid then, your account moves " +
+        "to the free plan; your charts are kept."
+    );
+    expect(notice.pay).toEqual({ href: failing.payUrl, label: "Pay now" });
+    expect(paymentNotice({ ...failing, nextAttemptAt: null }, POLICY, NOW)!.lines[0]).not.toMatch(/tried again/);
+  });
+
+  it("asks for the bank's check to be confirmed when the payment waits on it", () => {
+    const notice = paymentNotice({ ...failing, actionNeeded: true }, POLICY, NOW)!;
+    expect(notice.lines[0]).toMatch(/bank asks you to confirm/);
+    expect(notice.pay?.label).toBe("Confirm the payment");
+  });
+
+  it("says the account is on Free and the charts are kept once the grace is over, or the retries end unpaid", () => {
+    for (const stored of [
+      { ...failing, firstFailedAt: new Date(NOW.getTime() - 14 * DAY) },
+      { ...failing, status: "unpaid" },
+    ]) {
+      const notice = paymentNotice(stored, POLICY, NOW)!;
+      expect(notice.tone).toBe("ended");
+      expect(notice.lines.join(" ")).toMatch(/free plan.*charts are kept.*Paying the open invoice brings the plan back/);
+      expect(notice.pay?.label).toBe("Pay the open invoice");
+    }
+    expect(paymentNotice({ ...failing, status: "unpaid", payUrl: null }, POLICY, NOW)!.lines.join(" ")).not.toMatch(/open invoice/);
+  });
+
+  it("links only to an https page, or the fake's on this machine", () => {
+    expect(safePayUrl("https://invoice.stripe.com/i/x")).toBe("https://invoice.stripe.com/i/x");
+    expect(safePayUrl("http://localhost:3000/billing/fake-portal?customer=c")).toBe("http://localhost:3000/billing/fake-portal?customer=c");
+    for (const url of ["http://evil.example/x", "javascript:alert(1)", "not a url", "", null]) expect(safePayUrl(url)).toBeNull();
+    expect(paymentNotice({ ...failing, payUrl: "javascript:alert(1)" }, POLICY, NOW)!.pay).toBeNull();
   });
 });

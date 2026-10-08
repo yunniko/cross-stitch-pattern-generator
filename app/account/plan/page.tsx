@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { FREE_PLAN, planName } from "@/lib/account/plan";
 import { ENTITLEMENT_SELECT } from "@/lib/billing/entitlement";
 import { currentBillingSettings } from "@/lib/billing/gateway";
-import { BUYING_FEATURE, formatPrice, offeredTiers, planStatusLine, type PriceRow } from "@/lib/billing/purchase";
+import { BUYING_FEATURE, formatPrice, offeredTiers, paymentNotice, planStatusLine, type PriceRow } from "@/lib/billing/purchase";
 import { holdsThePlace } from "@/lib/billing/sync";
 import { featureUsable } from "@/lib/features/features";
 import { featureStatesFor } from "@/lib/features/server";
@@ -36,6 +36,9 @@ export default async function AccountPlanPage({ searchParams }: { searchParams: 
             ...ENTITLEMENT_SELECT,
             cancelAtPeriodEnd: true,
             endedAt: true,
+            nextAttemptAt: true,
+            payUrl: true,
+            actionNeeded: true,
             stripeCustomerId: true,
             tierId: true,
             tier: { select: { name: true } },
@@ -57,7 +60,9 @@ export default async function AccountPlanPage({ searchParams }: { searchParams: 
   const now = new Date();
   const stored = user.subscription;
   const plan = planName(stored, policy, now);
-  const status = planStatusLine(stored, policy, now);
+  const payment = paymentNotice(stored, policy, now);
+  // The payment notice says all the status line would, and more.
+  const status = payment ? null : planStatusLine(stored, policy, now);
   const billingOn = currentBillingSettings().on;
   const offered = billingOn && featureUsable(states, BUYING_FEATURE) ? offeredTiers(prices.map(toPriceRow)) : [];
   const live = stored !== null && holdsThePlace(stored);
@@ -74,6 +79,30 @@ export default async function AccountPlanPage({ searchParams }: { searchParams: 
         >
           {notice}
         </p>
+      )}
+      {payment && (
+        <div
+          role="status"
+          className={`flex flex-col gap-2 rounded-md border px-3 py-2.5 text-[13px] text-ink ${payment.tone === "warning" ? "border-warning-edge bg-surface" : "border-line bg-surface"}`}
+          data-testid="plan-payment-notice"
+          data-tone={payment.tone}
+        >
+          {payment.lines.map((line) => (
+            <p key={line} className="m-0">
+              {line}
+            </p>
+          ))}
+          {payment.pay && (
+            <a
+              href={payment.pay.href}
+              rel="noopener noreferrer"
+              className="self-start rounded-md border border-control-line px-3 py-1.5 text-[13px] font-medium text-ink no-underline hover:bg-control-hover"
+              data-testid="plan-pay-link"
+            >
+              {payment.pay.label}
+            </a>
+          )}
+        </div>
       )}
       <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-4">
         <div className="flex flex-col gap-3 rounded-lg border border-accent bg-surface p-4" data-testid="plan-current">

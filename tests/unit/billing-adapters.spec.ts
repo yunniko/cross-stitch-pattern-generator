@@ -4,7 +4,7 @@ import { readEventObject } from "../../lib/billing/event-reference";
 import { FakeBilling } from "../../lib/billing/fake";
 import { FAKE_WEBHOOK_SECRET, billingSettings } from "../../lib/billing/settings";
 import { signPayload, verifySignature } from "../../lib/billing/signature";
-import { priceFromStripe, snapshotFromStripe } from "../../lib/billing/stripe-mapping";
+import { failingInvoice, invoicePaymentIntentId, priceFromStripe, snapshotFromStripe } from "../../lib/billing/stripe-mapping";
 
 type StripeSubscription = Parameters<typeof snapshotFromStripe>[0];
 type StripePrice = Parameters<typeof priceFromStripe>[0];
@@ -174,6 +174,10 @@ describe("Stripe's subscription read into the contract", () => {
       cancelAtPeriodEnd: false,
       endedAt: null,
       firstFailedAt: null,
+      nextAttemptAt: null,
+      payUrl: null,
+      actionNeeded: false,
+      canceledFor: null,
       userId: "user_1",
     });
   });
@@ -189,6 +193,45 @@ describe("Stripe's subscription read into the contract", () => {
     });
     expect(snapshotFromStripe(notYetTried).firstFailedAt).toBeNull();
     expect(snapshotFromStripe(stripeSubscription({ latest_invoice: "in_1" })).firstFailedAt).toBeNull();
+  });
+
+  it("reads a failing invoice's next try and payment page, and whether it waits on the person, only while it fails (G-126)", () => {
+    const next = new Date(T0.getTime() + 3 * DAY);
+    const invoice = (status: string) => ({
+      status,
+      attempt_count: 1,
+      created: seconds(T0),
+      status_transitions: { finalized_at: seconds(T0) },
+      next_payment_attempt: seconds(next),
+      hosted_invoice_url: "https://invoice.stripe.com/i/test",
+      payments: {
+        data: [
+          { created: 1, payment: { type: "payment_intent", payment_intent: "pi_old" } },
+          { created: 2, payment: { type: "payment_intent", payment_intent: { id: "pi_new" } } },
+        ],
+      },
+    });
+    const failing = stripeSubscription({ status: "past_due", latest_invoice: invoice("open") });
+    expect(snapshotFromStripe(failing, true)).toMatchObject({
+      nextAttemptAt: next,
+      payUrl: "https://invoice.stripe.com/i/test",
+      actionNeeded: true,
+    });
+    expect(snapshotFromStripe(failing).actionNeeded).toBe(false);
+    expect(invoicePaymentIntentId(failingInvoice(failing)!)).toBe("pi_new");
+    const paid = stripeSubscription({ latest_invoice: invoice("paid") });
+    expect(snapshotFromStripe(paid, true)).toMatchObject({ nextAttemptAt: null, payUrl: null, actionNeeded: false });
+    expect(failingInvoice(paid)).toBeNull();
+  });
+
+  it("tells an end the person asked for from one a failed payment brought, and nothing else", () => {
+    const ended = (reason: string | null, status = "canceled") =>
+      snapshotFromStripe(stripeSubscription({ status, cancellation_details: { reason } })).canceledFor;
+    expect(ended("cancellation_requested")).toBe("request");
+    expect(ended("payment_failed")).toBe("payment");
+    expect(ended("payment_disputed")).toBeNull();
+    expect(ended(null)).toBeNull();
+    expect(ended("payment_failed", "active")).toBeNull();
   });
 
   it("reads an expanded customer, an end, a cancellation at the period's end, and missing metadata", () => {

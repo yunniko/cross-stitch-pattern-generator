@@ -9,6 +9,14 @@ import {
   type StoredSubscription,
   type SubscriptionFields,
 } from "./sync";
+import {
+  NOTICE_MAX_AGE_MS,
+  NOTICE_MAX_ATTEMPTS,
+  type NoticeMessage,
+  type NoticeQueue,
+  type NoticeSlot,
+  type NoticeValues,
+} from "./notices";
 
 /**
  * The billing write path's store in Postgres (G-106 M2). One transaction per sync, holding an advisory lock on the
@@ -30,6 +38,9 @@ const STORED_SELECT = {
   cancelAtPeriodEnd: true,
   endedAt: true,
   firstFailedAt: true,
+  nextAttemptAt: true,
+  payUrl: true,
+  actionNeeded: true,
 } as const;
 
 function transactionStore(tx: Prisma.TransactionClient): BillingTx {
@@ -61,8 +72,25 @@ function transactionStore(tx: Prisma.TransactionClient): BillingTx {
         ? await tx.subscription.update({ where: { id }, data, select: { id: true } })
         : await tx.subscription.create({ data, select: { id: true } });
       await history(row.id, entries, meta);
+      return row.id;
     },
     appendHistory: history,
+    noticesOf: (subscriptionId) =>
+      tx.billingNotice.findMany({ where: { subscriptionId }, select: { failedAt: true, slot: true } }) as Promise<
+        { failedAt: Date; slot: NoticeSlot }[]
+      >,
+    queueNotices: async (subscriptionId, notices) => {
+      await tx.billingNotice.createMany({
+        data: notices.map((notice) => ({
+          subscriptionId,
+          failedAt: notice.failedAt,
+          slot: notice.slot,
+          message: notice.message,
+          values: notice.values as Prisma.InputJsonObject,
+        })),
+        skipDuplicates: true,
+      });
+    },
   };
 }
 
@@ -87,4 +115,26 @@ export const prismaBillingStore: BillingStore = {
         select: { stripeSubscriptionId: true },
       })
     ).map((row) => row.stripeSubscriptionId!),
+};
+
+/** The notices waiting to be sent (G-126 M2, D377). */
+export const prismaNoticeQueue: NoticeQueue = {
+  pending: async (now) =>
+    (
+      await prisma.billingNotice.findMany({
+        where: { sentAt: null, attempts: { lt: NOTICE_MAX_ATTEMPTS }, createdAt: { gt: new Date(now.getTime() - NOTICE_MAX_AGE_MS) } },
+        orderBy: { createdAt: "asc" },
+        select: { id: true, message: true, values: true, subscription: { select: { user: { select: { email: true } } } } },
+      })
+    ).map((row) => ({
+      id: row.id,
+      message: row.message as NoticeMessage,
+      values: row.values as NoticeValues,
+      email: row.subscription.user.email || null,
+    })),
+  claim: async (id, now) =>
+    (await prisma.billingNotice.updateMany({ where: { id, sentAt: null }, data: { sentAt: now, attempts: { increment: 1 } } })).count === 1,
+  release: async (id) => {
+    await prisma.billingNotice.update({ where: { id }, data: { sentAt: null } });
+  },
 };

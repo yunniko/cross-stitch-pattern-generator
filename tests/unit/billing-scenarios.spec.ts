@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { entitlement, type BillingPolicy } from "../../lib/billing/entitlement";
 import { FakeBilling, type SignedEvent } from "../../lib/billing/fake";
+import { deliverNotices, type NoticeMessage } from "../../lib/billing/notices";
 import { FAKE_WEBHOOK_SECRET } from "../../lib/billing/settings";
 import { handleWebhook, reconcile, type HistoryKind } from "../../lib/billing/sync";
 import { MemoryBillingStore } from "./helpers/memory-billing-store";
@@ -11,6 +12,9 @@ import { MemoryBillingStore } from "./helpers/memory-billing-store";
  * through the fake provider and the one write path (`handleWebhook`, `reconcile`), with the entitlement rule's answer
  * checked after every step. Every scenario runs with its events delivered as sent, each twice, and shuffled within a
  * step; the answer must not change. A new scenario is a new entry in `SCENARIOS`.
+ *
+ * G-126 M2: each scenario also names the messages the person is sent over its life, in order (`lib/billing/notices.ts`).
+ * Notices are delivered after every step, and a "wait" runs the reconciliation, as the hourly pass would on that day.
  */
 
 const T0 = new Date("2026-01-05T12:00:00Z");
@@ -58,6 +62,8 @@ type Step = Action & { day?: number; then?: Expectation };
 interface Scenario {
   name: string;
   steps: Step[];
+  /** Every message the person is sent, in order, however the events are delivered. */
+  mails: NoticeMessage[];
 }
 
 /** Subscribed on day 0 and renewed, paid, on days 30 and 60: three paid periods. */
@@ -78,6 +84,7 @@ const SCENARIOS: Scenario[] = [
       { day: 120, do: "renew", payment: "paid", then: { plan: "Personal", status: "active", failedSince: null } },
       { day: 125, do: "wait", then: { plan: "Personal" } },
     ],
+    mails: ["payment-failed", "payment-recovered"],
   },
   ...(["canceled", "unpaid"] as const).map((outcome): Scenario => ({
     name: `2. three paid periods, every retry fails, the retries end as ${outcome} before the grace does`,
@@ -89,6 +96,7 @@ const SCENARIOS: Scenario[] = [
       { day: 102, do: "retry", payment: "failed", then: { plan: "Personal", status: "past_due", failedSince: 90 } },
       { day: 103, do: "give-up", outcome, then: { plan: "Free", status: outcome } },
     ],
+    mails: ["payment-failed", "last-notice", "moved-to-free"],
   })),
   {
     name: "2. three paid periods, every retry fails, the retries end leaving it past_due: Free when the grace ends",
@@ -102,6 +110,7 @@ const SCENARIOS: Scenario[] = [
       // The next period's invoice fails too: a new invoice must not start the grace again.
       { day: 120, do: "renew", payment: "failed", then: { plan: "Free", status: "past_due", failedSince: 90 } },
     ],
+    mails: ["payment-failed", "last-notice", "moved-to-free"],
   },
   {
     name: "2. Stripe still retrying after the grace: Free when the grace ends, whatever Stripe does later",
@@ -112,6 +121,7 @@ const SCENARIOS: Scenario[] = [
       { day: 110, do: "retry", payment: "failed", then: { plan: "Free" } },
       { day: 111, do: "give-up", outcome: "canceled", then: { plan: "Free", status: "canceled" } },
     ],
+    mails: ["payment-failed", "moved-to-free"],
   },
   {
     name: "3. as 2 ending unpaid, then the person pays the open invoice: the tier is back at once, same subscription",
@@ -125,6 +135,7 @@ const SCENARIOS: Scenario[] = [
         then: { plan: "Personal", status: "active", failedSince: null, history: { replaced: 0, created: 1 } },
       },
     ],
+    mails: ["payment-failed", "moved-to-free", "payment-recovered"],
   },
   {
     name: "4. a failure in period 3 recovered, a second in period 6: the grace counts afresh from the second",
@@ -139,6 +150,7 @@ const SCENARIOS: Scenario[] = [
       { day: 163, do: "wait", then: { plan: "Personal" } },
       { day: 164, do: "wait", then: { plan: "Free", history: { failure: 3 } } },
     ],
+    mails: ["payment-failed", "payment-recovered", "payment-failed", "last-notice", "moved-to-free"],
   },
   {
     name: "5. a renewal needs the person to authenticate: the tier is kept as for a failure",
@@ -147,10 +159,13 @@ const SCENARIOS: Scenario[] = [
       { day: 90, do: "action-required", then: { plan: "Personal", status: "past_due", failedSince: 90 } },
       { day: 91, do: "pay-invoice", then: { plan: "Personal", status: "active", failedSince: null } },
     ],
+    mails: ["action-needed", "payment-recovered"],
   },
   {
     name: "5. a renewal needs authentication that never comes: Free when the grace ends",
     steps: [...THREE_PAID, { day: 90, do: "action-required" }, { day: 104, do: "wait", then: { plan: "Free", status: "past_due" } }],
+    // Nothing synced it between days 91 and 103, so the last notice was never due on a day it was looked at.
+    mails: ["action-needed", "moved-to-free"],
   },
   {
     name: "6. the card replaced in the Portal during the grace, and the retry succeeds",
@@ -159,6 +174,7 @@ const SCENARIOS: Scenario[] = [
       { day: 90, do: "renew", payment: "failed" },
       { day: 99, do: "retry", payment: "paid", then: { plan: "Personal", status: "active", failedSince: null } },
     ],
+    mails: ["payment-failed", "payment-recovered"],
   },
   {
     name: "7. cancelled at once during the grace: Free at once",
@@ -167,6 +183,7 @@ const SCENARIOS: Scenario[] = [
       { day: 90, do: "renew", payment: "failed" },
       { day: 92, do: "cancel", at: "now", then: { plan: "Free", status: "canceled" } },
     ],
+    mails: ["payment-failed"],
   },
   {
     name: "7. cancelled at the period's end during the grace: Free when the grace ends, ended at the period's end",
@@ -177,6 +194,7 @@ const SCENARIOS: Scenario[] = [
       { day: 104, do: "wait", then: { plan: "Free" } },
       { day: 120, do: "renew", payment: "paid", then: { plan: "Free", status: "canceled" } },
     ],
+    mails: ["payment-failed"],
   },
   {
     name: "7. cancelled at the period's end, then the retry succeeds: the tier to the period's end",
@@ -188,6 +206,7 @@ const SCENARIOS: Scenario[] = [
       { day: 119, do: "wait", then: { plan: "Personal" } },
       { day: 120, do: "renew", payment: "paid", then: { plan: "Free", status: "canceled" } },
     ],
+    mails: ["payment-failed", "payment-recovered"],
   },
   {
     name: "8. a yearly subscription failing at its first renewal: the same grace in days",
@@ -198,6 +217,7 @@ const SCENARIOS: Scenario[] = [
       { day: 379, do: "wait", then: { plan: "Free" } },
       { day: 380, do: "retry", payment: "paid", then: { plan: "Personal", status: "active", failedSince: null } },
     ],
+    mails: ["payment-failed", "last-notice", "moved-to-free", "payment-recovered"],
   },
   {
     name: "9. a change of plan whose prorated payment fails: the old plan is kept, the new one only once paid",
@@ -212,6 +232,7 @@ const SCENARIOS: Scenario[] = [
       },
       { day: 72, do: "retry", payment: "paid", then: { plan: "Professional", status: "active", history: { price: 1 } } },
     ],
+    mails: ["payment-failed", "payment-recovered"],
   },
   {
     name: "9. a change of plan never paid for: the old plan through the grace, then Free",
@@ -221,6 +242,7 @@ const SCENARIOS: Scenario[] = [
       { day: 83, do: "wait", then: { plan: "Personal" } },
       { day: 84, do: "wait", then: { plan: "Free", history: { price: 0 } } },
     ],
+    mails: ["payment-failed", "last-notice", "moved-to-free"],
   },
   {
     name: "9. a change of plan paid at once is taken at once",
@@ -228,6 +250,7 @@ const SCENARIOS: Scenario[] = [
       ...THREE_PAID,
       { day: 70, do: "change-plan", to: "pro-month", payment: "paid", then: { plan: "Professional", status: "active" } },
     ],
+    mails: [],
   },
   {
     name: "10. a dispute and a refund after paid periods are shown to the admin and change no access",
@@ -236,6 +259,7 @@ const SCENARIOS: Scenario[] = [
       { day: 70, do: "dispute", then: { plan: "Personal", status: "active", history: { dispute: 1 } } },
       { day: 71, do: "refund", then: { plan: "Personal", status: "active", history: { dispute: 1, refund: 1 } } },
     ],
+    mails: [],
   },
   {
     name: "11. the webhook is down for a day during a failure and its retries: the reconciliation alone gets it right",
@@ -251,6 +275,7 @@ const SCENARIOS: Scenario[] = [
       // Stripe's own retries of the held events arrive once the webhook is back: nothing changes.
       { day: 92, do: "webhook-up", then: { plan: "Personal", status: "active", failedSince: null, history: { failure: 2 } } },
     ],
+    mails: ["payment-failed", "payment-recovered"],
   },
 ];
 
@@ -273,7 +298,11 @@ async function run(scenario: Scenario, delivery: Delivery) {
   let now = T0;
   const fake = new FakeBilling(FAKE_WEBHOOK_SECRET, "http://localhost:3000", () => now);
   const store = new MemoryBillingStore();
+  store.clock = () => now;
   store.users.add("user_1");
+  const mails: NoticeMessage[] = [];
+  const sendNotices = () =>
+    deliverNotices(store, async (message) => (mails.push(message), true), "http://localhost:3000/account/plan", now);
   const priceIds = {} as Record<PriceName, string>;
   for (const [name, price] of Object.entries(PRICES) as [PriceName, (typeof PRICES)[PriceName]][]) {
     const added = fake.addPrice({ amount: price.amount, currency: "eur", interval: price.interval, productName: TIERS[price.tierId] });
@@ -293,7 +322,7 @@ async function run(scenario: Scenario, delivery: Delivery) {
           : events;
     for (const event of order) {
       const { rawBody, signature } = fake.delivery(event);
-      const answer = await handleWebhook(fake, store, rawBody, signature, now);
+      const answer = await handleWebhook(fake, store, rawBody, signature, now, POLICY);
       expect(answer.status, `${event.type} answered`).toBe(200);
     }
   };
@@ -351,9 +380,10 @@ async function run(scenario: Scenario, delivery: Delivery) {
         held = [];
         return;
       case "reconcile":
-        expect((await reconcile(fake, store, now)).failed).toEqual([]);
+        expect((await reconcile(fake, store, now, POLICY)).failed).toEqual([]);
         return;
       case "wait":
+        expect((await reconcile(fake, store, now, POLICY)).failed).toEqual([]);
         return;
     }
   };
@@ -368,6 +398,7 @@ async function run(scenario: Scenario, delivery: Delivery) {
     const events = fake.takeUndelivered();
     if (webhookUp) await deliver(events);
     else held.push(...events);
+    await sendNotices();
     if (!step.then) continue;
 
     const where = `step ${index} (${step.do}${step.day !== undefined ? `, day ${step.day}` : ""})`;
@@ -391,10 +422,12 @@ async function run(scenario: Scenario, delivery: Delivery) {
   if (delivery.kind === "twice") {
     for (const event of [...fake.events].reverse()) {
       const { rawBody, signature } = fake.delivery(event);
-      await handleWebhook(fake, store, rawBody, signature, now);
+      await handleWebhook(fake, store, rawBody, signature, now, POLICY);
     }
     expect({ row: store.row("user_1"), history: store.historyOf("user_1").length }).toEqual(before);
+    await sendNotices();
   }
+  expect(mails, "the messages sent").toEqual(scenario.mails);
 }
 
 describe("payment failures at any point in a subscription's life (G-126 scenarios)", () => {

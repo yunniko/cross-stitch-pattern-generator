@@ -1,5 +1,6 @@
 import type { BillingInterval } from "./contract";
 import { entitlement, type BillingPolicy, type EntitlementInput } from "./entitlement";
+import { formatDay } from "./notices";
 import { holdsThePlace } from "./sync";
 
 /**
@@ -78,8 +79,6 @@ export function formatPrice(price: { amount: number; currency: string; interval:
   return `${amount} a ${price.interval === "MONTH" ? "month" : "year"}`;
 }
 
-const DAY_FORMAT = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
-
 export interface StoredForStatus extends EntitlementInput {
   cancelAtPeriodEnd: boolean;
 }
@@ -88,7 +87,7 @@ export interface StoredForStatus extends EntitlementInput {
 export function planStatusLine(stored: StoredForStatus | null, policy: BillingPolicy, now: Date): string | null {
   if (!stored) return null;
   const given = entitlement(stored, policy, now);
-  const periodEnd = stored.currentPeriodEnd ? DAY_FORMAT.format(stored.currentPeriodEnd) : null;
+  const periodEnd = stored.currentPeriodEnd ? formatDay(stored.currentPeriodEnd) : null;
   if (given.tier) {
     if (given.status === "past_due") return "A renewal payment failed and is being retried. Update your card under Manage billing.";
     if (stored.cancelAtPeriodEnd && periodEnd) return `Cancelled: your plan lasts until ${periodEnd} and will not renew.`;
@@ -114,4 +113,65 @@ export function planStatusLine(stored: StoredForStatus | null, policy: BillingPo
     case "no-subscription":
       return null;
   }
+}
+
+export interface StoredForPaymentNotice extends EntitlementInput {
+  nextAttemptAt: Date | null;
+  payUrl: string | null;
+  actionNeeded: boolean;
+}
+
+export interface PaymentNotice {
+  /** "warning" while the plan is kept, "ended" once the account is on Free for want of payment. */
+  tone: "warning" | "ended";
+  lines: string[];
+  /** The provider's page for paying the open invoice, when there is one to link to. */
+  pay: { href: string; label: string } | null;
+}
+
+/** Only the provider's own https pages, or the fake's on this machine, are linked to. */
+export function safePayUrl(url: string | null): string | null {
+  if (!url) return null;
+  try {
+    const parsed = new URL(url);
+    const local = parsed.protocol === "http:" && (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1");
+    return parsed.protocol === "https:" || local ? parsed.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * What the Plan page says while a payment fails (G-126 M2): until when the plan is kept, the next try, and the way to
+ * pay; or, once the grace is over, that the account is on Free and the charts are kept. Null when no payment is failing.
+ */
+export function paymentNotice(stored: StoredForPaymentNotice | null, policy: BillingPolicy, now: Date): PaymentNotice | null {
+  if (!stored) return null;
+  const given = entitlement(stored, policy, now);
+  const href = safePayUrl(stored.payUrl);
+  if (given.tier && given.status === "past_due") {
+    const until = `Your plan stays as it is until ${formatDay(given.until)}. If it is still unpaid then, your account moves to the free plan; your charts are kept.`;
+    if (stored.actionNeeded)
+      return {
+        tone: "warning",
+        lines: ["Your bank asks you to confirm the payment for your plan before it goes through.", until],
+        pay: href ? { href, label: "Confirm the payment" } : null,
+      };
+    const next = stored.nextAttemptAt ? ` The card will be tried again on ${formatDay(stored.nextAttemptAt)}.` : "";
+    return {
+      tone: "warning",
+      lines: [`A payment for your plan did not go through.${next} To pay with another card, use Manage billing.`, until],
+      pay: href ? { href, label: "Pay now" } : null,
+    };
+  }
+  if (!given.tier && (given.reason === "grace-ended" || given.reason === "unpaid"))
+    return {
+      tone: "ended",
+      lines: [
+        "Your plan ended because its payment did not go through, and your account is on the free plan.",
+        `Your charts are kept: you can still open and export every one.${href ? " Paying the open invoice brings the plan back." : ""}`,
+      ],
+      pay: href ? { href, label: "Pay the open invoice" } : null,
+    };
+  return null;
 }

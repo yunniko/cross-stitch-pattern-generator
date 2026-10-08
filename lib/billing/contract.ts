@@ -26,6 +26,14 @@ export interface SubscriptionSnapshot {
   endedAt: Date | null;
   /** The first failed attempt of the latest invoice while it is open and unpaid; null otherwise. */
   firstFailedAt: Date | null;
+  /** While that invoice is failing: when the provider tries it again; null when no further try is planned. */
+  nextAttemptAt: Date | null;
+  /** While that invoice is failing: the provider's page where the person pays it, by a new card or by confirming it. */
+  payUrl: string | null;
+  /** While that invoice is failing: its payment waits for the person to authenticate it, rather than being declined. */
+  actionNeeded: boolean;
+  /** Why an ended subscription was ended: the person asked, or a payment failed; null for neither, or not ended. */
+  canceledFor: "request" | "payment" | null;
   /** Our user id, as Checkout wrote it into the subscription's metadata; null if it is missing. */
   userId: string | null;
 }

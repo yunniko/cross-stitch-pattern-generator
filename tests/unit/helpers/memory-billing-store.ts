@@ -1,9 +1,19 @@
+import type { NoticeQueue, PendingNotice, PlannedNotice } from "../../../lib/billing/notices";
+import { NOTICE_MAX_AGE_MS, NOTICE_MAX_ATTEMPTS } from "../../../lib/billing/notices";
 import type { BillingStore, BillingTx, HistoryEntry, HistoryMeta, StoredSubscription, SubscriptionFields } from "../../../lib/billing/sync";
 
 /**
  * The billing store in memory, for the unit tests of `lib/billing/sync.ts`. A locked unit of work runs one at a time
- * per key and is rolled back whole when it throws, as the Postgres store's transaction is.
+ * per key and is rolled back whole when it throws, as the Postgres store's transaction is. It is also the notice queue.
  */
+
+export interface NoticeRecord extends PlannedNotice {
+  id: string;
+  subscriptionId: string;
+  createdAt: Date;
+  sentAt: Date | null;
+  attempts: number;
+}
 
 export interface HistoryRow extends HistoryEntry, HistoryMeta {
   subscriptionId: string;
@@ -13,17 +23,23 @@ interface State {
   subscriptions: StoredSubscription[];
   history: HistoryRow[];
   events: Map<string, string>;
+  notices: NoticeRecord[];
 }
+
+const found = (row: StoredSubscription | undefined): StoredSubscription | null => (row ? { ...row } : null);
 
 const copy = (state: State): State => ({
   subscriptions: state.subscriptions.map((row) => ({ ...row })),
   history: state.history.map((row) => ({ ...row })),
   events: new Map(state.events),
+  notices: state.notices.map((row) => ({ ...row })),
 });
 
-export class MemoryBillingStore implements BillingStore {
-  state: State = { subscriptions: [], history: [], events: new Map() };
+export class MemoryBillingStore implements BillingStore, NoticeQueue {
+  state: State = { subscriptions: [], history: [], events: new Map(), notices: [] };
   readonly users = new Set<string>();
+  /** Each person's address, for delivery; a user without one is given `<id>@example.test`. */
+  readonly emails = new Map<string, string>();
   readonly prices = new Map<string, { id: string; tierId: string }>();
   private serial = 0;
   private readonly queues = new Map<string, Promise<unknown>>();
@@ -48,9 +64,10 @@ export class MemoryBillingStore implements BillingStore {
         if (state.events.has(id)) throw new Error(`unique constraint: event ${id}`);
         state.events.set(id, type);
       },
-      subscriptionByProviderId: async (id) => state.subscriptions.find((row) => row.stripeSubscriptionId === id) ?? null,
-      subscriptionByUser: async (userId) => state.subscriptions.find((row) => row.userId === userId) ?? null,
-      subscriptionByCustomer: async (customerId) => state.subscriptions.find((row) => row.stripeCustomerId === customerId) ?? null,
+      // Copies, as a query returns: a row read before a write must not change with it.
+      subscriptionByProviderId: async (id) => found(state.subscriptions.find((row) => row.stripeSubscriptionId === id)),
+      subscriptionByUser: async (userId) => found(state.subscriptions.find((row) => row.userId === userId)),
+      subscriptionByCustomer: async (customerId) => found(state.subscriptions.find((row) => row.stripeCustomerId === customerId)),
       userExists: async (userId) => this.users.has(userId),
       priceByProviderId: async (id) => this.prices.get(id) ?? null,
       save: async (id: string | null, fields: SubscriptionFields, entries: HistoryEntry[], meta: HistoryMeta) => {
@@ -63,8 +80,19 @@ export class MemoryBillingStore implements BillingStore {
           state.subscriptions.push(row);
         } else Object.assign(row, fields);
         await appendHistory(row.id, entries, meta);
+        return row.id;
       },
       appendHistory,
+      noticesOf: async (subscriptionId) => state.notices.filter((row) => row.subscriptionId === subscriptionId),
+      queueNotices: async (subscriptionId, notices) => {
+        for (const notice of notices) {
+          const same = (row: NoticeRecord) =>
+            row.subscriptionId === subscriptionId && row.slot === notice.slot && row.failedAt.getTime() === notice.failedAt.getTime();
+          if (state.notices.some(same)) continue;
+          this.serial += 1;
+          state.notices.push({ ...notice, id: `notice${this.serial}`, subscriptionId, createdAt: this.clock(), sentAt: null, attempts: 0 });
+        }
+      },
     };
   }
 
@@ -89,6 +117,32 @@ export class MemoryBillingStore implements BillingStore {
 
   async recordEvent(id: string, type: string): Promise<void> {
     this.state.events.set(id, type);
+  }
+
+  /** The clock queued notices are stamped with; a test moves it with its own. */
+  clock: () => Date = () => new Date();
+
+  async pending(now: Date): Promise<PendingNotice[]> {
+    return this.state.notices
+      .filter(
+        (row) => row.sentAt === null && row.attempts < NOTICE_MAX_ATTEMPTS && row.createdAt.getTime() > now.getTime() - NOTICE_MAX_AGE_MS
+      )
+      .map((row) => {
+        const userId = this.state.subscriptions.find((sub) => sub.id === row.subscriptionId)!.userId;
+        return { id: row.id, message: row.message, values: row.values, email: this.emails.get(userId) ?? `${userId}@example.test` };
+      });
+  }
+
+  async claim(id: string, now: Date): Promise<boolean> {
+    const row = this.state.notices.find((candidate) => candidate.id === id);
+    if (!row || row.sentAt !== null) return false;
+    row.sentAt = now;
+    row.attempts += 1;
+    return true;
+  }
+
+  async release(id: string): Promise<void> {
+    this.state.notices.find((row) => row.id === id)!.sentAt = null;
   }
 
   async openSubscriptionIds(): Promise<string[]> {

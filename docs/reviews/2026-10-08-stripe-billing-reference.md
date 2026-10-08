@@ -14,6 +14,7 @@ from it is marked **Conclusion**.
 - S7: docs.stripe.com/billing/subscriptions/overview#subscription-status-resolution
 - S8: docs.stripe.com/billing/subscriptions/webhooks#refund-events and docs.stripe.com/api/disputes/object
 - S9: docs.stripe.com/billing/subscriptions/cancel
+- S10: the type definitions of `stripe@22.3.0` (API `2026-06-24.dahlia`), `node_modules/stripe/cjs/resources/`: Invoices, InvoicePayments, PaymentIntents, Subscriptions
 
 ## Subscription statuses (S1)
 
@@ -76,10 +77,17 @@ latest invoice with `attempt_count > 0` the failure began at `status_transitions
   where the link is the `invoice_payments` API. **Conclusion:** the app finds the customer through the charge, and
   notes disputes and refunds for the admin without changing access.
 - `cancel_at_period_end` does not stop retries; at cancellation, open invoices get `auto_advance=false` (S9).
-
+- The invoice gives `next_payment_attempt` (seconds, or null when no retry is planned) and `hosted_invoice_url`;
+  in dahlia it no longer names its PaymentIntent, which is on each of `invoice.payments` (S10). A PaymentIntent
+  waiting on the customer's bank has status `requires_action` (S10). **Conclusion (inference, unverified until test
+  mode):** the newest payment's intent in `requires_action` marks a renewal that needs the person to confirm (D378).
+- An ended subscription's `cancellation_details.reason` is `cancellation_requested`, `payment_failed`,
+  `payment_disputed` or `canceled_by_retention_policy` (S10). **Conclusion:** only `payment_failed` is told as a
+  failed payment; a requested end is never chased (D377).
 ## Confidence and gaps
 
 High for the statuses, item-level period and webhook rules (all from Stripe's own documentation). The failure
 date is The Company's reading of invoice fields and is to be checked against test mode in G-106 M4, which waits on
 the Owner's test keys. The Portal's plan-change behaviour on a failed payment (S5) is unconfirmed: D376 holds
-either way, and G-126 M3 checks it in test mode.
+either way, and G-126 M3 checks it in test mode. So does the reading of a confirmation through the payment's intent
+(D378): the fields are typed (S10), but how a real renewal fills them has not been observed.

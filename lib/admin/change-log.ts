@@ -5,11 +5,14 @@
 
 /** A role or a login changed by an admin. */
 export const ACCOUNT_SCOPE = "ACCOUNT";
+/** A site setting changed by an admin (G-126 M2, D374). */
+export const SETTING_SCOPE = "SETTING";
 
 export const CHANGE_GROUPS = [
   { id: "users", label: "Users", scopes: [ACCOUNT_SCOPE, "USER"] },
   { id: "features", label: "Features", scopes: ["SITE", "SET", "AUDIENCE"] },
   { id: "tiers", label: "Tiers", scopes: ["TIER"] },
+  { id: "settings", label: "Settings", scopes: [SETTING_SCOPE] },
 ] as const;
 
 export type ChangeGroupId = (typeof CHANGE_GROUPS)[number]["id"];
@@ -29,8 +32,10 @@ export function groupLabelOf(scope: string): string {
   return CHANGE_GROUPS.find((group) => (group.scopes as readonly string[]).includes(scope))?.label ?? scope;
 }
 
-/** The scopes of the switches, which the Features page's own Changes tab shows: every one but a role or a login. */
-export const FEATURE_SCOPES: readonly string[] = CHANGE_GROUPS.flatMap((group) => group.scopes).filter((scope) => scope !== ACCOUNT_SCOPE);
+/** The scopes of the switches, which the Features page's own Changes tab shows: every one but a role, a login or a setting. */
+export const FEATURE_SCOPES: readonly string[] = CHANGE_GROUPS.flatMap((group) => group.scopes).filter(
+  (scope) => scope !== ACCOUNT_SCOPE && scope !== SETTING_SCOPE
+);
 
 /** "2026-10-07 16:58", in UTC, as the log lists a change. */
 export function changeTime(at: Date): string {

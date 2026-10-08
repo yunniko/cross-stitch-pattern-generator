@@ -3,11 +3,18 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { fakeBillingGateway } from "@/lib/billing/gateway";
 import { PillButton } from "@/app/components/ui";
-import { cancelFakeSubscriptionAction, endFakePeriodAction } from "../fake-actions";
+import {
+  backdateFakeFailureAction,
+  cancelFakeSubscriptionAction,
+  endFakePeriodAction,
+  failFakeRenewalAction,
+  payFakeInvoiceAction,
+} from "../fake-actions";
 
 /**
  * The fake provider's Portal (G-106 M3, D373): the signed-in person's subscriptions at the fake, with Cancel (at the
- * period's end, as Stripe's Portal does) and End the period now, for tests. Found only while the fake is the adapter,
+ * period's end, as Stripe's Portal does) and End the period now, for tests. A failing invoice (G-126 M2) is paid here, as
+ * the fake's stand-in for the invoice's own page; a renewal that fails, and a failure moved past the grace, are for tests. Found only while the fake is the adapter,
  * and only for the person's own customer.
  */
 
@@ -36,6 +43,7 @@ export default async function FakePortalPage({ searchParams }: { searchParams: P
             {subscription.status}
             {subscription.currentPeriodEnd && `, period ends ${DAY.format(subscription.currentPeriodEnd)}`}
             {subscription.cancelAtPeriodEnd && ", cancelled at the period's end"}
+            {subscription.firstFailedAt && `, payment failing since ${DAY.format(subscription.firstFailedAt)}`}
           </p>
           <div className="flex flex-wrap gap-2">
             {!subscription.cancelAtPeriodEnd && (
@@ -52,6 +60,32 @@ export default async function FakePortalPage({ searchParams }: { searchParams: P
                 End the period now
               </PillButton>
             </form>
+            {subscription.firstFailedAt ? (
+              <>
+                <form action={payFakeInvoiceAction}>
+                  <input type="hidden" name="subscription" value={subscription.id} />
+                  <PillButton type="submit" variant="outline" size="md">
+                    Pay the open invoice
+                  </PillButton>
+                </form>
+                <form action={backdateFakeFailureAction}>
+                  <input type="hidden" name="subscription" value={subscription.id} />
+                  <PillButton type="submit" variant="outline" size="md">
+                    Move the failure past the grace
+                  </PillButton>
+                </form>
+              </>
+            ) : (
+              !subscription.cancelAtPeriodEnd &&
+              subscription.status !== "canceled" && (
+                <form action={failFakeRenewalAction}>
+                  <input type="hidden" name="subscription" value={subscription.id} />
+                  <PillButton type="submit" variant="outline" size="md">
+                    Renewal fails
+                  </PillButton>
+                </form>
+              )
+            )}
           </div>
         </div>
       ))}
