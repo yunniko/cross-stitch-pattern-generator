@@ -27,10 +27,11 @@ test("an admin sets a whole group and one feature for the site, a visitor sees i
   await signInAsAdmin(page);
   await page.goto("/admin/features");
   await expect(page.getByRole("heading", { name: "Features", exact: true })).toBeVisible();
-  // Every feature is listed, in its group, on to begin with.
+  // Every feature is listed, in its group, on to begin with, but buying, which its migration hides (D372).
   const rows = page.getByTestId("feature-row");
   expect(await rows.count()).toBeGreaterThan(40);
-  await expect(page.locator('[data-testid="feature-row"]:not([data-state="on"])')).toHaveCount(0);
+  await expect(row(page, "billing.buy")).toHaveAttribute("data-state", "hidden");
+  await expect(page.locator('[data-testid="feature-row"]:not([data-state="on"]):not([data-feature="billing.buy"])')).toHaveCount(0);
   try {
     // A whole group at once, and one feature alone.
     await group(page, "Thread brands")
