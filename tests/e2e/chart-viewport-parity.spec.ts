@@ -26,6 +26,9 @@ async function bundle(): Promise<string> {
   const build = await rolldown({
     input: path.join(__dirname, "fixtures", "chart-viewport-parity-page.ts"),
     resolve: { alias: { "@": ROOT } },
+    // The tool modules may reach Next's router code (a sign-in link), which reads build settings from `process.env`;
+    // the blank page has no `process`, so the bundle gets an empty one, as Next's own build would inline it.
+    transform: { define: { "process.env": "{}" } },
     logLevel: "silent",
   });
   const { output } = await build.generate({ format: "iife" });

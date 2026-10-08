@@ -78,10 +78,11 @@ test("the piece in hand is saved as a named stamp, listed in the account to sear
   await expect(cards(page).getByTestId("stamp-name")).toHaveText(["Rose row", "Untitled stamp"]);
   await expect(cards(page).first()).toHaveAttribute("data-pinned", "true");
 
-  // Renamed in place.
-  await rose.getByRole("button", { name: "Rename" }).click();
-  await rose.getByRole("textbox", { name: "Stamp name" }).fill("Rose border");
-  await rose.getByRole("button", { name: "Save name" }).click();
+  // Renamed in place. While its name is being edited the card no longer shows "Rose row", so it is found by place: pinned, first.
+  const pinned = cards(page).first();
+  await pinned.getByRole("button", { name: "Rename" }).click();
+  await pinned.getByRole("textbox", { name: "Stamp name" }).fill("Rose border");
+  await pinned.getByRole("button", { name: "Save name" }).click();
   await expect(cards(page).getByTestId("stamp-name")).toHaveText(["Rose border", "Untitled stamp"]);
 
   // Deleted, after asking; Keep it keeps it.

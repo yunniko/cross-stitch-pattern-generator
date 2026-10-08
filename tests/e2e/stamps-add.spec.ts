@@ -67,6 +67,8 @@ test("a stamp chosen in the gallery arrives as a piece in hand, its thread added
   // Chosen: the gallery closes, the piece is in hand, and the chart has the stamp's thread beside its own.
   await cards(page).filter({ hasText: "Ink pair" }).click();
   await expect(gallery(page)).toBeHidden();
+  // The focus is not handed back to Add stamp, whose button would take the Enter that applies the piece.
+  await expect(addStamp(page)).not.toBeFocused();
   await expect(selectionFinish(page, "Apply here")).toBeEnabled();
   await page.keyboard.press("Enter");
   await expect(selectionFinish(page, "Apply here")).toBeDisabled();

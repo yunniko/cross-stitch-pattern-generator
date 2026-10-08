@@ -7,8 +7,17 @@ const FOCUSABLE =
  * The focus of a dialog that stands over the editor: it starts on the control named by `first`, Tab goes round inside the
  * dialog and never reaches the page behind, Escape is the way out, and the focus returns to where it was when the dialog
  * goes. Found missing by the G-095 QA pass: Tab walked out of Preferences into the bar behind it.
+ *
+ * `returnFocus`, when given, is read as the dialog goes: false leaves the focus with the page instead. A dialog that hands
+ * something to the chart (a placed stamp, G-119) closes that way, so the Enter that applies it does not press the control
+ * that opened the dialog again.
  */
-export function useModalFocus(panelRef: RefObject<HTMLElement | null>, first: string, onEscape: () => void): void {
+export function useModalFocus(
+  panelRef: RefObject<HTMLElement | null>,
+  first: string,
+  onEscape: () => void,
+  returnFocus?: RefObject<boolean>
+): void {
   // The handler of the latest render, so that a new one does not move the focus again.
   const escape = useRef(onEscape);
   useEffect(() => {
@@ -39,8 +48,9 @@ export function useModalFocus(panelRef: RefObject<HTMLElement | null>, first: st
     document.addEventListener("keydown", onKeyDown);
     return () => {
       document.removeEventListener("keydown", onKeyDown);
-      // Only if what had the focus is still there to take it.
-      if (before?.isConnected) before.focus();
+      // Only if what had the focus is still there to take it, and the dialog did not close by handing something over.
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- the value as the dialog goes is the one meant, not as it opened.
+      if (before?.isConnected && returnFocus?.current !== false) before.focus();
     };
-  }, [panelRef, first]);
+  }, [panelRef, first, returnFocus]);
 }

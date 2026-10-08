@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { stampCount, stampsShown } from "@/lib/stamps/stamp";
 import { useModalFocus } from "../hooks/use-modal-focus";
 import { StampFacts, StampPreview, type StampFaceStamp } from "./stamp-face";
@@ -26,7 +26,13 @@ export interface StampGalleryProps {
 export function StampGallery({ stamps, error, placing, onChoose, onClose }: StampGalleryProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState("");
-  useModalFocus(panelRef, "input", onClose);
+  // Choosing a stamp closes the gallery with the piece in hand: the focus stays with the page, not on Add stamp, whose
+  // button would otherwise take the Enter that applies the piece. A refusal keeps the gallery, and Close returns as usual.
+  const returnFocus = useRef(true);
+  useEffect(() => {
+    if (error) returnFocus.current = true;
+  }, [error]);
+  useModalFocus(panelRef, "input", onClose, returnFocus);
   const shown = stamps && stampsShown(stamps, query);
 
   return (
@@ -87,7 +93,10 @@ export function StampGallery({ stamps, error, placing, onChoose, onClose }: Stam
                     disabled={placing !== null}
                     aria-busy={placing === stamp.id}
                     title={`Place “${stamp.name}” in the chart`}
-                    onClick={() => onChoose(stamp.id)}
+                    onClick={() => {
+                      returnFocus.current = false;
+                      onChoose(stamp.id);
+                    }}
                     className="flex w-full flex-col overflow-hidden rounded-lg border border-line bg-surface text-left transition-colors enabled:hover:border-accent disabled:opacity-60"
                   >
                     <StampPreview stamp={stamp} />
