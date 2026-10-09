@@ -3,7 +3,13 @@
 import { createContext, useActionState, useContext, useId, useState, type ReactNode } from "react";
 import { useFormStatus } from "react-dom";
 import { openPortalAction, startCheckoutAction, type BillingActionState } from "@/lib/billing/actions";
-import { cancelPlanAction, changePlanAction, keepCurrentPlanAction, keepPlanAction } from "@/lib/billing/plan-actions";
+import {
+  cancelPlanAction,
+  changePlanAction,
+  keepCurrentPlanAction,
+  keepPlanAction,
+  type PlanActionState,
+} from "@/lib/billing/plan-actions";
 import { withdrawAction } from "@/lib/billing/withdrawal-actions";
 import { PillButton } from "@/app/components/ui";
 
@@ -239,8 +245,13 @@ export function ChangePlanButton({
   label: string;
   confirmation: string;
 }) {
-  const [state, action] = useActionState(changePlanAction, {});
   const [confirming, setConfirming] = useState(false);
+  // The page is drawn again once the change is made, and this button stays where it was: its step closes when done.
+  const [state, action] = useActionState(async (prev: PlanActionState, formData: FormData) => {
+    const next = await changePlanAction(prev, formData);
+    if (next.done) setConfirming(false);
+    return next;
+  }, {});
   const consent = useContext(ConsentContext);
   const agreed = when === "renewal" || consentGiven(consent);
   const verb = when === "now" ? "Upgrade" : "Downgrade";
@@ -279,8 +290,12 @@ export function ChangePlanButton({
 
 /** Cancelling: the plan lasts to the period's end and does not renew. A step first says so. */
 export function CancelPlanButton({ confirmation }: { confirmation: string }) {
-  const [state, action] = useActionState(cancelPlanAction, {});
   const [confirming, setConfirming] = useState(false);
+  const [state, action] = useActionState(async () => {
+    const next = await cancelPlanAction();
+    if (next.done) setConfirming(false);
+    return next;
+  }, {});
   if (!confirming)
     return (
       <PillButton type="button" variant="outline" size="md" onClick={() => setConfirming(true)}>

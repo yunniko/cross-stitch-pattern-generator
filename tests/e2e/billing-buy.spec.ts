@@ -81,9 +81,9 @@ test.describe("buying a plan", () => {
     await expect(page).toHaveURL(/\/account\/plan\?checkout=done$/);
     await expect(page.getByTestId("plan-current")).toContainText(tier);
     await expect(page.getByTestId("plan-status")).toContainText("Renews on");
-    // One live subscription: no second Checkout is offered.
+    // One live subscription: no second Checkout is offered; the price held is marked as the person's own.
     await expect(page.getByRole("button", { name: /^Choose / })).toHaveCount(0);
-    await expect(page.getByTestId("plan-offer").filter({ hasText: tier })).toContainText("You have a plan.");
+    await expect(page.getByTestId("plan-offer").filter({ hasText: tier })).toContainText("€10.00 a monthYour plan");
     await expect(await textTool(page)).toBeEnabled();
 
     // The Portal: cancelled at the period's end, the tier kept meanwhile.
