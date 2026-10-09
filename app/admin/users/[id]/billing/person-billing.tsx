@@ -4,8 +4,12 @@ import { useState, useTransition } from "react";
 import { PillButton } from "@/app/components/ui";
 import { movePersonPriceAction, refundPaymentAction, type SubscriptionActionResult } from "@/lib/admin/subscription-actions";
 import { formatMoney } from "@/lib/billing/admin-view";
+import type { RefundAsk } from "@/lib/billing/refund-rule";
 
-/** The admin's controls on one person's subscription (G-127 M2): refund a payment, move to the tier's current price. */
+/**
+ * The admin's controls on one person's subscription (G-127 M2): refund a payment — all of it, the unused part of its
+ * period, or an amount (G-129 M1, D386) — and move to the tier's current price.
+ */
 
 export interface PaymentRow {
   id: string;
@@ -14,6 +18,10 @@ export interface PaymentRow {
   paidOn: string;
   refunded: number;
   disputed: boolean;
+  /** The unused part of its period when the page was read; null when the period is not known. The action works it out anew. */
+  unused: number | null;
+  /** The day its period ends, when known. */
+  paidUntil: string | null;
 }
 
 export function PersonBilling({
@@ -32,6 +40,8 @@ export function PersonBilling({
   const [problem, setProblem] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [asking, setAsking] = useState<string | null>(null);
+  const [kind, setKind] = useState<RefundAsk["kind"]>("all");
+  const [typed, setTyped] = useState("");
   // One key per refund asked: sent twice, the same refund is made once at the provider.
   const [requestKey, setRequestKey] = useState(() => crypto.randomUUID());
   const [pending, startTransition] = useTransition();
@@ -123,26 +133,72 @@ export function PersonBilling({
                         size="xs"
                         disabled={pending}
                         aria-label={`Refund ${amount} of ${payment.paidOn}`}
-                        onClick={() => setAsking(payment.id)}
+                        onClick={() => {
+                          setAsking(payment.id);
+                          setKind("all");
+                          setTyped("");
+                        }}
                       >
                         Refund
                       </PillButton>
                     )}
                     {asking === payment.id && (
-                      <span className="inline-flex flex-wrap items-center justify-end gap-1.5">
-                        <span className="text-muted">Give back {formatMoney(left, payment.currency)}?</span>
-                        <PillButton
-                          type="button"
-                          size="xs"
-                          disabled={pending}
-                          onClick={() => run(() => refundPaymentAction(userId, payment.id, requestKey))}
-                        >
-                          Confirm refund
-                        </PillButton>
-                        <PillButton type="button" size="xs" disabled={pending} onClick={() => setAsking(null)}>
-                          Keep
-                        </PillButton>
-                      </span>
+                      <fieldset className="m-0 inline-flex flex-col items-end gap-1.5 border-0 p-0" data-testid="refund-ask">
+                        <legend className="sr-only">How much of the payment of {payment.paidOn} to give back</legend>
+                        <label className="inline-flex items-center gap-1.5 text-ink">
+                          <input type="radio" name={`refund-${payment.id}`} checked={kind === "all"} onChange={() => setKind("all")} />
+                          All that is left, {formatMoney(left, payment.currency)}
+                        </label>
+                        {payment.unused !== null && payment.unused > 0 && (
+                          <label className="inline-flex items-center gap-1.5 text-ink">
+                            <input
+                              type="radio"
+                              name={`refund-${payment.id}`}
+                              checked={kind === "unused"}
+                              onChange={() => setKind("unused")}
+                            />
+                            The unused part, about {formatMoney(payment.unused, payment.currency)}
+                            {payment.paidUntil && <span className="text-muted">(paid until {payment.paidUntil})</span>}
+                          </label>
+                        )}
+                        <label className="inline-flex items-center gap-1.5 text-ink">
+                          <input
+                            type="radio"
+                            name={`refund-${payment.id}`}
+                            checked={kind === "amount"}
+                            onChange={() => setKind("amount")}
+                          />
+                          An amount
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            aria-label="Amount to give back"
+                            value={typed}
+                            onChange={(event) => {
+                              setTyped(event.target.value);
+                              setKind("amount");
+                            }}
+                            className="w-20 rounded-md border border-control-line bg-surface px-2 py-0.5 text-[13px] text-ink"
+                          />
+                        </label>
+                        <span className="inline-flex gap-1.5">
+                          <PillButton
+                            type="button"
+                            size="xs"
+                            disabled={pending}
+                            onClick={() =>
+                              run(() =>
+                                refundPaymentAction(userId, payment.id, requestKey, kind === "amount" ? { kind, text: typed } : { kind })
+                              )
+                            }
+                          >
+                            Confirm refund
+                          </PillButton>
+                          <PillButton type="button" size="xs" disabled={pending} onClick={() => setAsking(null)}>
+                            Keep
+                          </PillButton>
+                        </span>
+                      </fieldset>
                     )}
                   </td>
                 </tr>

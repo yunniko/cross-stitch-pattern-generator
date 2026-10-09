@@ -9,6 +9,7 @@ import { BillingUnavailableError, type BillingGateway } from "@/lib/billing/cont
 import { deliverFakeEvents } from "@/lib/billing/fake-delivery";
 import { billingGateway, currentBillingSettings, fakeBillingGateway } from "@/lib/billing/gateway";
 import { formatDay, formatPrice } from "@/lib/billing/notices";
+import { refundAmount, type RefundAsk } from "@/lib/billing/refund-rule";
 import { prismaBillingStore } from "@/lib/billing/prisma-store";
 import { syncSubscription } from "@/lib/billing/sync";
 import { prisma } from "@/lib/prisma";
@@ -58,8 +59,17 @@ function revalidateSubscriptions(userId?: string) {
   revalidatePath("/account/plan");
 }
 
-/** Gives back what is left of one of the person's payments. The provider's "refunded" event follows by the webhook. */
-export async function refundPaymentAction(userId: string, paymentId: string, requestKey: string): Promise<SubscriptionActionResult> {
+/**
+ * Gives back part or all of one of the person's payments (G-129 M1, D386): all that is left, the unused part of the
+ * period it paid for (worked out now, not when the page was read), or an amount the admin enters. The provider's
+ * "refunded" event follows by the webhook.
+ */
+export async function refundPaymentAction(
+  userId: string,
+  paymentId: string,
+  requestKey: string,
+  ask: RefundAsk
+): Promise<SubscriptionActionResult> {
   return attempt(async () => {
     const admin = await requireAdmin();
     if (userId === admin.id) throw new Error(OWN);
@@ -73,17 +83,19 @@ export async function refundPaymentAction(userId: string, paymentId: string, req
     const gateway = await gatewayOrRefuse();
     const payment = (await gateway.listPayments(customerId)).find((candidate) => candidate.id === paymentId);
     if (!payment) throw new Error("That payment is not one of this person's latest.");
-    if (payment.refunded >= payment.amount) throw new Error("That payment has already been refunded.");
-    const left = formatMoney(payment.amount - payment.refunded, payment.currency);
-    await gateway.refundPayment(paymentId, requestKey);
-    const said = `${left} of the payment of ${formatDay(payment.paidAt)} (${paymentId})`;
+    const decided = refundAmount(payment, ask, new Date());
+    if ("refusal" in decided) throw new Error(decided.refusal);
+    const given = formatMoney(decided.amount, payment.currency);
+    await gateway.refundPayment(paymentId, requestKey, decided.amount);
+    const part = ask.kind === "unused" ? " (the unused part)" : "";
+    const said = `${given}${part} of the payment of ${formatDay(payment.paidAt)} (${paymentId})`;
     await prisma.subscriptionEvent.create({
       data: { subscriptionId: user.subscription.id, kind: "refund-asked", before: null, after: said, source: "admin", eventId: null },
     });
     await logChange(admin, BILLING_SCOPE, userId, `${user.email}: refund of ${said}`);
     await deliverIfFake();
     revalidateSubscriptions(userId);
-    return `Refund of ${left} asked.`;
+    return `Refund of ${given}${part} asked.`;
   });
 }
 

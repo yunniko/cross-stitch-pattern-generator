@@ -1,7 +1,14 @@
 import Stripe from "stripe";
 import { BillingSignatureError, BillingUnavailableError, type BillingGateway, type PaymentTotals, type ProviderPayment } from "./contract";
 import { readEventObject } from "./event-reference";
-import { failingInvoice, invoicePaymentIntentId, priceFromStripe, snapshotFromStripe } from "./stripe-mapping";
+import {
+  chargePeriod,
+  failingInvoice,
+  invoicePaymentIntentId,
+  periodsByPayment,
+  priceFromStripe,
+  snapshotFromStripe,
+} from "./stripe-mapping";
 
 /**
  * The Stripe adapter of the billing contract (G-106 M1, D366): the one module that loads the `stripe` package (an
@@ -39,13 +46,14 @@ const PAYMENTS_SHOWN = 24;
 /** A charge that took money: a failed or pending one took nothing. */
 const taken = (charge: Stripe.Charge) => charge.paid && charge.status === "succeeded";
 
-const paymentFromStripe = (charge: Stripe.Charge): ProviderPayment => ({
+const paymentFromStripe = (charge: Stripe.Charge, period: ProviderPayment["period"]): ProviderPayment => ({
   id: charge.id,
   amount: charge.amount,
   currency: charge.currency,
   paidAt: new Date(charge.created * 1000),
   refunded: charge.amount_refunded,
   disputed: charge.disputed,
+  period,
 });
 
 export function createStripeGateway(settings: { secretKey: string; webhookSecret: string }): BillingGateway {
@@ -169,13 +177,21 @@ export function createStripeGateway(settings: { secretKey: string; webhookSecret
 
     listPayments: (customerId) =>
       call("list payments", async () => {
-        const list = await stripe.charges.list({ customer: customerId, limit: PAYMENTS_SHOWN });
-        return list.data.filter(taken).map(paymentFromStripe);
+        // The period each paid for is on its invoice (G-129): the same number of the latest invoices, with their payments.
+        const [list, invoices] = await Promise.all([
+          stripe.charges.list({ customer: customerId, limit: PAYMENTS_SHOWN }),
+          stripe.invoices.list({ customer: customerId, limit: PAYMENTS_SHOWN, expand: ["data.payments"] }),
+        ]);
+        const periods = periodsByPayment(invoices.data);
+        return list.data.filter(taken).map((charge) => paymentFromStripe(charge, chargePeriod(charge, periods)));
       }),
 
-    refundPayment: (paymentId, requestKey) =>
+    refundPayment: (paymentId, requestKey, amount) =>
       call("refund a payment", async () => {
-        await stripe.refunds.create({ charge: paymentId }, { idempotencyKey: `refund-${requestKey}` });
+        await stripe.refunds.create(
+          { charge: paymentId, ...(amount === undefined ? {} : { amount }) },
+          { idempotencyKey: `refund-${requestKey}` }
+        );
       }),
 
     paymentTotals: (from, to) =>

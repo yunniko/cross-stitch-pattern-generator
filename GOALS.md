@@ -201,7 +201,7 @@ Outside both: G-111's comments follow G-112; G-097 comes after G-108, whose char
 - 2026-10-08 — Owner accepted the plan ("you can go ahead with 109, 106 and 126 - 128"), to run after G-109 in the order G-106, G-126, G-127, G-128. Items (1) to (6) are the Owner's and wait on them. JulAI's part starts after G-127: the pages take the Owner's text, so they are built with the missing text named as missing, and the launch checklist as a script.
 - 2026-10-08 — drafted from G-106's constraints at the Owner's request.
 
-### G-129 · A subscriber's buttons: change plan, cancel, withdraw; proportionate refunds and the admin's refund buttons — DRAFT (2026-10-09)
+### G-129 · A subscriber's buttons: change plan, cancel, withdraw; proportionate refunds and the admin's refund buttons — ACTIVE (accepted 2026-10-09)
 - **What:**
   - **The consumer's withdrawal.** For the 14 days after a purchase, the account page shows a "Withdraw from contract" button, followed by a confirmation step. Confirming does three things:
     - ends the subscription at once;
@@ -251,6 +251,10 @@ Outside both: G-111's comments follow G-112; G-097 comes after G-108, whose char
 - [ ] M4 — Wording and durable medium: the consent checkbox changed to the early-start request; the purchase confirmation and the withdrawal acknowledgment carrying the full published texts. Tests on the test mailer. Deploys to `cross-stitch.craftodejnice.cz` (existing target), buying still hidden.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-10-09 — Owner accepted the plan ("gon129"), all four milestones. The rules left for the Owner to confirm are not stops, because nothing here charges anyone. Each is built as a stated default and recorded as a judgment decision, easy to change:
+  - refunds by exact time, rounded up to the cent in the consumer's favour;
+  - the right of withdrawal runs from the first purchase only, not from renewals;
+  - an upgrade takes effect at once with the difference charged; a downgrade takes effect at renewal.
 - 2026-10-09 — Changing plan and cancelling in the app added as M3 at the Owner's request ("add it please"). Until now both happen only in Stripe's Portal, behind Manage billing, and the Portal's switching of plans is neither set up nor tested.
 - 2026-10-09 — drafted at the Owner's request ("Draft the goal for refund buttons aswell, or include to the withdrawal goal"): withdrawal and refund buttons in one goal.
 

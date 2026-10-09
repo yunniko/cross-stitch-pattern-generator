@@ -31,6 +31,8 @@ export interface SignedEvent {
 interface FakeSubscription extends SubscriptionSnapshot {
   interval: BillingInterval;
   invoiceId: string;
+  /** Where the open invoice's period starts: the period's start, or the moment of a change of plan (G-129). */
+  invoiceFrom: Date;
 }
 
 interface FakeCharge {
@@ -41,6 +43,7 @@ interface FakeCharge {
   at: Date;
   refunded: number;
   disputed: boolean;
+  period: { start: Date; end: Date };
 }
 
 const DAY = 24 * 3_600_000;
@@ -111,7 +114,7 @@ export class FakeBilling implements BillingGateway {
 
   private snapshot(subscription: FakeSubscription): SubscriptionSnapshot {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { interval, invoiceId, ...snapshot } = subscription;
+    const { interval, invoiceId, invoiceFrom, ...snapshot } = subscription;
     return { ...snapshot };
   }
 
@@ -216,17 +219,22 @@ export class FakeBilling implements BillingGateway {
         paidAt: charge.at,
         refunded: charge.refunded,
         disputed: charge.disputed,
+        period: charge.period,
       }));
   }
 
-  async refundPayment(paymentId: string, requestKey: string): Promise<void> {
+  async refundPayment(paymentId: string, requestKey: string, amount?: number): Promise<void> {
     this.reachable();
     if (this.refundKeys.has(requestKey)) return;
     const charge = this.charges.get(paymentId);
     if (!charge) throw new Error(`the fake provider has no charge ${paymentId}`);
     if (charge.refunded >= charge.amount) throw new Error(`the fake provider's charge ${paymentId} is already refunded`);
+    // As Stripe refuses an amount above what is left of the charge, or not above zero.
+    if (amount !== undefined && (!Number.isInteger(amount) || amount <= 0 || amount > charge.amount - charge.refunded)) {
+      throw new Error(`the fake provider cannot refund ${amount} of its charge ${paymentId}`);
+    }
     this.refundKeys.add(requestKey);
-    this.refund(paymentId);
+    this.refund(paymentId, amount);
   }
 
   async paymentTotals(from: Date, to: Date): Promise<PaymentTotals[]> {
@@ -327,6 +335,7 @@ export class FakeBilling implements BillingGateway {
       consentId: input.consentId,
       interval: price.interval,
       invoiceId: this.nextId("in"),
+      invoiceFrom: this.now(),
     };
     this.subscriptions.set(subscription.id, subscription);
     this.charge(subscription);
@@ -355,6 +364,7 @@ export class FakeBilling implements BillingGateway {
       this.emit("customer.subscription.deleted", this.subscriptionObject(subscription));
       return this.snapshot(subscription);
     }
+    subscription.invoiceFrom = subscription.currentPeriodEnd!;
     subscription.currentPeriodEnd = new Date(subscription.currentPeriodEnd!.getTime() + PERIOD_MS[subscription.interval]);
     this.newInvoice(subscription);
     if (payment === "paid") return this.pay(id);
@@ -393,6 +403,7 @@ export class FakeBilling implements BillingGateway {
     if (!this.prices.get(priceId)?.interval) throw new Error(`the fake provider has no recurring price ${priceId}`);
     subscription.priceId = priceId;
     subscription.interval = this.prices.get(priceId)!.interval!;
+    subscription.invoiceFrom = this.now();
     this.newInvoice(subscription);
     return payment === "paid" ? this.pay(id) : this.fail(id);
   }
@@ -411,10 +422,10 @@ export class FakeBilling implements BillingGateway {
     this.emit("charge.dispute.created", { object: "dispute", id: this.nextId("dp"), charge: chargeId });
   }
 
-  /** A charge is refunded in full, from the provider's dashboard or through the contract. */
-  refund(chargeId: string): void {
+  /** A charge is refunded, in full or by `amount`, from the provider's dashboard or through the contract. */
+  refund(chargeId: string, amount?: number): void {
     const charge = this.charges.get(chargeId);
-    if (charge) charge.refunded = charge.amount;
+    if (charge) charge.refunded = amount === undefined ? charge.amount : Math.min(charge.amount, charge.refunded + amount);
     this.emit("charge.refunded", { object: "charge", id: chargeId, customer: charge?.customerId ?? null });
   }
 
@@ -454,6 +465,7 @@ export class FakeBilling implements BillingGateway {
       at: this.now(),
       refunded: 0,
       disputed: false,
+      period: { start: subscription.invoiceFrom, end: subscription.currentPeriodEnd! },
     });
   }
 

@@ -71,3 +71,43 @@ export function priceFromStripe(price: Stripe.Price): ProviderPrice {
     productName: product && "name" in product ? product.name : null,
   };
 }
+
+const idOf = (value: string | { id: string } | null | undefined): string | null =>
+  typeof value === "string" ? value : (value?.id ?? null);
+
+/**
+ * The period an invoice paid for, from its lines (G-129): the invoice's own `period_start`/`period_end` are the period
+ * before a renewal's, so they are not read. A change of plan's lines cover the change to the period's end. Null when
+ * no line says.
+ */
+export function invoicePeriod(invoice: Stripe.Invoice): { start: Date; end: Date } | null {
+  const periods = (invoice.lines?.data ?? []).map((line) => line.period).filter((period) => period && period.end > period.start);
+  if (periods.length === 0) return null;
+  return {
+    start: new Date(Math.min(...periods.map((period) => period.start)) * 1000),
+    end: new Date(Math.max(...periods.map((period) => period.end)) * 1000),
+  };
+}
+
+/**
+ * Each paid invoice's period, by what paid it: its payment intent's id or, for a charge with none, the charge's id. A
+ * charge is matched by `chargePeriod`.
+ */
+export function periodsByPayment(invoices: Stripe.Invoice[]): Map<string, { start: Date; end: Date }> {
+  const periods = new Map<string, { start: Date; end: Date }>();
+  for (const invoice of invoices) {
+    const period = invoicePeriod(invoice);
+    if (!period) continue;
+    for (const paid of invoice.payments?.data ?? []) {
+      if (paid.status !== "paid") continue;
+      const key = idOf(paid.payment.payment_intent) ?? idOf(paid.payment.charge);
+      if (key) periods.set(key, period);
+    }
+  }
+  return periods;
+}
+
+/** The period a charge paid for, from `periodsByPayment`'s map; null when its invoice was not among those read. */
+export function chargePeriod(charge: Stripe.Charge, periods: Map<string, { start: Date; end: Date }>): { start: Date; end: Date } | null {
+  return periods.get(idOf(charge.payment_intent) ?? "") ?? periods.get(charge.id) ?? null;
+}

@@ -439,6 +439,7 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | G-126 | out of scope | subscriptions: payment failures and recovery |
 | G-127 | out of scope | subscriptions: the admin's controls |
 | G-128 | out of scope | ready to sell: account, VAT, terms |
+| G-129 | out of scope | subscriptions: change plan, cancel, withdraw, refunds |
 | G-118 | 04-editing | the two colours, the Region switches (where the bar shows them: docs/interface-placement.md); the quick bar fits every tool at every desktop width; M1 takes the names off it |
 | G-119 | 04-editing 10-features | Transparency as colour (M1), Save as stamp (M3), Add stamp and its gallery (M4); the account's Stamps out of scope |
 | G-120 | out of scope | draft: preferences kept with the account |
@@ -523,3 +524,4 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | D383 | out of scope (billing) | |
 | D384 | out of scope (billing) | |
 | D385 | out of scope (billing) | |
+| D386 | out of scope (billing) | |

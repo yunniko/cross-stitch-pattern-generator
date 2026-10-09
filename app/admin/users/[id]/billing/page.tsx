@@ -7,6 +7,7 @@ import type { ProviderPayment } from "@/lib/billing/contract";
 import { GRANT_KIND } from "@/lib/billing/entitlement";
 import { billingGateway } from "@/lib/billing/gateway";
 import { formatDay, formatPrice } from "@/lib/billing/notices";
+import { unusedRefund } from "@/lib/billing/refund-rule";
 import { PersonBilling } from "./person-billing";
 
 /**
@@ -145,6 +146,8 @@ export default async function AdminUserBillingPage({ params }: { params: Promise
                 paidOn: formatDay(payment.paidAt),
                 refunded: payment.refunded,
                 disputed: payment.disputed,
+                unused: unusedRefund(payment, new Date()),
+                paidUntil: payment.period ? formatDay(payment.period.end) : null,
               }))
         }
       />

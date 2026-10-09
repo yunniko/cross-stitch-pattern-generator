@@ -92,6 +92,8 @@ export interface ProviderPayment {
   /** How much of it has been given back, in the minor unit. */
   refunded: number;
   disputed: boolean;
+  /** The period the payment paid for, read from its invoice (G-129); null when the provider did not say. */
+  period: { start: Date; end: Date } | null;
 }
 
 /** What the provider took in one currency over a time (G-127 M2): read from the provider, never added up from events. */
@@ -182,8 +184,11 @@ export interface BillingGateway {
   setPriceActive(priceId: string, active: boolean): Promise<void>;
   /** A customer's latest payments, newest first (G-127 M2): what the admin refunds from. */
   listPayments(customerId: string): Promise<ProviderPayment[]>;
-  /** Gives back what is left of a payment; the same key refunds once. The refund's event comes back through the webhook. */
-  refundPayment(paymentId: string, requestKey: string): Promise<void>;
+  /**
+   * Gives back `amount` of a payment, in the minor unit, or all that is left of it when omitted (G-129); the same key
+   * refunds once. The refund's event comes back through the webhook.
+   */
+  refundPayment(paymentId: string, requestKey: string, amount?: number): Promise<void>;
   /** The payments taken in [from, to), by currency. */
   paymentTotals(from: Date, to: Date): Promise<PaymentTotals[]>;
   /** How many subscriptions have not ended, by the provider's status. */

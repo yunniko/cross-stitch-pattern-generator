@@ -4,8 +4,8 @@ import { agreeAndChoose, ensureLegalDocuments, putTierOnSale, takeTierOffSale } 
 import { setSiteFeatures } from "./helpers/features";
 
 /**
- * G-127 M2 on the fake provider: a person buys; the admin reads their subscription and payment, refunds the payment (the
- * provider's event follows in the history), replaces the tier's price and moves the people on the old one (D381), and sees
+ * G-127 M2 on the fake provider: a person buys; the admin reads their subscription and payment, refunds part of the payment
+ * as an amount and then the unused part of its period (G-129 M1; the provider's events follow in the history), replaces the tier's price and moves the people on the old one (D381), and sees
  * the provider's figures and the person among the failing payments once a renewal fails. Buying is shown for the run and
  * hidden after; @alone, as the site's rows are shared.
  */
@@ -41,24 +41,51 @@ test("a person's subscription read, refunded, moved to the current price, and li
     await expect(payment).toHaveCount(1);
     await expect(payment).toContainText("€10.00");
 
-    // Refunded after a confirmation: the admin's line, then the provider's by the webhook.
+    // Refunded after a confirmation: the admin's line, then the provider's by the webhook. First an amount that is too
+    // large is refused, then €3.00 is given back, then the unused part of the period, which is the rest of it.
     await payment.getByRole("button", { name: /^Refund €10\.00 of / }).click();
     await payment.getByRole("button", { name: "Keep" }).click();
     await expect(payment.getByRole("button", { name: "Confirm refund" })).toHaveCount(0);
     await payment.getByRole("button", { name: /^Refund €10\.00 of / }).click();
-    await expect(payment).toContainText("Give back €10.00?");
+    const ask = payment.getByTestId("refund-ask");
+    await expect(ask).toContainText("All that is left, €10.00");
+    await expect(ask).toContainText("The unused part, about €10.00");
+    await ask.getByRole("textbox", { name: "Amount to give back" }).fill("10.01");
     await payment.getByRole("button", { name: "Confirm refund" }).click();
-    await expect(page.getByTestId("person-billing").getByRole("status")).toHaveText("Refund of €10.00 asked.");
+    await expect(page.getByTestId("person-billing").getByRole("alert")).toHaveText("That is more than is left of the payment.");
+    await ask.getByRole("textbox", { name: "Amount to give back" }).fill("3");
+    await payment.getByRole("button", { name: "Confirm refund" }).click();
+    await expect(page.getByTestId("person-billing").getByRole("status")).toHaveText("Refund of €3.00 asked.");
+    await page.reload();
+    await expect(page.getByTestId("person-payment")).toContainText("€3.00");
+    await page
+      .getByTestId("person-payment")
+      .getByRole("button", { name: /^Refund €10\.00 of / })
+      .click();
+    await expect(page.getByTestId("refund-ask")).toContainText("All that is left, €7.00");
+    await page
+      .getByTestId("refund-ask")
+      .getByRole("radio", { name: /^The unused part/ })
+      .check();
+    await page.getByTestId("person-payment").getByRole("button", { name: "Confirm refund" }).click();
+    await expect(page.getByTestId("person-billing").getByRole("status")).toHaveText("Refund of €7.00 (the unused part) asked.");
     await page.reload();
     await expect(page.getByTestId("person-payment")).toContainText("All");
     await expect(page.getByTestId("person-payment").getByRole("button", { name: /^Refund/ })).toHaveCount(0);
     const history = page.getByTestId("person-history");
-    await expect(history.getByTestId("person-history-line").filter({ hasText: "Refund asked: €10.00 of the payment of" })).toContainText(
+    await expect(history.getByTestId("person-history-line").filter({ hasText: "Refund asked: €3.00 of the payment of" })).toContainText(
       "by an admin"
     );
-    await expect(history.getByTestId("person-history-line").filter({ hasText: /^.*Payment .* refunded/ })).toContainText(
-      "from the webhook"
-    );
+    await expect(
+      history.getByTestId("person-history-line").filter({ hasText: "Refund asked: €7.00 (the unused part) of the payment of" })
+    ).toContainText("by an admin");
+    await expect(history.getByTestId("person-history-line").filter({ hasText: /^.*Payment .* refunded/ })).toHaveCount(2);
+    await expect(
+      history
+        .getByTestId("person-history-line")
+        .filter({ hasText: /^.*Payment .* refunded/ })
+        .first()
+    ).toContainText("from the webhook");
 
     // A new price for the tier, then the people on the old one moved to it.
     await page.goto("/admin/billing");
@@ -103,7 +130,8 @@ test("a person's subscription read, refunded, moved to the current price, and li
     // Each step is in the Change log under Billing.
     await page.goto("/admin/changes?scope=billing");
     const log = page.getByTestId("change-log");
-    await expect(log.getByText(`${email}: refund of €10.00 of the payment of`)).toHaveCount(1);
+    await expect(log.getByText(`${email}: refund of €3.00 of the payment of`)).toHaveCount(1);
+    await expect(log.getByText(`${email}: refund of €7.00 (the unused part) of the payment of`)).toHaveCount(1);
     await expect(log.getByText(`${email}: moved from €10.00 a month to €12.00 a month from the next renewal`)).toHaveCount(1);
   } finally {
     await setSiteFeatures({ "billing.buy": "hidden" });
