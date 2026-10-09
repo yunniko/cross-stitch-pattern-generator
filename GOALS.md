@@ -238,6 +238,7 @@ What everything depends on is stated once here:
 - [x] M2 — People's subscriptions: list, history, failing payments, second-subscription warnings, refunds if (a) says so, revenue and counts; tests; deploys to `cross-stitch.craftodejnice.cz` (existing target).
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-10-09 — Released v0.22.2 (e06b181) and deployed to `cross-stitch.craftodejnice.cz`: migrations up to date, `/` 200, chunks carry e06b181, 25 containers unchanged before and after; admin pages not exercised live. Both milestones done; awaiting the Owner's sign-off.
 - 2026-10-08 — M1 and M2 done. Owner asked how to delete a tier ("yes" to adding it): a tier no one has had, with no price offered and none in use at the provider, is deleted with its prices and limits (D382). Fixed along the way: an admin could act on their own subscription (refused now); the e2e sign-in raced the Plan page (`signInAs`). Verified: unit 1,770 passed (Prisma client renamed away); CI on 714e308 e2e 666 and @alone 31 passed. Next: release and deploy, then the Owner's sign-off.
 - 2026-10-08 — Owner accepted the plan ("you can go ahead with 109, 106 and 126 - 128"), to run after G-109 in the order G-106, G-126, G-127, G-128. Until the Owner answers: (a) refunds through the contract from the admin page, since Stripe's dashboard remains available either way; (b) no trial unless the admin sets one, a setting defaulting to none.
 - 2026-10-08 — split from G-106's draft and planned.
@@ -267,7 +268,6 @@ What everything depends on is stated once here:
 - **Milestones:** planned when the Owner takes it up. None of it starts without (1).
 
 **Progress log** (newest first; The Company appends at every stopping point):
-- 2026-10-08 — M1 and M2 done. Owner asked how to delete a tier ("yes" to adding it): a tier no one has had, with no price offered and none in use at the provider, is deleted with its prices and limits (D382). Fixed along the way: an admin could act on their own subscription (refused now); the e2e sign-in raced the Plan page (`signInAs`). Verified: unit 1,770 passed (Prisma client renamed away); CI on 714e308 e2e 666 and @alone 31 passed. Next: release and deploy, then the Owner's sign-off.
 - 2026-10-08 — Owner accepted the plan ("you can go ahead with 109, 106 and 126 - 128"), to run after G-109 in the order G-106, G-126, G-127, G-128. Items (1) to (6) are the Owner's and wait on them. JulAI's part starts after G-127: the pages take the Owner's text, so they are built with the missing text named as missing, and the launch checklist as a script.
 - 2026-10-08 — drafted from G-106's constraints at the Owner's request.
 
