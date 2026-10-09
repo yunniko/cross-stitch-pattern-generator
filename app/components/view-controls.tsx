@@ -49,6 +49,8 @@ export interface ViewControlsProps {
   hasPhoto: boolean;
   /** The Edit workspace is shown, so a view that cannot be edited says why. */
   editing: boolean;
+  /** Why the tool in hand cannot work on the active layer (G-130): said here, where the view-only note is. */
+  layerNote?: string | null;
   /** Isolate: dim every thread except the ones lit in the Threads list. Not a tool: it stays on while you paint. */
   isolate: boolean;
   onIsolateChange: (on: boolean) => void;
@@ -66,6 +68,7 @@ export function ViewControls({
   onChange,
   hasPhoto,
   editing,
+  layerNote,
   isolate,
   onIsolateChange,
   litCount,
@@ -75,7 +78,7 @@ export function ViewControls({
   onResetZoom,
 }: ViewControlsProps) {
   const flat = isFlatMode(shown.pattern);
-  const note = editing ? viewOnlyNote(shown) : null;
+  const note = (editing ? viewOnlyNote(shown) : null) ?? layerNote ?? null;
   // Under the feature switches (G-102): the Stitched mode, the photo under the pattern and Isolate are each a feature.
   const stitched = useFeature(STITCHED_FEATURE);
   const photoFeature = useFeature(PHOTO_FEATURE);
@@ -159,7 +162,7 @@ export function ViewControls({
         </label>
       )}
       {note && (
-        <span role="note" data-testid="view-only-note" className="text-xs text-muted">
+        <span role="note" data-testid={layerNote && note === layerNote ? "layer-note" : "view-only-note"} className="text-xs text-muted">
           {note}
         </span>
       )}

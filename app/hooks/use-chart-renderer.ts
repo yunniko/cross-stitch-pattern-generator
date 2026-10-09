@@ -28,6 +28,7 @@ import {
 } from "../chart-scene";
 import type { Tool } from "../editor-types";
 import type { ChartView } from "@/lib/editor/view";
+import type { LayerStack } from "@/lib/document/layer-stack";
 import { cellIndexFromEvent, chartOrigin, drawPointerDot, drawStampOutline } from "../editor-geometry";
 import { buildStitchTiles, type StitchTiles } from "@/lib/export/stitch-texture";
 import type { StitchTextureId } from "@/lib/export/stitch-texture-catalog";
@@ -71,6 +72,8 @@ export interface ChartRendererInputs {
   photoAdjust: PhotoAdjust | undefined;
   /** Scrolls a pending zoom's anchor back under the pointer; run once the frame has its new size, before measuring (D124). */
   applyZoomAnchor: () => void;
+  /** The visible layers around the active one, for drawing a gesture's preview among them (G-130, D392). */
+  layers: LayerStack | null;
 }
 
 export type SelectDragFrame =
@@ -131,6 +134,7 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
     applyZoomAnchor,
     symmetryAxes,
     photoAdjust,
+    layers,
   } = inputs;
   // The photo a photo view draws, adjusted as the chart was made (D241) and, while the reader is on the
   // Photo tab, as the sliders stand right now (D243). `photoAdjust` is that effective value, decided in
@@ -162,6 +166,7 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
       canvasColor,
       clothBehind,
       symmetryAxes,
+      layers,
     }),
     [
       view,
@@ -177,6 +182,7 @@ export function useChartRenderer(inputs: ChartRendererInputs) {
       canvasColor,
       clothBehind,
       symmetryAxes,
+      layers,
     ]
   );
   // What the last commit asked to show; scroll, resize and gesture handlers paint from it.

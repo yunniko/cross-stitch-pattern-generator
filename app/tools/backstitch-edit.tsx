@@ -1,3 +1,4 @@
+import { STITCH_KINDS } from "@/lib/editor/tool-layer";
 import { BackstitchBar, type BackstitchBarProps } from "../components/panels";
 import { BackstitchSelectIcon } from "./icons";
 import { act, inputsFrom } from "./shared";
@@ -209,6 +210,7 @@ export const backstitchEditModule = {
   definitions: [
     {
       id: "backstitch-edit",
+      layerKinds: STITCH_KINDS,
       label: "BS edit",
       title: "Edit backstitch (J). Drag a line anywhere to move it; once it is in hand, drag either end to re-aim it.",
       key: "j",

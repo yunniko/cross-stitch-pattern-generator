@@ -1,3 +1,4 @@
+import { layerRefusal, STITCH_KINDS } from "@/lib/editor/tool-layer";
 import { SelectionFinish, SelectionPanel, type SelectionActionsProps } from "../components/selection-actions";
 import { LassoIcon, SelectIcon, WandIcon } from "./icons";
 import { EMPTY_AS_COLOUR, regionOf, SELECTION_MODE, SELECTION_OPTIONS, WAND_OPTIONS, WAND_REGION } from "./options";
@@ -319,6 +320,8 @@ export const selectModule = {
   definitions: [
     {
       id: "select",
+      layerKinds: STITCH_KINDS,
+      drawsOnLayer: true,
       label: "Select",
       title: "Drag a rectangle to select it (S), then copy, paste, move or flip it before it merges back. Ignores symmetry.",
       key: "s",
@@ -332,6 +335,8 @@ export const selectModule = {
     },
     {
       id: "lasso",
+      layerKinds: STITCH_KINDS,
+      drawsOnLayer: true,
       label: "Lasso",
       title: "Draw around the stitches you want (Q). The piece then copies, moves and flips like any other. Ignores symmetry.",
       key: "q",
@@ -345,6 +350,8 @@ export const selectModule = {
     },
     {
       id: "wand",
+      layerKinds: STITCH_KINDS,
+      drawsOnLayer: true,
       label: "Magic wand",
       title:
         "Click a stitch to select its whole area of one colour (W); click a backstitch line to select every line of its colour. Ignores symmetry.",
@@ -399,11 +406,14 @@ export const selectModule = {
       },
       api.option(EMPTY_AS_COLOUR) === "on"
     );
-    const inHand = api.activeTool === "select" || api.activeTool === "lasso" || api.activeTool === "wand";
+    // The keys act on the active layer as a press does, so they are refused where a press is: a hidden layer (G-130).
+    const onLayer = layerRefusal({ label: "Select", layerKinds: STITCH_KINDS, drawsOnLayer: true }, api.activeLayer) === null;
+    const toolInHand = api.activeTool === "select" || api.activeTool === "lasso" || api.activeTool === "wand";
+    const inHand = toolInHand && onLayer;
     const held = inHand && select.selection !== null;
     const colour = api.activeColorIndex;
     const saveStamp = api.stamps.save;
-    const shown = inHand && api.pattern !== null && !api.startingNew;
+    const shown = toolInHand && api.pattern !== null && !api.startingNew;
     const actions: SelectionActionsProps = {
       hasSelection: select.selection !== null,
       hasClipboard: select.clipboard !== null,

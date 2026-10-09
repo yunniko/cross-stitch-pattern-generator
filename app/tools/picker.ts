@@ -24,10 +24,11 @@ export const pickerModule = {
   useRuntime(api: EditorApi): ToolRuntime {
     return {
       onPointerDown: (e, frame) => {
-        const { pattern } = api;
-        if (!pattern) return;
-        const at = preciseCornerFromEvent(e, frame, api.cellSize, pattern.width, pattern.height);
-        api.takeColor(colorAt(pattern, at.x, at.y), e.button);
+        // The colour shown there: the topmost visible layer's stitch, whichever layer is active (G-130).
+        const { shown } = api;
+        if (!shown) return;
+        const at = preciseCornerFromEvent(e, frame, api.cellSize, shown.width, shown.height);
+        api.takeColor(colorAt(shown, at.x, at.y), e.button);
       },
     };
   },

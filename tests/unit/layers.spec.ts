@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { BASE_LAYER_NAME, documentFromPattern, flatten, layerView, withLayerView } from "@/lib/document/convert";
 import { commitDocument, redoHistory, startHistory, undoHistory } from "@/lib/document/history";
-import { layerKind, registerLayerKind, type LayerKindDefinition } from "@/lib/document/layer-kinds";
+import { layerKind } from "@/lib/document/layer-kinds";
 import {
   activeLayerId,
   addLayer,
@@ -20,6 +20,9 @@ import { mergeColorsInDocument, transformDocument } from "@/lib/editor/document-
 import { deserializeChart, serializeChart, serializePattern } from "@/lib/editor/pattern-serialize";
 import { createMemoryKeyValueStore, createProjectStore } from "@/lib/editor/project-store";
 import { EMPTY_CELL, type PaletteColor, type StitchPattern } from "@/lib/types";
+// Registers the test-only kind of layer.
+import { type DotLayer } from "./helpers/dot-layer";
+import "./helpers/dot-layer";
 
 /** G-130 M1: the layered document. The operations, the flattening, the history, the file and the kind registry (D390). */
 
@@ -379,57 +382,6 @@ describe("the file, format 8", () => {
     expect(Array.from(flatten(back!).cellPalette)).toEqual([E, 2]);
   });
 });
-
-/**
- * A kind that exists only here, to prove a new kind needs nothing but its definition: a layer of dots, each a colour at a
- * cell, drawn as whole stitches. It can be merged into a layer of stitches, but takes nothing merged into it.
- */
-interface DotLayer extends LayerHeader {
-  kind: "test-dots";
-  dots: Array<{ at: number; color: number }>;
-}
-
-const DOTS: LayerKindDefinition<DotLayer> = {
-  kind: "test-dots",
-  create: (header) => ({ ...header, kind: "test-dots", dots: [] }),
-  stitches(layer, { width, height }) {
-    const cells = new Uint8Array(width * height).fill(EMPTY_CELL);
-    for (const dot of layer.dots) cells[dot.at] = dot.color;
-    return { cells };
-  },
-  merge: () => null,
-  markColors(layer, used) {
-    for (const dot of layer.dots) used[dot.color] = 1;
-  },
-  remapColors: (layer, remap) => ({
-    ...layer,
-    dots: layer.dots.filter((dot) => remap[dot.color] !== EMPTY_CELL).map((dot) => ({ ...dot, color: remap[dot.color] })),
-  }),
-  transform(layer, transform, { width, height }) {
-    if (transform.type !== "shift") return { ...layer, dots: [] };
-    return {
-      ...layer,
-      dots: layer.dots.map(({ at, color }) => ({
-        color,
-        at:
-          (((at % width) + transform.dx + width) % width) +
-          ((((Math.floor(at / width) + transform.dy) % height) + height) % height) * width,
-      })),
-    };
-  },
-  write: (layer) => ({ dots: layer.dots.map(({ at, color }) => [at, color]) }),
-  read(data, header, { width, height }, paletteLength) {
-    if (!Array.isArray(data.dots)) throw new Error("That file's dots are missing.");
-    const dots = (data.dots as unknown[]).map((entry) => {
-      const [at, color] = entry as [number, number];
-      if (!(at >= 0 && at < width * height && color >= 0 && color < paletteLength)) throw new Error("That file has a dot off the chart.");
-      return { at, color };
-    });
-    return { ...header, kind: "test-dots", dots };
-  },
-  sameContents: (layer, other) => layer.dots === other.dots,
-};
-registerLayerKind(DOTS);
 
 describe("a second kind of layer, declared once", () => {
   const withDots = () => {

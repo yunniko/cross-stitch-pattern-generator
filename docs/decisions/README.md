@@ -428,3 +428,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D389 — Withdrawal information and the early-start request are separate documents, both sent in full — active
 - D390 — A chart is an ordered list of layers, each of a kind declared once in a registry — active
 - D391 — The Layers tab: a drop on a row's box merges, any other drop moves; buttons do the same without a pointer — active
+- D392 — Tools work on the active layer, drawn among the others; each tool declares the kinds of layer it works on — active

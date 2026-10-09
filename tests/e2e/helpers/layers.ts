@@ -31,7 +31,7 @@ export const layerButton = (page: Page, label: "Add layer" | "Move up" | "Move d
 /** The names as the list shows them, top first. */
 export async function expectLayers(page: Page, names: readonly string[], active: string): Promise<void> {
   await expect(layerRows(page).locator("[data-layer-name]")).toHaveText([...names]);
-  await expect(layerRows(page).and(page.locator("[aria-current]"))).toHaveText(active);
+  await expect(layerRows(page).and(page.locator("[aria-current]")).locator("[data-layer-name]")).toHaveText(active);
 }
 
 /** Presses the row of `name`, which makes its layer the active one. */

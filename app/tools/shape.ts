@@ -1,3 +1,4 @@
+import { STITCH_KINDS } from "@/lib/editor/tool-layer";
 import { LineIcon, OvalIcon, RectIcon } from "./icons";
 import { inputsFrom } from "./shared";
 import { ENCLOSING_OPTIONS, LAYING_OPTIONS, SHAPE_FILL } from "./options";
@@ -179,6 +180,8 @@ export const shapeModule = {
   definitions: [
     {
       id: "line",
+      layerKinds: STITCH_KINDS,
+      drawsOnLayer: true,
       label: "Line",
       title: "Drag from one stitch to another to draw a straight line, as thick as the brush (L)",
       key: "l",
@@ -193,6 +196,8 @@ export const shapeModule = {
     },
     {
       id: "rect",
+      layerKinds: STITCH_KINDS,
+      drawsOnLayer: true,
       label: "Rectangle",
       title: "Drag from one corner to another to draw a rectangle, outlined or filled (R)",
       key: "r",
@@ -207,6 +212,8 @@ export const shapeModule = {
     },
     {
       id: "oval",
+      layerKinds: STITCH_KINDS,
+      drawsOnLayer: true,
       label: "Oval",
       title: "Drag a box to draw the oval that fits it, outlined or filled (O)",
       key: "o",

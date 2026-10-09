@@ -1,4 +1,5 @@
 import type { FeatureDeclaration } from "@/lib/features/features";
+import type { ActiveLayerInfo } from "@/lib/editor/tool-layer";
 import type { ChartTransform } from "@/lib/document/layer-kinds";
 import type { ComponentType, DragEvent, MouseEvent, PointerEvent, ReactNode, RefObject } from "react";
 import type { StampOffset } from "@/lib/editor/brush-stamp";
@@ -60,6 +61,13 @@ export interface ToolDefinition {
   piece?: boolean;
   /** It moves the view, not the chart: it works in the looking-only views, and a tool suspended behind it keeps its state. */
   navigation?: boolean;
+  /**
+   * The kinds of layer it works on (G-130, D392); left out, any: it changes no layer, or every layer alike. On a kind it does
+   * not name, the active layer is refused to it (`lib/editor/tool-layer.ts`).
+   */
+  layerKinds?: readonly string[];
+  /** It changes the active layer's own stitches, so it is refused while that layer is hidden. */
+  drawsOnLayer?: boolean;
   /** The outline the cursor carries: the brush's stamp, one stitch, or the stamp a press of this shape would make. */
   outline?: "brush" | "one" | "press";
   /** The options it offers, in the order they are drawn (G-093). Declared with the tool, drawn by the options area. */
@@ -84,12 +92,17 @@ export type ChangeTextSetting = <K extends keyof TextSettings>(key: K, value: Wo
 export interface EditorApi {
   frameRef: RefObject<HTMLDivElement | null>;
   rendererRef: RefObject<ChartRenderer | null>;
+  /** The active layer's view: what a tool edits and hands back to `commit`. */
   pattern: StitchPattern | null;
+  /** The chart as shown, every visible layer with the topmost stitch at each cell (G-130): what is looked at, never edited. */
+  shown: StitchPattern | null;
   cellSize: number;
   /** The tool in hand. A module compares it only with its own tools' ids. */
   activeTool: string;
   /** The chart is only being looked at, in a looking-only view or outside the Edit workspace: nothing may change it. */
   viewOnly: boolean;
+  /** The layer the tools work on: its name, kind and visibility (G-130); null while there is no chart. */
+  activeLayer: ActiveLayerInfo | null;
   /** The start screen covers the chart. */
   startingNew: boolean;
   /** Pushes one undoable step: `next` is the active layer's view (`pattern`), edited. */

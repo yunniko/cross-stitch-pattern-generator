@@ -1,3 +1,4 @@
+import { STITCH_KINDS } from "@/lib/editor/tool-layer";
 import { useRef, useState } from "react";
 import { letteringSelection, letteringStart } from "@/lib/editor/text-selection";
 import type { LetteringBitmap } from "@/lib/editor/text-raster";
@@ -25,6 +26,8 @@ export const textModule = {
   definitions: [
     {
       id: "text",
+      layerKinds: STITCH_KINDS,
+      drawsOnLayer: true,
       label: "Text",
       title: "Turn a line of text into stitches: set it up in the Text tab, then Add, or press on the chart where it should go",
       group: 0,

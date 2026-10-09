@@ -1,3 +1,4 @@
+import { STITCH_KINDS } from "@/lib/editor/tool-layer";
 import { LassoFillIcon } from "./icons";
 import { inputsFrom } from "./shared";
 import { STITCH_OPTIONS } from "./options";
@@ -146,6 +147,8 @@ export const lassoFillModule = {
   definitions: [
     {
       id: "lasso-fill",
+      layerKinds: STITCH_KINDS,
+      drawsOnLayer: true,
       label: "Lasso fill",
       title: "Draw around an area (G); letting go fills everything inside it with the colour in hand, in one step.",
       key: "g",

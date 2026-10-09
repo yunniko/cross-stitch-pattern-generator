@@ -1,4 +1,5 @@
 import { tidyKinds } from "@/lib/editor/stitch-kind";
+import { shownCell, showThrough, type LayerStack } from "@/lib/document/layer-stack";
 import { intersectRects, isEmptyRect, moveTileOffsets, type PixelRect } from "@/lib/editor/chart-viewport";
 import { compositeSelectionPreview, stampsCell } from "@/lib/editor/floating-selection";
 import type { CellPoint } from "@/lib/editor/shape-raster";
@@ -57,6 +58,16 @@ export interface ChartScene {
   selectDragging: boolean;
   /** The symmetry axes in effect, drawn as red guide lines over everything (G-037); never part of any export. */
   symmetryAxes: SymmetryAxes;
+  /**
+   * The visible layers around the active one (G-130, D392); null or absent when the active layer is all the chart shows. A
+   * gesture's preview is a view of the active layer; drawn through the stack, the other layers stay where they are.
+   */
+  layers?: LayerStack | null;
+}
+
+/** `p`, a view of the active layer or the chart already composed, as the chart shows it. */
+function asShown(scene: ChartScene, p: StitchPattern): StitchPattern {
+  return scene.layers ? showThrough(scene.layers, p) : p;
 }
 
 /** The red of the symmetry guide lines. */
@@ -201,6 +212,9 @@ function patternLayerFor(rect: PixelRect): typeof layer {
 export function drawScene(ctx: CanvasRenderingContext2D, p: StitchPattern, scene: ChartScene, rect: PixelRect) {
   if (isEmptyRect(rect)) return;
   const { view, cellSize, photo, realisticTiles, activeTool, selection, canvasColor, clothBehind, selectDragging } = scene;
+  // The piece in hand is lifted from the active layer, so it is laid on that layer before the others are put around it.
+  const own = p;
+  p = asShown(scene, p);
   ctx.save();
   clipTo(ctx, rect);
 
@@ -232,7 +246,10 @@ export function drawScene(ctx: CanvasRenderingContext2D, p: StitchPattern, scene
   }
 
   // A floating selection is composited for display only, never into history.
-  const displayPattern = isSelectTool(activeTool) && selection && !selectDragging ? compositedSelection(p, selection) : p;
+  const displayPattern =
+    isSelectTool(activeTool) && selection && !selectDragging
+      ? asShown(scene, compositedSelection(scene.layers?.active ?? own, selection))
+      : p;
   const region = regionFor(ctx, displayPattern, scene, rect);
 
   if (view.photo && view.visibility < 100) {
@@ -312,11 +329,14 @@ export function drawCellsInto(
 ) {
   const cs = scene.cellSize;
   const region = regionFor(ctx, base, scene, rect);
+  const { layers } = scene;
   ctx.save();
   clipTo(ctx, rect);
-  eachCell(region, (x, y, paletteIndex, kind) =>
-    drawCell(ctx, base, mode, cs, x, y, paletteIndex, scene.canvasColor, "rects", kind, scene.view.symbols)
-  );
+  eachCell(region, (x, y, paletteIndex, kind) => {
+    // A stitch of the active layer is drawn as the chart shows that cell: under the layers above it, over the ones below.
+    const shown = layers ? shownCell(layers, y * base.width + x, paletteIndex, kind) : { paletteIndex, kind };
+    drawCell(ctx, base, mode, cs, x, y, shown.paletteIndex, scene.canvasColor, "rects", shown.kind, scene.view.symbols);
+  });
   ctx.restore();
 }
 

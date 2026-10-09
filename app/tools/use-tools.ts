@@ -4,6 +4,7 @@ import { stampForPress } from "@/lib/editor/shape-raster";
 import type { Command, CommandDefinition } from "@/lib/editor/commands";
 import type { BackstitchLine, FloatingSelection, StitchPattern } from "@/lib/types";
 import { firstTools, toolOffered, type Workspace } from "@/lib/editor/workspaces";
+import { layerRefusal } from "@/lib/editor/tool-layer";
 import { moduleIndexOf, TOOL_DEFINITIONS, TOOL_MODULES, toolDefinition, type Tool } from "./registry";
 import { SHAPE_FILL, type ToolOption } from "./options";
 import type { EditorApi, PieceService, SharedOption, ToolModule, ToolRuntime, ToolShell } from "./types";
@@ -66,6 +67,8 @@ export interface Tools {
   activation: number;
   /** The outline the cursor carries for the tool in hand, or null when it paints nothing or nothing can be painted. */
   hoverOutline: readonly StampEdge[] | null;
+  /** Why the tool in hand cannot work on the active layer now (G-130, D392): a hidden layer, or a kind it does not work on. */
+  layerNote: string | null;
 }
 
 /** One command a module declares, with what its runtime says it does now. */
@@ -118,27 +121,30 @@ export function useTools(inputs: ToolsInputs): Tools {
   }
 
   function takePiece(taken: FloatingSelection, chart?: StitchPattern) {
-    if (!toolDefinition(activeTool).piece) {
-      const pieceTool = TOOL_DEFINITIONS.find((tool) => tool.piece);
-      if (pieceTool) switchTool(pieceTool.id);
-    }
+    // A piece is put down on the active layer: where the piece's tool may not draw, it is not taken.
+    const pieceTool = toolDefinition(activeTool).piece ? toolDefinition(activeTool) : TOOL_DEFINITIONS.find((tool) => tool.piece);
+    if (pieceTool && layerRefusal(pieceTool, inputs.activeLayer)) return;
+    if (pieceTool && pieceTool.id !== activeTool) switchTool(pieceTool.id);
     piece.insert(taken, chart);
   }
   const shell: ToolShell = { takePiece };
 
   const { viewOnly, stamp } = inputs;
+  // Every tool works on the active layer; one it may not work on now is refused there, and says why (G-130, D392).
+  const refusal = viewOnly ? null : layerRefusal(definition, inputs.activeLayer);
+  const refused = refusal !== null;
   const { stitchKind } = inputs.options;
   const shapeFill = inputs.option(SHAPE_FILL);
   const outlineKind = definition.outline;
   const laysStitches = definition.laysStitches === true;
   const hoverOutline = useMemo(() => {
-    if (viewOnly || !outlineKind) return null;
+    if (viewOnly || refused || !outlineKind) return null;
     // The outline is the shape of the stitch in hand: a half stitch is outlined as its cell with the corners cut (G-082).
     const kind = laysStitches ? stitchKind : 0;
     if (outlineKind === "one") return stampOutline(ONE_STITCH_STAMP, kind);
     if (outlineKind === "brush") return stampOutline(stamp, kind);
     return stampOutline(stampForPress(shapeFill, stamp), kind);
-  }, [viewOnly, outlineKind, laysStitches, stitchKind, stamp, shapeFill]);
+  }, [viewOnly, refused, outlineKind, laysStitches, stitchKind, stamp, shapeFill]);
 
   const firstTaker = (act: (runtime: ToolRuntime) => boolean | undefined) => runtimes.some((runtime) => act(runtime) === true);
 
@@ -151,13 +157,14 @@ export function useTools(inputs: ToolsInputs): Tools {
       if (!frame || !inputs.pattern) return;
       // The looking-only views only show the chart: there, it pans and zooms but never edits (D121).
       if (viewOnly && !definition.navigation) return;
+      if (refused) return;
       current.onPointerDown?.(e, frame, shell);
     },
     onPointerMove: (e) => void firstTaker((runtime) => runtime.onPointerMove?.(e)),
     onPointerUp: (e) => void firstTaker((runtime) => runtime.onPointerUp?.(e)),
     onDoubleClick: (e) => {
       const frame = inputs.frameRef.current;
-      if (frame) current.onDoubleClick?.(e, frame);
+      if (frame && !refused) current.onDoubleClick?.(e, frame);
     },
     photoPress: (pixel) => {
       if (inputs.photo.shown) current.onPhotoPress?.(pixel);
@@ -175,5 +182,6 @@ export function useTools(inputs: ToolsInputs): Tools {
     tab: definition.tab && current.panel ? { label: definition.tab.label, pane: current.panel(shell) } : null,
     activation,
     hoverOutline,
+    layerNote: refusal,
   };
 }

@@ -1,8 +1,8 @@
 import { useCallback, useRef, useState } from "react";
-import { asDocument, flatten, layerView, withLayerView, type ChartInput } from "@/lib/document/convert";
+import { asDocument, flatten, layerById, layerView, withLayerView, type ChartInput } from "@/lib/document/convert";
 import { canRedo, canUndo, commitDocument, redoHistory, startHistory, undoHistory, type DocumentHistory } from "@/lib/document/history";
 import { activeLayerId } from "@/lib/document/layers";
-import type { ChartDocument } from "@/lib/document/types";
+import { isStitchLayer, type ChartDocument } from "@/lib/document/types";
 import type { StitchPattern } from "@/lib/types";
 
 /**
@@ -20,7 +20,11 @@ export interface EditorHistory {
   document: ChartDocument | null;
   /** The layer the tools work on; null only while there is no chart. */
   activeLayerId: string | null;
-  /** The active layer's view, which the tools edit. */
+  /**
+   * The active layer's view, which the tools edit. A layer of another kind has no stitches of its own to edit: its view is
+   * the composite, the tools that edit stitches are refused on it (`lib/editor/tool-layer.ts`), and a stitch edit handed
+   * back for it is refused by name (`withLayerView`).
+   */
   state: StitchPattern | null;
   /** The visible layers as one chart: what is shown, counted and exported. */
   composite: StitchPattern | null;
@@ -36,6 +40,10 @@ export interface EditorHistory {
   redo: () => void;
   canUndo: boolean;
   canRedo: boolean;
+}
+
+function activeView(document: ChartDocument, layerId: string): StitchPattern {
+  return isStitchLayer(layerById(document, layerId)) ? layerView(document, layerId) : flatten(document);
 }
 
 export function useDocumentHistory(): EditorHistory {
@@ -101,7 +109,7 @@ export function useDocumentHistory(): EditorHistory {
   return {
     document,
     activeLayerId: active,
-    state: document && active ? layerView(document, active) : null,
+    state: document && active ? activeView(document, active) : null,
     composite: document ? flatten(document) : null,
     set,
     apply,

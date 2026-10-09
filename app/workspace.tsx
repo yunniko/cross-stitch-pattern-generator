@@ -17,6 +17,8 @@ import { applyQuickMirrorWithSelection, fillSymmetric, type QuickMirror } from "
 import { useDocumentHistory } from "./hooks/use-document-history";
 import { useLayers } from "./hooks/use-layers";
 import { flatten, withLayerView } from "@/lib/document/convert";
+import { layerStack } from "@/lib/document/layer-stack";
+import { layerRefusal, STITCH_KINDS } from "@/lib/editor/tool-layer";
 import type { StitchPattern } from "@/lib/types";
 import { ConfirmNewChart } from "./components/confirm-new-chart";
 import { SaveConflict } from "./components/save-conflict";
@@ -204,10 +206,17 @@ export default function Workspace({ account }: WorkspaceProps) {
   const stampSaving = gatedAction("selection.save-stamp", features, () => {});
   // The tools (G-092): which is in hand, and the routing of the pointer and the keys to it. What each does is in its own
   // module under `app/tools/`; this is everything a tool is allowed to touch.
+  // The layer the tools work on, as the tools see it (G-130): its name, kind and visibility.
+  const activeLayerHeader = history.document?.layers.find((layer) => layer.id === history.activeLayerId);
+  const activeLayer = activeLayerHeader
+    ? { name: activeLayerHeader.name, kind: activeLayerHeader.kind, visible: activeLayerHeader.visible }
+    : null;
   const tools = useTools({
     frameRef,
     rendererRef,
     pattern,
+    shown: history.composite,
+    activeLayer,
     cellSize,
     workspace,
     viewOnly: lookingOnly,
@@ -270,6 +279,8 @@ export default function Workspace({ account }: WorkspaceProps) {
     if (!chartDocument || !activeLayerId || chartDocument.layers.length === 1) return colorPreview.next;
     return flatten(withLayerView(chartDocument, activeLayerId, colorPreview.next));
   }, [chartDocument, activeLayerId, composite, colorPreview, pattern]);
+  // The layers around the active one, which a gesture's preview is drawn among (G-130, D392).
+  const layersAround = chartDocument && activeLayerId && pattern ? layerStack(chartDocument, activeLayerId, pattern) : null;
   const renderer = useChartRenderer({
     canvasRef,
     frameRef,
@@ -293,6 +304,7 @@ export default function Workspace({ account }: WorkspaceProps) {
     photoAdjust: view.shownPhotoAdjust,
     // The renderer applies a zoom's anchor itself, between sizing the frame and measuring the view (D124, D135).
     applyZoomAnchor: panZoom.applyZoomAnchor,
+    layers: layersAround,
   });
   useEffect(() => {
     rendererRef.current = renderer;
@@ -439,6 +451,7 @@ export default function Workspace({ account }: WorkspaceProps) {
       !preferencesOpen &&
       !lookingOnly &&
       tools.piece.selection === null &&
+      tools.layerNote === null &&
       isKeyboardCursorTool(activeTool),
     width: pattern?.width ?? 0,
     height: pattern?.height ?? 0,
@@ -474,7 +487,8 @@ export default function Workspace({ account }: WorkspaceProps) {
     e.preventDefault();
     const raw = e.dataTransfer.getData("text/plain");
     const frame = frameRef.current;
-    if (!pattern || raw === "" || !frame || lookingOnly) return;
+    // A dropped colour fills on the active layer, as the Fill tool does, and is refused where Fill would be.
+    if (!pattern || raw === "" || !frame || lookingOnly || layerRefusal(toolDefinition("fill"), activeLayer)) return;
     const cellIndex = cellIndexFromEvent(e, frame, cellSize, pattern.width, pattern.height);
     const paletteIndex = Number(raw);
     if (cellIndex !== null && Number.isInteger(paletteIndex)) history.set(fillSymmetric(pattern, cellIndex, liveSymmetry, paletteIndex, 4));
@@ -492,9 +506,13 @@ export default function Workspace({ account }: WorkspaceProps) {
     lit.forget();
   }
 
-  /** A quick mirror (G-037): any floating selection is merged and the mirror applied, committed as one undo step. */
+  /**
+   * A quick mirror (G-037): any floating selection is merged and the mirror applied, committed as one undo step. It changes
+   * the active layer's stitches, so it is refused where a drawing tool would be (D392).
+   */
   function applyMirror(kind: QuickMirror) {
     if (!pattern || (kind === "upper-left-half-corner" && pattern.width !== pattern.height)) return;
+    if (layerRefusal({ label: "Mirror", layerKinds: STITCH_KINDS, drawsOnLayer: true }, activeLayer)) return;
     history.set(applyQuickMirrorWithSelection(pattern, tools.piece.selection, kind));
     tools.piece.release();
   }
@@ -829,6 +847,7 @@ export default function Workspace({ account }: WorkspaceProps) {
                   onChange={view.chooseView}
                   hasPhoto={pattern.sourceImage !== undefined}
                   editing={editing}
+                  layerNote={editing ? tools.layerNote : null}
                   isolate={lit.isolate}
                   onIsolateChange={lit.setIsolate}
                   litCount={lit.count}
@@ -856,7 +875,7 @@ export default function Workspace({ account }: WorkspaceProps) {
             }
             readout={
               <StatusBar
-                pattern={startingNew ? null : pattern}
+                pattern={startingNew ? null : composite}
                 aidaCount={options.aidaCount}
                 sizeUnit={options.sizeUnit}
                 autosaveStatus={lifecycle.autosaveStatus}

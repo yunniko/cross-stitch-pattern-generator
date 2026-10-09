@@ -1,3 +1,4 @@
+import { STITCH_KINDS } from "@/lib/editor/tool-layer";
 import { BrushIcon, FillIcon } from "./icons";
 import { inputsFrom } from "./shared";
 import { FILL_OPTIONS, FILL_REGION, LAYING_OPTIONS, regionOf } from "./options";
@@ -170,6 +171,8 @@ export const brushModule = {
   definitions: [
     {
       id: "brush",
+      layerKinds: STITCH_KINDS,
+      drawsOnLayer: true,
       label: "Brush",
       title: "Paint the selected color; with no thread chosen, set the stitch type of stitches already there (B)",
       key: "b",
@@ -184,6 +187,8 @@ export const brushModule = {
     },
     {
       id: "fill",
+      layerKinds: STITCH_KINDS,
+      drawsOnLayer: true,
       label: "Fill",
       title: "Click a color, then click a stitch to fill its region: the touching stitches of its colour and stitch type (F)",
       key: "f",
