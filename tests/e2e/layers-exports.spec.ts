@@ -31,8 +31,10 @@ async function threadCount(page: Page): Promise<string> {
 
 const stitchesIn = (oxs: string) => (oxs.match(/<stitch /g) ?? []).length;
 
+/** Presses Export, or Export all (named "Export all (.cspzip)"), and reads the file it downloads. */
 async function download(page: Page, button: "Export" | "Export all") {
-  const [file] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: button, exact: true }).click()]);
+  const name = button === "Export" ? { name: "Export", exact: true } : { name: "Export all" };
+  const [file] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", name).click()]);
   return readFile((await file.path())!);
 }
 
