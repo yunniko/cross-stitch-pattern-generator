@@ -18,23 +18,37 @@ export type NoticeMessage =
   | "moved-to-free"
   | "payment-recovered"
   /** A purchase has started (G-128 M2, D384); queued by `planConfirmation` in `consent.ts`. */
-  | "purchase-confirmed";
+  | "purchase-confirmed"
+  /** An upgrade charged now has been applied (G-129 M4, D389); queued by `upgradeConfirmation` in `consent.ts`. */
+  | "upgrade-confirmed"
+  /** A withdrawal has been received (G-129 M4, D389); queued by `withdrawalReceipt` in `withdrawal.ts`. */
+  | "withdrawal-received";
 /**
  * What is sent once per failure: the first notice is one slot whichever of its two messages it is. "confirmed" is a
- * purchase's, keyed by its consent's time rather than a failure's.
+ * purchase's or an upgrade's, keyed by its consent's time rather than a failure's; "withdrawn" is a withdrawal's, keyed
+ * by when it was received.
  */
-export type NoticeSlot = "failed" | "last" | "free" | "recovered" | "confirmed";
+export type NoticeSlot = "failed" | "last" | "free" | "recovered" | "confirmed" | "withdrawn";
 
 /** What a message is built from at delivery; dates as ISO text, as the queue's JSON keeps them. */
 export interface NoticeValues {
   until?: string;
   nextAttemptAt?: string | null;
   payUrl?: string | null;
-  /** A purchase's confirmation: the plan bought, the terms version agreed to, and the acknowledgment given, word for word. */
+  /**
+   * A purchase's or an upgrade's confirmation: the plan, the early-start request word for word, and the terms and the
+   * withdrawal information agreed to, each with its version and in full.
+   */
   plan?: string;
   termsVersion?: number;
   termsLine?: string;
-  acknowledgment?: string;
+  terms?: string;
+  withdrawalVersion?: number;
+  withdrawalLine?: string;
+  withdrawal?: string;
+  request?: string;
+  /** A withdrawal's acknowledgment, its lines joined by blank lines. */
+  receipt?: string;
 }
 
 export interface PlannedNotice {
@@ -165,14 +179,21 @@ export function messageValues(notice: PendingNotice, planLink: string): Record<s
     case "payment-recovered":
       return { link: planLink };
     case "purchase-confirmed":
+    case "upgrade-confirmed":
       return {
         plan: notice.values.plan ?? "",
         termsLine: notice.values.termsLine ?? "",
-        // The version agreed to, on the same site as the Plan page.
+        // The versions agreed to, on the same site as the Plan page.
         termsLink: new URL(`/terms?version=${notice.values.termsVersion}`, planLink).toString(),
-        acknowledgment: notice.values.acknowledgment ?? "",
+        terms: notice.values.terms ?? "",
+        withdrawalLine: notice.values.withdrawalLine ?? "",
+        withdrawalLink: new URL(`/withdrawal?version=${notice.values.withdrawalVersion}`, planLink).toString(),
+        withdrawal: notice.values.withdrawal ?? "",
+        request: notice.values.request ?? "",
         link: planLink,
       };
+    case "withdrawal-received":
+      return { receipt: notice.values.receipt ?? "", link: planLink };
   }
 }
 

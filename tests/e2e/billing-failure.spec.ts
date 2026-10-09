@@ -43,11 +43,13 @@ test("a renewal that fails: told once, paid, failed again past the grace to Free
     await page.getByRole("button", { name: "Pay" }).click();
     await expect(page.getByTestId("plan-current")).toContainText(tier);
     await expect(notice(page)).toHaveCount(0);
-    // The purchase confirmed by mail, repeating what was agreed to (D384).
+    // The purchase confirmed by mail, repeating the request and carrying both documents in full (D384, D389).
     const confirmed = await latestMessageTo(email, /your plan has started/);
     expect(confirmed.text).toContain(`${tier}, €10.00 a month`);
     expect(confirmed.text).toMatch(/\/terms\?version=\d+/);
-    expect(confirmed.text).toContain("right to withdraw");
+    expect(confirmed.text).toMatch(/\/withdrawal\?version=\d+/);
+    expect(confirmed.text).toContain("if I withdraw I pay for the days used");
+    expect(confirmed.text).toContain("INFORMATION ON THE RIGHT OF WITHDRAWAL");
 
     // The renewal fails: the tier is kept, with the grace's end, the next try and the way to pay.
     await inPortal(page, "Renewal fails");

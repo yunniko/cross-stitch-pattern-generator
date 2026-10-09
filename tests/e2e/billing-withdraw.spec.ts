@@ -2,6 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 import { registerReader, uniqueEmail } from "./helpers/auth";
 import { agreeAndChoose, ensureLegalDocuments, putTierOnSale, subscriptionHistory, takeTierOffSale } from "./helpers/billing";
 import { featuresDb, setSiteFeatures } from "./helpers/features";
+import { messagesTo } from "./helpers/mail";
 
 /**
  * G-129 M2 on the fake provider (D387): within the 14 days the Plan page offers a withdrawal, asks to confirm it, ends the
@@ -68,6 +69,11 @@ test("withdrawing on day 3: confirmed, ended at once, 27/30 given back once, ack
     await page.reload();
     await expect(ack).toContainText("€9.00 is given back");
     expect(await withdrawalsOf(email)).toBe(1);
+    // Acknowledged by mail too, once, with what was received and given back (D389).
+    const receipts = messagesTo(email).filter((message) => /we received your withdrawal/.test(message.subject));
+    expect(receipts).toHaveLength(1);
+    expect(receipts[0].text).toContain("We received your withdrawal from the contract on");
+    expect(receipts[0].text).toContain("€9.00 is given back to the card you paid with");
     await expect
       .poll(async () => (await subscriptionHistory(email)).filter((entry) => ["withdrawal", "refund"].includes(entry.kind)))
       .toEqual([

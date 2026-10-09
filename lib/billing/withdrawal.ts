@@ -1,7 +1,7 @@
 import type { ProviderPayment } from "./contract";
 import { isGrant } from "./entitlement";
 import { formatMoney } from "./admin-view";
-import { formatDay } from "./notices";
+import { formatDay, type PlannedNotice } from "./notices";
 import { refundableLeft, unusedRefund } from "./refund-rule";
 import { isFinal } from "./sync";
 
@@ -124,18 +124,38 @@ export function deadlineLine(deadline: Date): string {
   return `You can withdraw from this contract until the end of ${formatDay(new Date(deadline.getTime() - 1))} (Prague time).`;
 }
 
+const receivedLine = (requestedAt: Date) => `We received your withdrawal from the contract on ${formatMoment(requestedAt)}.`;
+
+function refundLine(refunds: PlannedRefund[]): string {
+  const total = refundTotal(refunds);
+  return total === "nothing"
+    ? "Nothing was left of your payments to give back."
+    : `${total} is given back to the card you paid with, for the time your plan was not used. It usually arrives within 5 to 10 working days.`;
+}
+
 /** The acknowledgment shown once a withdrawal is recorded (Directive 2023/2673 Art. 11a): what was received, and when. */
 export function withdrawalAcknowledgment(withdrawal: { requestedAt: Date; refunds: PlannedRefund[]; completedAt: Date | null }): string[] {
-  const total = refundTotal(withdrawal.refunds);
   return [
-    `We received your withdrawal from the contract on ${formatMoment(withdrawal.requestedAt)}.`,
+    receivedLine(withdrawal.requestedAt),
     withdrawal.completedAt
       ? "Your plan has ended, and the account is on the free plan. Your charts are kept."
       : "It is not finished yet: the payment provider could not be reached. Press Finish withdrawal to try again.",
-    total === "nothing"
-      ? "Nothing was left of your payments to give back."
-      : `${total} is given back to the card you paid with, for the time your plan was not used. It usually arrives within 5 to 10 working days.`,
+    refundLine(withdrawal.refunds),
   ];
+}
+
+/**
+ * The same acknowledgment by mail, the durable copy Art. 11a asks for (G-129 M4, D389): queued when the withdrawal is
+ * recorded, before the provider is asked, so a provider that cannot be reached does not delay it. Keyed by when it was
+ * received, so it goes once.
+ */
+export function withdrawalReceipt(withdrawal: { requestedAt: Date; refunds: PlannedRefund[] }): PlannedNotice {
+  const lines = [
+    receivedLine(withdrawal.requestedAt),
+    "Your plan ends now, and the account moves to the free plan. Your charts are kept.",
+    refundLine(withdrawal.refunds),
+  ];
+  return { slot: "withdrawn", message: "withdrawal-received", failedAt: withdrawal.requestedAt, values: { receipt: lines.join("\n\n") } };
 }
 
 export const WITHDRAWAL_REFUSED = {

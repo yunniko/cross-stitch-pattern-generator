@@ -6,15 +6,16 @@ import { auth } from "@/auth";
 import { featureUsable } from "@/lib/features/features";
 import { featureStatesFor } from "@/lib/features/server";
 import { currentLegalVersions } from "@/lib/legal/server";
+import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { billingPolicy } from "@/lib/settings/server";
-import { consentRefusal } from "./consent";
+import { consentRefusal, documentsInForce, postedConsent, upgradeConfirmation } from "./consent";
 import { BillingUnavailableError, type BillingGateway } from "./contract";
 import { deliverFakeEvents } from "./fake-delivery";
 import { billingGateway, currentBillingSettings, fakeBillingGateway } from "./gateway";
 import { deliverQueuedNotices } from "./notice-delivery";
 import { CANCEL_REFUSED, CHANGE_REFUSED, cancelRefusal, changeKind, changeRefusal, targetRefusal } from "./plan-change";
-import { prismaBillingStore } from "./prisma-store";
+import { prismaBillingStore, readConsent } from "./prisma-store";
 import { BUYING_FEATURE, CHECKOUT_REFUSED } from "./purchase";
 import { isFinal, syncSubscription } from "./sync";
 
@@ -99,7 +100,8 @@ const PRICE_SELECT = { id: true, stripePriceId: true, amount: true, currency: tr
 
 /**
  * Moves the plan to another price: at once with the difference charged for more, at the renewal for less (D388). A
- * change made now is an agreement to pay, so it takes the same consent as a purchase, recorded before the provider is asked.
+ * change made now is an agreement to pay, so it takes the same consent as a purchase, recorded before the provider is
+ * asked, and is confirmed by mail with the texts agreed to once the provider has applied it (G-129 M4, D389).
  */
 export async function changePlanAction(_prev: PlanActionState, formData: FormData): Promise<PlanActionState> {
   const field = (name: string) => (typeof formData.get(name) === "string" ? (formData.get(name) as string) : "");
@@ -131,30 +133,42 @@ export async function changePlanAction(_prev: PlanActionState, formData: FormDat
       // A price with no record of its own falls to the renewal: nothing is charged now on a guess.
       const when = current ? changeKind(current, target) : "renewal";
       if (when === "renewal" && row.scheduledPriceId === target.id) return null;
+      let consentId: string | null = null;
       if (when === "now") {
-        const documents = await currentLegalVersions();
-        const posted = {
-          agreedTerms: field("agreeTerms") === "on",
-          agreedWithdrawal: field("agreeWithdrawal") === "on",
-          termsVersionId: field("termsVersionId"),
-          withdrawalVersionId: field("withdrawalVersionId"),
-        };
-        const inForce = { terms: documents.terms ?? null, privacy: documents.privacy ?? null, withdrawal: documents.withdrawal ?? null };
-        const unconsented = consentRefusal(inForce, posted);
+        const posted = postedConsent(field);
+        const unconsented = consentRefusal(documentsInForce(await currentLegalVersions()), posted);
         if (unconsented) return unconsented;
-        await prisma.purchaseConsent.create({
+        ({ id: consentId } = await prisma.purchaseConsent.create({
           data: {
             userId,
             priceId: target.id,
             termsVersionId: posted.termsVersionId,
             withdrawalVersionId: posted.withdrawalVersionId,
+            earlyStartVersionId: posted.earlyStartVersionId,
             subscriptionId: row.id,
           },
-        });
+          select: { id: true },
+        }));
       }
       const { applied } = await gateway.changePlan(row.stripeSubscriptionId, target.stripePriceId, when);
       if (!applied) return CHANGE_REFUSED.declined;
       await sync(gateway, row.stripeSubscriptionId);
+      const consent = consentId ? await readConsent(prisma, consentId, userId) : null;
+      if (consent) {
+        const notice = upgradeConfirmation(consent);
+        await prisma.billingNotice.createMany({
+          data: [
+            {
+              subscriptionId: row.id,
+              failedAt: notice.failedAt,
+              slot: notice.slot,
+              message: notice.message,
+              values: notice.values as Prisma.InputJsonObject,
+            },
+          ],
+          skipDuplicates: true,
+        });
+      }
       return null;
     }
   );

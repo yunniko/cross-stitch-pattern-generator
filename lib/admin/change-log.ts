@@ -9,7 +9,7 @@ export const ACCOUNT_SCOPE = "ACCOUNT";
 export const SETTING_SCOPE = "SETTING";
 /** A price, or a tier given by hand (G-127 M1). The subject is the tier for a price, the person for a grant. */
 export const BILLING_SCOPE = "BILLING";
-/** A new version of the terms, the privacy policy or the withdrawal wording (G-128 M1, D383). The subject is its kind. */
+/** A new version of one of the site's documents (G-128 M1, D383; `LEGAL_KINDS`). The subject is its kind. */
 export const LEGAL_SCOPE = "LEGAL";
 
 export const CHANGE_GROUPS = [

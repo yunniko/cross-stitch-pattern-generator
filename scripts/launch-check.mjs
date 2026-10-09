@@ -5,8 +5,8 @@
 //
 //   BILLING_RECONCILE_TOKEN=... npm run launch:check -- --site https://<the site> --status http://127.0.0.1:<app port>
 //
-// --site    the public address: the webhook is sent one unsigned event (refused unread, 400 expected), and /terms and
-//           /privacy are fetched.
+// --site    the public address: the webhook is sent one unsigned event (refused unread, 400 expected), and /terms,
+//           /privacy and /withdrawal are fetched.
 // --status  the app reached without nginx (on the host, the port compose binds to 127.0.0.1, or through an SSH tunnel to
 //           it): `/api/billing/launch-status` is refused through nginx and without the reconciliation's token.
 // --json    print the checks as JSON instead of lines.
@@ -54,16 +54,17 @@ try {
   process.exit(2);
 }
 
-const [webhook, terms, privacy] = await Promise.all([
+const [webhook, terms, privacy, withdrawal] = await Promise.all([
   answer(`${site}/api/billing/webhook`, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" }),
   answer(`${site}/terms`),
   answer(`${site}/privacy`),
+  answer(`${site}/withdrawal`),
 ]);
 
 const recordPath = path.join(root, "docs", "test-clock", `v${status.version}.json`);
 const testClock = existsSync(recordPath) ? JSON.parse(readFileSync(recordPath, "utf8")) : null;
 
-const checks = launchChecks({ status, site: { webhook, terms, privacy }, testClock, now: new Date() });
+const checks = launchChecks({ status, site: { webhook, terms, privacy, withdrawal }, testClock, now: new Date() });
 if (process.argv.includes("--json")) console.log(JSON.stringify({ version: status.version, commit: status.commit, checks }, null, 2));
 else {
   console.log(`launch check: ${site}, version ${status.version} (${status.commit})`);

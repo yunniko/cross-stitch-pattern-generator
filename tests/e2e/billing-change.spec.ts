@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { registerReader, uniqueEmail } from "./helpers/auth";
-import { agreeAndChoose, consentsOf, ensureLegalDocuments, putTierOnSale, takeTierOffSale } from "./helpers/billing";
+import { agree, agreeAndChoose, consentsOf, ensureLegalDocuments, putTierOnSale, takeTierOffSale } from "./helpers/billing";
+import { latestMessageTo, messagesTo } from "./helpers/mail";
 import { setSiteFeatures } from "./helpers/features";
 
 /**
@@ -43,9 +44,7 @@ test("upgrading at once with the agreement, then a downgrade waiting for the ren
     // A longer period is more: it starts now, and only once the terms are agreed to again.
     const upgrade = page.getByRole("button", { name: `Upgrade to ${tier}, ${YEAR}` });
     await expect(upgrade).toBeDisabled();
-    const consent = page.getByTestId("plan-consent");
-    await consent.getByRole("checkbox", { name: /^I agree to the terms of service/ }).check();
-    await consent.getByRole("checkbox", { name: "I agree to the following:" }).check();
+    await agree(page);
     await upgrade.click();
     const confirm = page.getByTestId("plan-change-confirm");
     await expect(confirm).toContainText("The difference for the rest of this period is charged to your card at once");
@@ -53,6 +52,10 @@ test("upgrading at once with the agreement, then a downgrade waiting for the ren
     await expect(yourPlan(page)).toContainText(YEAR);
     // The purchase and the upgrade each have their agreement, tied to the subscription.
     await expect.poll(async () => (await consentsOf(email)).map((row) => row.linked)).toEqual([true, true]);
+    // The upgrade is confirmed by mail with its own agreement, as the purchase was (D389).
+    const upgraded = await latestMessageTo(email, /your plan has changed/);
+    expect(upgraded.text).toContain(`Your plan has changed, from now: ${tier}, ${YEAR}.`);
+    expect(upgraded.text).toContain("INFORMATION ON THE RIGHT OF WITHDRAWAL");
 
     // A shorter period is less: it waits for the renewal, and nothing is asked or charged now.
     await page.getByRole("button", { name: `Downgrade to ${tier}, ${MONTH}` }).click();
@@ -72,6 +75,8 @@ test("upgrading at once with the agreement, then a downgrade waiting for the ren
     await expect(scheduled).toHaveCount(0);
     await expect(yourPlan(page)).toContainText(MONTH);
     expect(await consentsOf(email)).toHaveLength(2);
+    // A downgrade charges nothing and agrees to nothing: no second change mail.
+    expect(messagesTo(email).filter((message) => /your plan has changed/.test(message.subject))).toHaveLength(1);
   } finally {
     await setSiteFeatures({ "billing.buy": "hidden" });
     await takeTierOffSale(tier, email);

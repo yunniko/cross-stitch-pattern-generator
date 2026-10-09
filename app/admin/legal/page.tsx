@@ -4,7 +4,7 @@ import { currentLegalVersions } from "@/lib/legal/server";
 import { LegalEditor, type LegalDocumentRow } from "./legal-editor";
 
 /**
- * `/admin/legal` (G-128 M1, D383): the terms, the privacy policy and the withdrawal acknowledgment. Each shows its version
+ * `/admin/legal` (G-128 M1, D383; G-129 M4, D389): the terms, the privacy policy, the withdrawal information and the early-start request. Each shows its version
  * in force; publishing makes a new version from the text below it, and the one before stays readable at its page.
  */
 export const dynamic = "force-dynamic";
@@ -27,7 +27,7 @@ export default async function AdminLegalPage() {
     <div className="flex flex-col gap-5">
       <PageHead
         title="Documents"
-        lead="The terms, the privacy policy and the withdrawal wording. Publishing makes a new version; a published one is never changed."
+        lead="The terms, the privacy policy, the withdrawal information and the early-start request. Publishing makes a new version; a published one is never changed."
       />
       <LegalEditor rows={rows} />
     </div>

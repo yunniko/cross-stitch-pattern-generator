@@ -12,7 +12,15 @@ import { billingGateway, currentBillingSettings, fakeBillingGateway } from "./ga
 import { deliverQueuedNotices } from "./notice-delivery";
 import { prismaBillingStore } from "./prisma-store";
 import { isFinal, syncSubscription } from "./sync";
-import { readRefunds, refundTotal, WITHDRAWAL_REFUSED, withdrawalOpenUntil, withdrawalRefunds, type PlannedRefund } from "./withdrawal";
+import {
+  readRefunds,
+  refundTotal,
+  WITHDRAWAL_REFUSED,
+  withdrawalOpenUntil,
+  withdrawalReceipt,
+  withdrawalRefunds,
+  type PlannedRefund,
+} from "./withdrawal";
 
 /**
  * The person's withdrawal from their subscription (G-129 M2, D387), from the Plan page's confirmation step. Who withdraws
@@ -94,10 +102,26 @@ export async function withdrawAction(): Promise<WithdrawalActionState> {
         const now = new Date();
         if (!withdrawalOpenUntil(stored, now)) return stored.startedAt ? WITHDRAWAL_REFUSED.over : WITHDRAWAL_REFUSED.none;
         const refunds = withdrawalRefunds(await gateway.listPayments(customerId), stored.startedAt!, now);
-        // Written outside the lock's transaction, so it stands even when a later step fails and is retried.
-        await prisma.withdrawal.create({
-          data: { userId, stripeSubscriptionId: subscriptionId, refunds: refunds as unknown as Prisma.InputJsonArray, requestedAt: now },
-        });
+        // Written outside the lock's transaction, so it stands even when a later step fails and is retried; its
+        // acknowledgment by mail is queued with it.
+        const receipt = withdrawalReceipt({ requestedAt: now, refunds });
+        await prisma.$transaction([
+          prisma.withdrawal.create({
+            data: { userId, stripeSubscriptionId: subscriptionId, refunds: refunds as unknown as Prisma.InputJsonArray, requestedAt: now },
+          }),
+          prisma.billingNotice.createMany({
+            data: [
+              {
+                subscriptionId: stored.id,
+                failedAt: receipt.failedAt,
+                slot: receipt.slot,
+                message: receipt.message,
+                values: receipt.values as Prisma.InputJsonObject,
+              },
+            ],
+            skipDuplicates: true,
+          }),
+        ]);
         record = await recordOf(subscriptionId);
         if (!record) throw new Error("the withdrawal was not recorded");
       }
@@ -107,11 +131,14 @@ export async function withdrawAction(): Promise<WithdrawalActionState> {
     });
     if (refusal) return { error: refusal };
   } catch (error) {
-    if (error instanceof BillingUnavailableError)
-      return { error: recorded ? WITHDRAWAL_REFUSED.unfinished : WITHDRAWAL_REFUSED.unavailable };
-    throw error;
+    if (!(error instanceof BillingUnavailableError)) throw error;
+    if (!recorded) return { error: WITHDRAWAL_REFUSED.unavailable };
+    // Received all the same: its acknowledgment goes now, and only finishing it waits for the provider.
+    await deliverQueuedNotices(new Date());
+    revalidatePath(PLAN_PATH);
+    return { error: WITHDRAWAL_REFUSED.unfinished };
   }
-  // On a local run, the fake's events reach this server's webhook now; the notice of the plan's end goes either way.
+  // On a local run, the fake's events reach this server's webhook now; the acknowledgment goes either way.
   const fake = await fakeBillingGateway();
   if (fake) await deliverFakeEvents(fake, settings.siteUrl);
   await deliverQueuedNotices(new Date());

@@ -35,6 +35,7 @@ export async function launchStatus(env: Record<string, string | undefined>): Pro
       terms: documents.terms?.version ?? null,
       privacy: documents.privacy?.version ?? null,
       withdrawal: documents.withdrawal?.version ?? null,
+      earlyStart: documents["early-start"]?.version ?? null,
     },
   };
 }

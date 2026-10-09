@@ -251,7 +251,7 @@ model BillingNotice {
   subscriptionId String
   /// The failure the notice belongs to: its first failed attempt (D375).
   failedAt       DateTime
-  /// "failed", "last", "free" or "recovered" (`NoticeSlot` in `lib/billing/notices.ts`).
+  /// "failed", "last", "free", "recovered", "confirmed" or "withdrawn" (`NoticeSlot` in `lib/billing/notices.ts`).
   slot           String
   /// The message id (`NoticeMessage`), and what it is built from at delivery.
   message        String
@@ -469,7 +469,7 @@ model Stamp {
 /// place, so a buyer's consent names the exact text they read.
 model LegalVersion {
   id          String   @id @default(cuid())
-  /// "terms", "privacy" or "withdrawal" (`lib/legal/documents.ts`).
+  /// "terms", "privacy", "withdrawal" or "early-start" (`lib/legal/documents.ts`).
   kind        String
   /// 1 for a kind's first, one more for each after it.
   version     Int
@@ -481,12 +481,14 @@ model LegalVersion {
 
   termsConsents      PurchaseConsent[] @relation("consentTerms")
   withdrawalConsents PurchaseConsent[] @relation("consentWithdrawal")
+  earlyStartConsents PurchaseConsent[] @relation("consentEarlyStart")
 
   @@unique([kind, version])
 }
 
-/// A buyer's agreement before Checkout (G-128 M2, D384): the terms version they agreed to and the withdrawal
-/// acknowledgment they gave, recorded before Stripe is asked, and tied to the subscription the webhook then brings.
+/// A buyer's agreement before Checkout (G-128 M2, D384): the terms version they agreed to, the withdrawal information
+/// they were shown and the early-start request they made (G-129 M4, D389), recorded before Stripe is asked, and tied to
+/// the subscription the webhook then brings. An upgrade's is made the same way, tied to the subscription at once.
 /// Personal data: deleted with the account. One left unlinked (Checkout abandoned) is pruned after two days.
 model PurchaseConsent {
   id                  String   @id @default(cuid())
@@ -495,6 +497,7 @@ model PurchaseConsent {
   priceId             String
   termsVersionId      String
   withdrawalVersionId String
+  earlyStartVersionId String
   /// Set when the subscription the Checkout made is first synced; null until then.
   subscriptionId      String?
   createdAt           DateTime @default(now())
@@ -502,6 +505,7 @@ model PurchaseConsent {
   user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   termsVersion      LegalVersion  @relation("consentTerms", fields: [termsVersionId], references: [id])
   withdrawalVersion LegalVersion  @relation("consentWithdrawal", fields: [withdrawalVersionId], references: [id])
+  earlyStartVersion LegalVersion  @relation("consentEarlyStart", fields: [earlyStartVersionId], references: [id])
   subscription      Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
 
   @@index([userId, createdAt])

@@ -12,7 +12,7 @@ export async function LegalPage({
   kind,
   searchParams,
 }: {
-  kind: "terms" | "privacy";
+  kind: "terms" | "privacy" | "withdrawal";
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const info = LEGAL_INFO[kind satisfies LegalKind];

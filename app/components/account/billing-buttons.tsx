@@ -46,38 +46,44 @@ function Refusal({ state }: { state: BillingActionState }) {
 interface Consent {
   termsVersionId: string;
   withdrawalVersionId: string;
+  earlyStartVersionId: string;
   agreedTerms: boolean;
-  agreedWithdrawal: boolean;
+  requestedEarlyStart: boolean;
 }
 
 const ConsentContext = createContext<Consent | null>(null);
 
 /**
- * The agreement asked before any plan is chosen (G-128 M2, D384): the terms in force, and the acknowledgment that the plan
- * starts at once and the right of withdrawal is lost, shown word for word. The Choose buttons inside stay off until both
- * are ticked, and post the versions shown, which the server checks against those in force.
+ * The agreement asked before any plan is paid for (G-128 M2, D384; G-129 M4, D389): the terms in force, with the
+ * information on the right of withdrawal beside them, and the request that the plan start at once, shown word for word.
+ * The Choose buttons inside stay off until both are ticked, and post the versions shown, which the server checks against
+ * those in force.
  */
 export function PlanConsent({
   termsVersionId,
   termsHref,
   termsLine,
   withdrawalVersionId,
-  withdrawal,
+  withdrawalHref,
+  earlyStartVersionId,
+  request,
   children,
 }: {
   termsVersionId: string;
   termsHref: string;
   termsLine: string;
   withdrawalVersionId: string;
-  /** The acknowledgment's text, drawn by the page. */
-  withdrawal: ReactNode;
+  withdrawalHref: string;
+  earlyStartVersionId: string;
+  /** The early-start request's text, drawn by the page. */
+  request: ReactNode;
   children: ReactNode;
 }) {
   const [agreedTerms, setAgreedTerms] = useState(false);
-  const [agreedWithdrawal, setAgreedWithdrawal] = useState(false);
+  const [requestedEarlyStart, setRequestedEarlyStart] = useState(false);
   const id = useId();
   return (
-    <ConsentContext.Provider value={{ termsVersionId, withdrawalVersionId, agreedTerms, agreedWithdrawal }}>
+    <ConsentContext.Provider value={{ termsVersionId, withdrawalVersionId, earlyStartVersionId, agreedTerms, requestedEarlyStart }}>
       <fieldset className="m-0 flex flex-col gap-3 rounded-md border border-line p-3 text-[13px] text-ink" data-testid="plan-consent">
         <legend className="px-1 text-[13px] font-medium">Before choosing a plan</legend>
         <label className="flex items-start gap-2.5">
@@ -95,22 +101,28 @@ export function PlanConsent({
             ({termsLine}).
           </span>
         </label>
+        <p className="m-0 pl-[26px] text-muted">
+          You can withdraw from the contract within 14 days.{" "}
+          <a href={withdrawalHref} target="_blank" rel="noopener" className="text-accent underline">
+            How withdrawal works
+          </a>
+        </p>
         <div className="flex items-start gap-2.5">
           <input
-            id={`${id}-withdrawal`}
+            id={`${id}-request`}
             type="checkbox"
-            checked={agreedWithdrawal}
-            onChange={(e) => setAgreedWithdrawal(e.target.checked)}
-            aria-labelledby={`${id}-withdrawal-label`}
-            aria-describedby={`${id}-withdrawal-text`}
+            checked={requestedEarlyStart}
+            onChange={(e) => setRequestedEarlyStart(e.target.checked)}
+            aria-labelledby={`${id}-request-label`}
+            aria-describedby={`${id}-request-text`}
             className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--at-accent)]"
           />
           <div className="flex flex-col gap-1">
-            <label id={`${id}-withdrawal-label`} htmlFor={`${id}-withdrawal`}>
-              I agree to the following:
+            <label id={`${id}-request-label`} htmlFor={`${id}-request`}>
+              I ask for the following:
             </label>
-            <div id={`${id}-withdrawal-text`} data-testid="plan-withdrawal-text">
-              {withdrawal}
+            <div id={`${id}-request-text`} data-testid="plan-request-text">
+              {request}
             </div>
           </div>
         </div>
@@ -127,17 +139,20 @@ function ConsentFields({ consent }: { consent: Consent | null }) {
     <>
       <input type="hidden" name="termsVersionId" value={consent.termsVersionId} />
       <input type="hidden" name="withdrawalVersionId" value={consent.withdrawalVersionId} />
+      <input type="hidden" name="earlyStartVersionId" value={consent.earlyStartVersionId} />
       {consent.agreedTerms && <input type="hidden" name="agreeTerms" value="on" />}
-      {consent.agreedWithdrawal && <input type="hidden" name="agreeWithdrawal" value="on" />}
+      {consent.requestedEarlyStart && <input type="hidden" name="requestEarlyStart" value="on" />}
     </>
   );
 }
 
+/** Both boxes ticked: a choice that is an agreement to pay may be made. */
+const consentGiven = (consent: Consent | null) => consent !== null && consent.agreedTerms && consent.requestedEarlyStart;
 /** Choose one price: Checkout for it opens, once the agreement above is given. */
 export function ChoosePriceButton({ priceId, children, label }: { priceId: string; children: ReactNode; label: string }) {
   const [state, action] = useActionState(startCheckoutAction, INITIAL);
   const consent = useContext(ConsentContext);
-  const agreed = consent !== null && consent.agreedTerms && consent.agreedWithdrawal;
+  const agreed = consentGiven(consent);
   return (
     <form action={action} className="flex flex-col gap-1.5">
       <input type="hidden" name="priceId" value={priceId} />
@@ -227,7 +242,7 @@ export function ChangePlanButton({
   const [state, action] = useActionState(changePlanAction, {});
   const [confirming, setConfirming] = useState(false);
   const consent = useContext(ConsentContext);
-  const agreed = when === "renewal" || (consent !== null && consent.agreedTerms && consent.agreedWithdrawal);
+  const agreed = when === "renewal" || consentGiven(consent);
   const verb = when === "now" ? "Upgrade" : "Downgrade";
   if (!confirming)
     return (

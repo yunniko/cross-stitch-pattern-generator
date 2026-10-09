@@ -84,7 +84,7 @@ function LegalForm({ row }: { row: LegalDocumentRow }) {
             setText(event.target.value);
             setConfirming(false);
           }}
-          rows={row.kind === "withdrawal" ? 3 : 12}
+          rows={row.kind === "early-start" ? 3 : 12}
           className="w-full rounded-md border border-control-line bg-control px-3 py-2 font-mono text-[13px] text-ink outline-none focus:border-accent"
         />
       )}

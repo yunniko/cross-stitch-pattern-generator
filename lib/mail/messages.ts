@@ -18,6 +18,37 @@ function declare<Needs extends string>(declaration: MessageDeclaration<Needs>): 
 
 const SIGN_OFF = `\n\n— ${SITE_NAME}\n`;
 
+/** What a purchase or an upgrade was agreed under, with both documents in full: the mail is the buyer's copy to keep. */
+const AGREEMENT_NEEDS = [
+  "plan",
+  "termsLine",
+  "termsLink",
+  "terms",
+  "withdrawalLine",
+  "withdrawalLink",
+  "withdrawal",
+  "request",
+  "link",
+] as const;
+type Agreement = Record<(typeof AGREEMENT_NEEDS)[number], string>;
+
+const RULE = "\n\n----------------------------------------\n\n";
+
+function agreementText(opening: string, values: Agreement): string {
+  return (
+    `${opening}\n\n` +
+    `Before paying, you asked for this:\n\n${values.request}\n\n` +
+    `You agreed to the terms of service, ${values.termsLine}, and were shown the information on your right of ` +
+    `withdrawal, ${values.withdrawalLine}. Both are copied in full below, and stay readable here:\n` +
+    `${values.termsLink}\n${values.withdrawalLink}\n\n` +
+    `Your card, invoices and cancellation are under Manage billing on your Plan page, where you can also withdraw ` +
+    `within the 14 days:\n${values.link}` +
+    SIGN_OFF +
+    `${RULE}TERMS OF SERVICE, ${values.termsLine}\n\n${values.terms}` +
+    `${RULE}INFORMATION ON THE RIGHT OF WITHDRAWAL, ${values.withdrawalLine}\n\n${values.withdrawal}\n`
+  );
+}
+
 export const MESSAGES = {
   "confirm-address": declare({
     needs: ["link", "hours"],
@@ -90,16 +121,27 @@ export const MESSAGES = {
       `Your Plan page:\n${link}` +
       SIGN_OFF,
   }),
-  // A purchase's confirmation (G-128 M2, D384): what was bought, the terms agreed to, and the acknowledgment repeated.
+  // A purchase's and an upgrade's confirmation (G-128 M2, D384; G-129 M4, D389): what was bought, the request repeated,
+  // and the terms and the withdrawal information in full.
   "purchase-confirmed": declare({
-    needs: ["plan", "termsLine", "termsLink", "acknowledgment", "link"],
+    needs: AGREEMENT_NEEDS,
     subject: `${SITE_NAME}: your plan has started`,
-    text: ({ plan, termsLine, termsLink, acknowledgment, link }) =>
-      `Thank you. Your plan has started: ${plan}.\n\n` +
-      `You agreed to the terms of service, ${termsLine}. That version stays readable here:\n${termsLink}\n\n` +
-      `Before paying, you also agreed to this:\n\n${acknowledgment}\n\n` +
-      `Your card, invoices and cancellation are under Manage billing on your Plan page:\n${link}` +
-      SIGN_OFF,
+    text: (values) => agreementText(`Thank you. Your plan has started: ${values.plan}.`, values),
+  }),
+  "upgrade-confirmed": declare({
+    needs: AGREEMENT_NEEDS,
+    subject: `${SITE_NAME}: your plan has changed`,
+    text: (values) =>
+      agreementText(
+        `Your plan has changed, from now: ${values.plan}. The difference for the rest of the period was charged to your card.`,
+        values
+      ),
+  }),
+  // A withdrawal's acknowledgment (G-129 M4, D389): what was received and when, on a durable medium.
+  "withdrawal-received": declare({
+    needs: ["receipt", "link"],
+    subject: `${SITE_NAME}: we received your withdrawal`,
+    text: ({ receipt, link }) => `${receipt}\n\nYour Plan page:\n${link}` + SIGN_OFF,
   }),
 } as const;
 

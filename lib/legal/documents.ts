@@ -1,11 +1,11 @@
 /**
- * The documents the site publishes (G-128 M1, D383): the terms, the privacy policy, and the acknowledgment of losing the
- * right of withdrawal that a buyer agrees to before Checkout (M2). Their text is the Owner's, written by an admin in the
- * app; each publish is a new version, and a published one is never changed. Pure, so the rules are tested without a
- * database.
+ * The documents the site publishes (G-128 M1, D383): the terms, the privacy policy, the information on the right of
+ * withdrawal, and the request a buyer makes before paying for the plan to start within the 14 days (G-129 M4, D389).
+ * Their text is the Owner's, written by an admin in the app; each publish is a new version, and a published one is never
+ * changed. Pure, so the rules are tested without a database.
  */
 
-export const LEGAL_KINDS = ["terms", "privacy", "withdrawal"] as const;
+export const LEGAL_KINDS = ["terms", "privacy", "withdrawal", "early-start"] as const;
 export type LegalKind = (typeof LEGAL_KINDS)[number];
 
 export function isLegalKind(value: unknown): value is LegalKind {
@@ -14,7 +14,7 @@ export function isLegalKind(value: unknown): value is LegalKind {
 
 export interface LegalKindInfo {
   label: string;
-  /** Its public page; the withdrawal wording has none, it is shown where a buyer agrees to it. */
+  /** Its public page; the early-start request has none, it is shown where a buyer makes it. */
   path: string | null;
   note: string;
 }
@@ -31,9 +31,14 @@ export const LEGAL_INFO: Record<LegalKind, LegalKindInfo> = {
     note: "Shown at /privacy and linked where an account is made. It names who processes payments.",
   },
   withdrawal: {
-    label: "Withdrawal acknowledgment",
+    label: "Withdrawal information",
+    path: "/withdrawal",
+    note: "Shown at /withdrawal and linked where a plan is chosen: the 14-day right of withdrawal, how to use it, what is given back, and the model form. Sent in full with each purchase.",
+  },
+  "early-start": {
+    label: "Early-start request",
     path: null,
-    note: "The words a buyer agrees to before Checkout: that the plan starts at once and they lose the 14-day right of withdrawal. One or two sentences.",
+    note: "The words a buyer ticks before paying: that they ask for the plan to start at once, within the 14 days, and that if they withdraw they pay for the days used. One or two sentences.",
   },
 };
 

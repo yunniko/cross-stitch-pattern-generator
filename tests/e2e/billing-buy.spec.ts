@@ -48,10 +48,13 @@ test.describe("buying a plan", () => {
     const offer = page.getByTestId("plan-offer").filter({ hasText: tier });
     await expect(offer).toContainText("€10.00 a month");
     await expect(offer).toContainText("€100.00 a year");
-    // Nothing is chosen until the terms are agreed to and the withdrawal acknowledged (D384).
+    // Nothing is chosen until the terms are agreed to and the early start asked for (D384, D389).
     const choose = offer.getByRole("button", { name: `Choose ${tier}, €10.00 a month` });
     await expect(choose).toBeDisabled();
-    await expect(page.getByTestId("plan-withdrawal-text")).toContainText("lose the right to withdraw");
+    await expect(page.getByTestId("plan-request-text")).toContainText("if I withdraw I pay for the days used");
+    // The withdrawal information is a page of its own, at the version in force.
+    const howTo = page.getByTestId("plan-consent").getByRole("link", { name: "How withdrawal works" });
+    await expect(howTo).toHaveAttribute("href", /^\/withdrawal\?version=\d+$/);
     await page
       .getByTestId("plan-consent")
       .getByRole("checkbox", { name: /^I agree to the terms of service/ })
@@ -105,9 +108,10 @@ test.describe("buying a plan", () => {
     expect(history.map((entry) => entry.kind)).toEqual(expect.arrayContaining(["created", "cancel", "status"]));
     expect(new Set(history.map((entry) => entry.source))).toEqual(new Set(["webhook"]));
     // Each Checkout recorded its consent; the paid one is tied to the subscription, the cancelled one is not.
+    const recorded = { termsKind: "terms", withdrawalKind: "withdrawal", earlyStartKind: "early-start" };
     expect(await consentsOf(email)).toEqual([
-      { termsKind: "terms", withdrawalKind: "withdrawal", linked: true },
-      { termsKind: "terms", withdrawalKind: "withdrawal", linked: false },
+      { ...recorded, linked: true },
+      { ...recorded, linked: false },
     ]);
   });
 });

@@ -24,7 +24,7 @@ import {
   planStatusLine,
   type PriceRow,
 } from "@/lib/billing/purchase";
-import { CONSENT_REFUSED } from "@/lib/billing/consent";
+import { CONSENT_REFUSED, documentsInForce } from "@/lib/billing/consent";
 import {
   deadlineLine,
   readRefunds,
@@ -56,7 +56,7 @@ import { PageHead, SectionTitle } from "@/app/components/panel/panel-parts";
  * Plan (G-107 M2, G-106 M3): the plan the entitlement rule gives this person now, where their subscription stands, the
  * plans on sale with their current prices, and the way to the provider's Portal. Plans are offered only while billing
  * is on and the buying feature is usable for this person; it starts hidden in production (D372). A price is chosen only
- * once the terms are agreed to and the withdrawal acknowledged (G-128 M2, D384). For the 14 days after a purchase the
+ * once the terms are agreed to and the plan asked to start at once (G-128 M2, D384; G-129 M4, D389). For the 14 days after a purchase the
  * person can withdraw from it here, and a withdrawal made is acknowledged here (G-129 M2, D387). A plan held is changed,
  * cancelled and kept here too (G-129 M3, D388): more at once with the difference charged, less at the renewal.
  */
@@ -117,8 +117,9 @@ export default async function AccountPlanPage({ searchParams }: { searchParams: 
   const live = hasPlanInPlace(stored, now);
   const notice = checkout ? RETURN_NOTICES[checkout] : undefined;
   const withdrawal = await withdrawalShown(stored, billingOn, now);
-  // A plan is chosen only with the terms, privacy policy and withdrawal acknowledgment published, and agreed to (D384).
-  const documentsReady = Boolean(documents.terms && documents.privacy && documents.withdrawal);
+  // A plan is chosen only with every document a buyer is shown published, and agreed to (D384, D389).
+  const inForce = documentsInForce(documents);
+  const documentsReady = Boolean(inForce.terms && inForce.privacy && inForce.withdrawal && inForce.earlyStart);
   const canChoose = offered.length > 0 && !live && documentsReady;
   // A plan held is changed here while it can be; the reason it cannot is said once on each offer instead.
   const bought = live && stored !== null && !isGrant(stored);
@@ -241,13 +242,15 @@ export default async function AccountPlanPage({ searchParams }: { searchParams: 
           {CONSENT_REFUSED.unpublished}
         </p>
       )}
-      {(canChoose || upgradeOffered) && documents.terms && documents.withdrawal ? (
+      {(canChoose || upgradeOffered) && documents.terms && documents.withdrawal && documents["early-start"] ? (
         <PlanConsent
           termsVersionId={documents.terms.id}
           termsHref={`/terms?version=${documents.terms.version}`}
           termsLine={versionLine(documents.terms.version, documents.terms.publishedAt)}
           withdrawalVersionId={documents.withdrawal.id}
-          withdrawal={<ContentProse markdown={documents.withdrawal.body} authored />}
+          withdrawalHref={`/withdrawal?version=${documents.withdrawal.version}`}
+          earlyStartVersionId={documents["early-start"].id}
+          request={<ContentProse markdown={documents["early-start"].body} authored />}
         >
           {offers}
         </PlanConsent>

@@ -48,6 +48,37 @@ export const STORED_SELECT = {
   actionNeeded: true,
 } as const;
 
+/** A consent with the texts its confirmation repeats; the sync reads it in its transaction, an upgrade after it. */
+export async function readConsent(client: Prisma.TransactionClient, id: string, userId: string): Promise<ConsentRecord | null> {
+  const row = await client.purchaseConsent.findFirst({
+    where: { id, userId },
+    select: {
+      id: true,
+      createdAt: true,
+      subscriptionId: true,
+      priceId: true,
+      termsVersion: { select: { version: true, publishedAt: true, body: true } },
+      withdrawalVersion: { select: { version: true, publishedAt: true, body: true } },
+      earlyStartVersion: { select: { body: true } },
+    },
+  });
+  if (!row) return null;
+  const price = await client.price.findUnique({
+    where: { id: row.priceId },
+    select: { amount: true, currency: true, interval: true, tier: { select: { name: true } } },
+  });
+  return {
+    id: row.id,
+    createdAt: row.createdAt,
+    subscriptionId: row.subscriptionId,
+    tierName: price?.tier.name ?? "Your plan",
+    price: price ? { amount: price.amount, currency: price.currency, interval: price.interval } : null,
+    terms: row.termsVersion,
+    withdrawal: row.withdrawalVersion,
+    request: row.earlyStartVersion.body,
+  };
+}
+
 function transactionStore(tx: Prisma.TransactionClient): BillingTx {
   const history = (subscriptionId: string, entries: HistoryEntry[], meta: HistoryMeta) =>
     entries.length === 0
@@ -96,34 +127,7 @@ function transactionStore(tx: Prisma.TransactionClient): BillingTx {
         skipDuplicates: true,
       });
     },
-    consentFor: async (id, userId): Promise<ConsentRecord | null> => {
-      const row = await tx.purchaseConsent.findFirst({
-        where: { id, userId },
-        select: {
-          id: true,
-          createdAt: true,
-          subscriptionId: true,
-          priceId: true,
-          termsVersion: { select: { version: true, publishedAt: true } },
-          withdrawalVersion: { select: { body: true } },
-        },
-      });
-      if (!row) return null;
-      const price = await tx.price.findUnique({
-        where: { id: row.priceId },
-        select: { amount: true, currency: true, interval: true, tier: { select: { name: true } } },
-      });
-      return {
-        id: row.id,
-        createdAt: row.createdAt,
-        subscriptionId: row.subscriptionId,
-        tierName: price?.tier.name ?? "Your plan",
-        price: price ? { amount: price.amount, currency: price.currency, interval: price.interval } : null,
-        termsVersion: row.termsVersion.version,
-        termsPublishedAt: row.termsVersion.publishedAt,
-        acknowledgment: row.withdrawalVersion.body,
-      };
-    },
+    consentFor: (id, userId) => readConsent(tx, id, userId),
     linkConsent: async (id, subscriptionId) => {
       await tx.purchaseConsent.update({ where: { id }, data: { subscriptionId } });
     },

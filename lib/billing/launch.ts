@@ -15,7 +15,7 @@ export interface LaunchStatus {
   /** The site's state of the buying feature, "ON", "LOCKED" or "HIDDEN". */
   buying: string;
   /** The version in force of each document, or null while none is published. */
-  documents: { terms: number | null; privacy: number | null; withdrawal: number | null };
+  documents: { terms: number | null; privacy: number | null; withdrawal: number | null; earlyStart: number | null };
 }
 
 /** HTTP statuses from the public site; null when it could not be reached. */
@@ -24,6 +24,7 @@ export interface PublicAnswers {
   webhook: number | null;
   terms: number | null;
   privacy: number | null;
+  withdrawal: number | null;
 }
 
 /** `docs/test-clock/v<version>.json`, written by the test-clock run for a release (G-106 M4, G-126 M3). */
@@ -53,7 +54,7 @@ export function launchChecks(facts: {
   const { billing, reconcile, documents } = status;
   const lastRun = reconcile.lastRun;
   const age = lastRun ? now.getTime() - new Date(lastRun.at).getTime() : null;
-  const missing = (["terms", "privacy", "withdrawal"] as const).filter((kind) => documents[kind] === null);
+  const missing = (["terms", "privacy", "withdrawal", "earlyStart"] as const).filter((kind) => documents[kind] === null);
   const failed = testClock?.scenarios.filter((scenario) => !scenario.passed) ?? [];
 
   return [
@@ -87,12 +88,13 @@ export function launchChecks(facts: {
       detail: `the site's state of billing.buy is ${status.buying}`,
     },
     {
-      name: "The terms, privacy policy and withdrawal wording are published",
-      ok: missing.length === 0 && site.terms === 200 && site.privacy === 200,
+      name: "The terms, privacy policy, withdrawal information and early-start request are published",
+      ok: missing.length === 0 && site.terms === 200 && site.privacy === 200 && site.withdrawal === 200,
       detail:
         missing.length > 0
           ? `not published: ${missing.join(", ")}`
-          : `versions ${documents.terms}, ${documents.privacy} and ${documents.withdrawal}; /terms ${site.terms ?? "not reached"}, /privacy ${site.privacy ?? "not reached"}`,
+          : `versions ${documents.terms}, ${documents.privacy}, ${documents.withdrawal} and ${documents.earlyStart}; ` +
+            (["terms", "privacy", "withdrawal"] as const).map((page) => `/${page} ${site[page] ?? "not reached"}`).join(", "),
     },
     {
       name: `The test-clock scenarios passed on this release (${status.version}, ${status.commit})`,

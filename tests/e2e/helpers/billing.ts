@@ -50,15 +50,16 @@ export async function takeTierOffSale(name: string, email: string): Promise<void
   await db.query(`DELETE FROM "FeatureSet" WHERE "name" = $1`, [name]);
 }
 
-const LEGAL_TEXT: Record<"terms" | "privacy" | "withdrawal", string> = {
+export const LEGAL_TEXT: Record<"terms" | "privacy" | "withdrawal" | "early-start", string> = {
   terms: "# Terms of service\n\nThe e2e suite's terms.",
   privacy: "# Privacy policy\n\nThe e2e suite's privacy policy.",
-  withdrawal: "The plan starts at once, and I lose the right to withdraw from it.",
+  withdrawal: "# Right of withdrawal\n\nThe e2e suite's information on withdrawing within 14 days.",
+  "early-start": "I ask for the plan to start at once, and if I withdraw I pay for the days used.",
 };
 
 /**
- * The three documents a buyer is shown (D384), published unless some version of each already is: `admin-legal.spec`
- * publishes its own, and whichever is in force is the one agreed to.
+ * The four documents a buyer is shown (D384, D389), published unless some version of each already is:
+ * `admin-legal.spec` publishes its own terms, and whichever is in force is the one agreed to.
  */
 export async function ensureLegalDocuments(): Promise<void> {
   const db = featuresDb();
@@ -73,22 +74,36 @@ export async function ensureLegalDocuments(): Promise<void> {
   }
 }
 
-/** Agrees to the terms and the withdrawal acknowledgment on the Plan page, then chooses the price named. */
-export async function agreeAndChoose(page: Page, label: string): Promise<void> {
+/** Ticks both boxes of the Plan page's agreement: the terms, and the request to start at once. */
+export async function agree(page: Page): Promise<void> {
   const consent = page.getByTestId("plan-consent");
   await consent.getByRole("checkbox", { name: /^I agree to the terms of service/ }).check();
-  await consent.getByRole("checkbox", { name: "I agree to the following:" }).check();
+  await consent.getByRole("checkbox", { name: "I ask for the following:" }).check();
+}
+
+/** Agrees on the Plan page, then chooses the price named. */
+export async function agreeAndChoose(page: Page, label: string): Promise<void> {
+  await agree(page);
   await page.getByRole("button", { name: label }).click();
 }
 
-/** The person's consents, newest first, with the versions agreed to and whether a subscription is tied to each. */
-export async function consentsOf(email: string): Promise<Array<{ termsKind: string; withdrawalKind: string; linked: boolean }>> {
-  const { rows } = await featuresDb().query<{ termsKind: string; withdrawalKind: string; linked: boolean }>(
-    `SELECT t."kind" AS "termsKind", w."kind" AS "withdrawalKind", c."subscriptionId" IS NOT NULL AS "linked"
+export interface ConsentRow {
+  termsKind: string;
+  withdrawalKind: string;
+  earlyStartKind: string;
+  linked: boolean;
+}
+
+/** The person's consents, newest first, with the kinds of the versions recorded and whether a subscription is tied to each. */
+export async function consentsOf(email: string): Promise<ConsentRow[]> {
+  const { rows } = await featuresDb().query<ConsentRow>(
+    `SELECT t."kind" AS "termsKind", w."kind" AS "withdrawalKind", e."kind" AS "earlyStartKind",
+            c."subscriptionId" IS NOT NULL AS "linked"
        FROM "PurchaseConsent" c
        JOIN "User" u ON u."id" = c."userId"
        JOIN "LegalVersion" t ON t."id" = c."termsVersionId"
        JOIN "LegalVersion" w ON w."id" = c."withdrawalVersionId"
+       JOIN "LegalVersion" e ON e."id" = c."earlyStartVersionId"
      WHERE u."email" = $1 ORDER BY c."createdAt" DESC`,
     [email]
   );

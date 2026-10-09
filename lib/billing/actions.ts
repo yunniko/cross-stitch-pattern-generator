@@ -6,7 +6,7 @@ import { featureUsable } from "@/lib/features/features";
 import { featureStatesFor } from "@/lib/features/server";
 import { currentLegalVersions } from "@/lib/legal/server";
 import { prisma } from "@/lib/prisma";
-import { consentRefusal } from "./consent";
+import { consentRefusal, documentsInForce, postedConsent } from "./consent";
 import { BillingUnavailableError } from "./contract";
 import { billingGateway, currentBillingSettings } from "./gateway";
 import { BUYING_FEATURE, CHECKOUT_REFUSED, checkoutRefusal } from "./purchase";
@@ -51,17 +51,17 @@ export async function startCheckoutAction(_prev: BillingActionState, formData: F
   if (refusal || !gateway || !settings.on || !price) return { error: refusal ?? CHECKOUT_REFUSED.off };
 
   // The consent is checked against the versions in force and recorded before the provider is asked (D384).
-  const posted = {
-    agreedTerms: field("agreeTerms") === "on",
-    agreedWithdrawal: field("agreeWithdrawal") === "on",
-    termsVersionId: field("termsVersionId"),
-    withdrawalVersionId: field("withdrawalVersionId"),
-  };
-  const current = { terms: documents.terms ?? null, privacy: documents.privacy ?? null, withdrawal: documents.withdrawal ?? null };
-  const unconsented = consentRefusal(current, posted);
+  const posted = postedConsent(field);
+  const unconsented = consentRefusal(documentsInForce(documents), posted);
   if (unconsented) return { error: unconsented };
   const consent = await prisma.purchaseConsent.create({
-    data: { userId, priceId, termsVersionId: posted.termsVersionId, withdrawalVersionId: posted.withdrawalVersionId },
+    data: {
+      userId,
+      priceId,
+      termsVersionId: posted.termsVersionId,
+      withdrawalVersionId: posted.withdrawalVersionId,
+      earlyStartVersionId: posted.earlyStartVersionId,
+    },
     select: { id: true },
   });
 

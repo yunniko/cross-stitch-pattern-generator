@@ -11,9 +11,9 @@ const READY: LaunchStatus = {
   billing: { on: true, gateway: "stripe", mode: "live", reason: null },
   reconcile: { tokenSet: true, lastRun: { at: "2026-11-02T09:20:00.000Z", ok: true } },
   buying: "ON",
-  documents: { terms: 2, privacy: 1, withdrawal: 1 },
+  documents: { terms: 2, privacy: 1, withdrawal: 1, earlyStart: 1 },
 };
-const SITE: PublicAnswers = { webhook: 400, terms: 200, privacy: 200 };
+const SITE: PublicAnswers = { webhook: 400, terms: 200, privacy: 200, withdrawal: 200 };
 const CLOCK: TestClockRecord = {
   version: "0.30.0",
   commit: "abc1234",
@@ -77,11 +77,16 @@ describe("the launch check", () => {
     expect(failing({ status: { buying: "HIDDEN" } })).toEqual([
       { name: "Buying is on", ok: false, detail: "the site's state of billing.buy is HIDDEN" },
     ]);
-    expect(failing({ status: { documents: { terms: 1, privacy: null, withdrawal: null } } })[0].detail).toBe(
+    expect(failing({ status: { documents: { terms: 1, privacy: null, withdrawal: null, earlyStart: 1 } } })[0].detail).toBe(
       "not published: privacy, withdrawal"
     );
-    expect(failing({ site: { terms: 404 } }).map((check) => check.name)).toEqual([
-      "The terms, privacy policy and withdrawal wording are published",
+    expect(failing({ status: { documents: { terms: 1, privacy: 1, withdrawal: 1, earlyStart: null } } })[0].detail).toBe(
+      "not published: earlyStart"
+    );
+    const name = "The terms, privacy policy, withdrawal information and early-start request are published";
+    expect(failing({ site: { terms: 404 } }).map((check) => check.name)).toEqual([name]);
+    expect(failing({ site: { withdrawal: null } })).toEqual([
+      { name, ok: false, detail: "versions 2, 1, 1 and 1; /terms 200, /privacy 200, /withdrawal not reached" },
     ]);
   });
 
