@@ -21,6 +21,9 @@ import { TOOL_DEFINITIONS, toolDefinition, type Tool } from "../tools/registry";
 
 const TOOL_GROUPS = ["Drawing tools", "Selection and transformation", "Navigation"] as const;
 
+/** The Layers tab and what it does to a chart's layers (G-130): adding, deleting, showing, hiding, ordering, merging, naming. */
+export const LAYERS_FEATURE = "edit.layers";
+
 /** The features some commands share, named here because no one command owns the name. */
 const SHARED_COMMAND_FEATURES: Record<string, { label: string; group: string }> = {
   "chart.mirror": { label: "Quick mirrors", group: "Chart" },
@@ -33,6 +36,8 @@ const SHARED_COMMAND_FEATURES: Record<string, { label: string; group: string }> 
   "stamps.account": { label: "Stamps", group: "Saving" },
   // The id the Plan section and Checkout check (`BUYING_FEATURE`, G-106 M3); hidden in production until G-128 (D372).
   "billing.buy": { label: "Buying a plan", group: "Account" },
+  // Not a command: the Layers tab is its one control. Off, a chart's layers stay as they are and the tools still use them.
+  [LAYERS_FEATURE]: { label: "Layers", group: "Edit" },
 };
 
 function build(): Feature[] {

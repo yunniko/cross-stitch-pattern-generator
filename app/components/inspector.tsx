@@ -5,25 +5,37 @@ import { DISABLED_TEXT } from "./ui";
 
 /**
  * The panel at the right (G-045's inspector; one per workspace since G-095, proposal D): one 360px column showing one
- * pane at a time. In Edit it has tabs, Chart and Threads; in Photo and Export it holds one pane under its name.
+ * pane at a time. In Edit it has tabs, Chart, Threads and Layers; in Photo and Export it holds one pane under its name.
  *
  * A tool may bring a tab of its own (G-095, D296). It is the first tab, marked by its colour and nothing else, and it is
  * there only while that tool is in hand; which of the two is shown, the tool's or the one last chosen, is the caller's.
  */
 
-/** The tabs of the Edit workspace: the document's own settings, and its threads. */
-export type InspectorTab = "chart" | "threads";
+/** The tabs of the Edit workspace: the document's own settings, its threads, and its layers (G-130). */
+export type InspectorTab = "chart" | "threads" | "layers";
 
-export const EDIT_TABS: ReadonlyArray<{ id: InspectorTab; label: string }> = [
-  { id: "chart", label: "Chart" },
-  { id: "threads", label: "Threads" },
-];
+/** A tab to choose. `locked`: shown greyed, taking no press, with the note saying why (a locked feature, G-102). */
+export interface InspectorTabItem {
+  id: string;
+  label: string;
+  locked?: { feature: string; note: string };
+}
+
+/** Edit's tabs, the Layers tab under its feature (G-130): `null` when the feature is hidden, so there is no tab. */
+export function editTabs(layers: { locked?: InspectorTabItem["locked"] } | null): InspectorTabItem[] {
+  const tabs: InspectorTabItem[] = [
+    { id: "chart", label: "Chart" },
+    { id: "threads", label: "Threads" },
+  ];
+  if (layers) tabs.push({ id: "layers", label: "Layers", ...(layers.locked ? { locked: layers.locked } : {}) });
+  return tabs;
+}
 
 export interface InspectorProps {
   /** What the panel holds, said aloud; shown as its heading when there are no tabs. */
   title: string;
   /** The tabs to choose between, with the one chosen; null for a workspace with one pane. */
-  tabs: { list: ReadonlyArray<{ id: string; label: string }>; chosen: string; onChoose: (tab: string) => void; disabled: boolean } | null;
+  tabs: { list: ReadonlyArray<InspectorTabItem>; chosen: string; onChoose: (tab: string) => void; disabled: boolean } | null;
   /** The tab of the tool in hand, when it brings one: its name, what it holds, and whether it is the tab shown. */
   toolTab?: { label: string; pane: ReactNode; shown: boolean; onChoose: () => void } | null;
   /** What is shown when the tool's tab is not: the chosen tab's pane, or the workspace's one pane. */
@@ -61,7 +73,7 @@ export function Inspector({ title, tabs, toolTab = null, pane, footer }: Inspect
             </button>
           )}
           {tabs &&
-            tabs.list.map(({ id, label }) => {
+            tabs.list.map(({ id, label, locked }) => {
               const selected = !toolShown && tabs.chosen === id;
               return (
                 <button
@@ -72,7 +84,9 @@ export function Inspector({ title, tabs, toolTab = null, pane, footer }: Inspect
                   // `aria-selected` is a tab's state; `aria-pressed` belongs to toggle buttons and is invalid here.
                   aria-selected={selected}
                   aria-controls={`inspector-pane-${id}`}
-                  disabled={tabs.disabled}
+                  disabled={tabs.disabled || locked !== undefined}
+                  title={locked?.note}
+                  data-feature-locked={locked?.feature}
                   onClick={() => tabs.onChoose(id)}
                   className={`flex-1 border-b-2 text-[13px] transition-colors ${DISABLED_TEXT} ${
                     selected ? "border-accent bg-raised font-medium text-ink" : "border-transparent text-muted enabled:hover:text-ink"

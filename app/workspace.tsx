@@ -15,6 +15,8 @@ import { useLitThreads } from "./hooks/use-lit-threads";
 import { useNameDraft } from "./hooks/use-name-draft";
 import { applyQuickMirrorWithSelection, fillSymmetric, type QuickMirror } from "@/lib/editor/symmetry";
 import { useDocumentHistory } from "./hooks/use-document-history";
+import { useLayers } from "./hooks/use-layers";
+import { flatten, withLayerView } from "@/lib/document/convert";
 import type { StitchPattern } from "@/lib/types";
 import { ConfirmNewChart } from "./components/confirm-new-chart";
 import { SaveConflict } from "./components/save-conflict";
@@ -243,6 +245,9 @@ export default function Workspace({ account }: WorkspaceProps) {
     },
   });
   const { activeTool, switchTool, hoverOutline } = tools;
+  // The Layers tab (G-130): under its feature, and in Edit only.
+  const layers = useLayers(history, features, tools.piece);
+  const editTab = inspectorTab === "layers" && !layers.usable ? "threads" : inspectorTab;
   // The photo itself is up in place of the chart (G-124): before the first chart; while the photo has been edited since the
   // chart was made, so what is shown is what the next Generate reads; and while the Photo wand is in hand or the sliders are
   // off centre, since both act on the photo and not on the chart.
@@ -257,7 +262,14 @@ export default function Workspace({ account }: WorkspaceProps) {
   };
   // The four sliders (G-074), drawn in the browser from the decoded photo -- no request to the server.
   const adjustPreview = usePhotoAdjustPreview(source.pixelBuffer, options.photoAdjust, photoStageShown);
-  const displayedPattern = colorPreview && colorPreview.base === pattern ? colorPreview.next : pattern;
+  // What is drawn is every visible layer (G-130): the composite, or under a colour editor's draft the composite with the
+  // draft written into the active layer. With one layer the two are the active layer's view itself.
+  const { document: chartDocument, activeLayerId, composite } = history;
+  const displayedPattern = useMemo(() => {
+    if (!colorPreview || colorPreview.base !== pattern) return composite;
+    if (!chartDocument || !activeLayerId || chartDocument.layers.length === 1) return colorPreview.next;
+    return flatten(withLayerView(chartDocument, activeLayerId, colorPreview.next));
+  }, [chartDocument, activeLayerId, composite, colorPreview, pattern]);
   const renderer = useChartRenderer({
     canvasRef,
     frameRef,
@@ -865,7 +877,7 @@ export default function Workspace({ account }: WorkspaceProps) {
                 onOptionChange={updateOption}
                 onChartOptionChange={updateChartOption}
                 edit={{
-                  tab: inspectorTab,
+                  tab: editTab,
                   onTabChange: (tab) => {
                     setToolTabClosedAt(tools.activation);
                     chooseInspectorTab(tab);
@@ -878,6 +890,7 @@ export default function Workspace({ account }: WorkspaceProps) {
                   onPreviewChange: setColorPreview,
                   onMergeColors: handleMergeColors,
                   documentId: lifecycle.documentId,
+                  layers: layers.tab,
                 }}
                 colours={colours}
                 lit={lit}

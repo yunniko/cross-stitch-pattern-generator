@@ -16,7 +16,8 @@ import type { Tools } from "../tools/use-tools";
 import { ChartPane } from "./chart-pane";
 import { ColorsDock } from "./colors-dock";
 import { ExportFooter, ExportPane, type ExportControls } from "./export-pane";
-import { EDIT_TABS, Inspector, type InspectorTab } from "./inspector";
+import { editTabs, Inspector, type InspectorTab, type InspectorTabItem } from "./inspector";
+import { LayersPane, type LayersPaneProps } from "./layers-pane";
 import { isNeutralAdjust, NEUTRAL_ADJUST } from "@/lib/pipeline/photo-adjust";
 import { PHOTO_SECTIONS, PhotoPane, type PhotoEditControls, type PhotoSection } from "./photo-pane";
 import { PillButton } from "./ui";
@@ -54,6 +55,11 @@ export interface WorkspacePanelProps {
     onPreviewChange: (preview: { base: StitchPattern; next: StitchPattern } | null) => void;
     onMergeColors: (sourceIndex: number, targetIndex: number) => void;
     documentId: number;
+    /**
+     * The Layers tab (G-130): null when its feature is hidden, so there is no tab; `locked` greys it; `pane` is null while
+     * there is no chart.
+     */
+    layers: { locked?: InspectorTabItem["locked"]; pane: LayersPaneProps | null } | null;
   };
   colours: DrawingColours;
   lit: LitThreadsState;
@@ -107,10 +113,17 @@ export function WorkspacePanel({
     return (
       <Inspector
         title="Chart settings"
-        tabs={{ list: EDIT_TABS, chosen: edit.tab, onChoose: (tab) => edit.onTabChange(tab as InspectorTab), disabled: !chartShown }}
+        tabs={{
+          list: editTabs(edit.layers && { locked: edit.layers.locked }),
+          chosen: edit.tab,
+          onChoose: (tab) => edit.onTabChange(tab as InspectorTab),
+          disabled: !chartShown,
+        }}
         toolTab={edit.toolTab}
         pane={
-          edit.tab === "chart" ? (
+          edit.tab === "layers" && edit.layers?.pane ? (
+            <LayersPane {...edit.layers.pane} />
+          ) : edit.tab === "chart" ? (
             <ChartPane
               pattern={pattern}
               options={options}

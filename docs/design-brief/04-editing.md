@@ -197,6 +197,23 @@ Keys act when no text entry has the focus, and not while the command list is ope
 | **While open** | The chart's keys do not act; whatever is typed goes to the search |
 | **Not in it** | An action that needs a value (which thread, what size, which export kind, the text to add) is not a command; it is reached where the value is given |
 
+## Layers
+
+A chart is a stack of layers, bottom to top; a new chart (generated, blank, opened from a file of one layer) has one, **Layer 1**. Exactly one layer is **active** at a time. The **Layers** list is offered in Edit only, beside the chart settings and the thread list.
+
+| Control | Effect | Undo step |
+|---|---|---|
+| **A row** (top layer first) | A press makes its layer the active one, marked by its outline; Enter or Space does the same from the keyboard | No |
+| **Eye** at the row's start | Shows or hides the layer; a hidden layer's name is dimmed | Yes |
+| **Name** | Double-click or F2 renames it; Enter or leaving the field keeps the new name, Escape or an empty name keeps the old | Yes |
+| **Drag a row** | While dragging, every other row shows a **Merge** box. Let go on a box: the dragged layer is merged into that one. Let go anywhere else: it moves to the gap nearest the pointer, shown as a line | Yes, one per drop |
+| **Add layer** | A new empty layer, **Layer 2**, **Layer 3**…, above the active one, and made active. At most 32 | Yes |
+| **Move up / Move down** | The active layer one place up or down | Yes |
+| **Merge down** | The active layer into the one below | Yes |
+| **Delete layer** | Deletes the active layer; the one below becomes active (the one above, for the bottom layer). With one layer it is unavailable, with the note "A chart always has at least one layer, so its only layer can't be deleted." | Yes |
+
+A merge keeps the lower-in-the-drop layer's place, name and visibility (the target's); where both have a stitch, the upper layer's wins. A piece in hand is put down on its own layer before any of these changes. Undoing a step that removed the active layer leaves the top layer active, so a chart is never without one.
+
 ## Chart-level changes made while editing
 
 | Change | Where described |

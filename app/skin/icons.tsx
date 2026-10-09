@@ -155,6 +155,36 @@ export const INTERFACE_ICONS = {
       <circle cx="12" cy="12" r="2.5" />
     </>
   ),
+  /** A hidden layer (G-130): the eye, struck through. */
+  "eye-off": outline(
+    "h-[15px] w-[15px]",
+    1.7,
+    <>
+      <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7Z" opacity="0.45" />
+      <path d="M4 4l16 16" />
+    </>
+  ),
+  /** The layers of a chart (G-130): sheets stacked, and a new one with a plus. */
+  "layer-add": outline(
+    "h-4 w-4",
+    1.6,
+    <>
+      <path d="M3 9l8-4 8 4-8 4z" />
+      <path d="M3 13l8 4 4-2" />
+      <path d="M19 14v6M16 17h6" />
+    </>
+  ),
+  "layer-up": outline("h-4 w-4", 1.7, <path d="M12 19V5M6 11l6-6 6 6" />),
+  "layer-down": outline("h-4 w-4", 1.7, <path d="M12 5v14M6 13l6 6 6-6" />),
+  /** Two sheets becoming one: the upper pressed onto the lower. */
+  "layer-merge-down": outline(
+    "h-4 w-4",
+    1.6,
+    <>
+      <path d="M3 15l9-4.5 9 4.5-9 4.5z" />
+      <path d="M12 3v6M9.5 6.5 12 9l2.5-2.5" />
+    </>
+  ),
   lock: outline(
     "h-[15px] w-[15px]",
     1.7,

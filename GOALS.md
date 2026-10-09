@@ -246,7 +246,7 @@ Outside both: G-111's comments follow G-112; G-097 comes after G-108, whose char
 - **Constraints:** buying stays hidden (G-128); the undo memory budget measured in D289 holds with layers (a structural change keeps the documents, whose unchanged layers are shared, never copied).
 
 **Milestones:**
-- [ ] M1 — The layered document, no UI change:
+- [x] M1 — The layered document, no UI change:
   - the layer-kind registry and the stitch kind;
   - pure operations: add, delete (one always left), show/hide, reorder, merge, rename;
   - flattening visible layers;
@@ -262,6 +262,8 @@ Outside both: G-111's comments follow G-112; G-097 comes after G-108, whose char
 - [ ] M4 — What leaves the editor: the thread list's counts and every export from visible top stitches; previews and saved charts; a release note for users. Browser tests on exports. Deploys to `cross-stitch.craftodejnice.cz` (existing target).
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-10-09 — M2 built: feature `edit.layers` (Edit group), the Layers tab (`layers-pane.tsx`, `use-layers.ts`), drop rule `lib/editor/layer-drop.ts` (D391), brief section in `04-editing.md` and `10-features.md`. Verified locally: tsc, eslint (6 old warnings), prettier, check-skin, check:brief, docs-lint, vitest 1874/1874; browser tests `tests/e2e/layers-tab.spec.ts` (7 cases, 2 `@alone`) run in CI only. Next: CI, then M3.
+- 2026-10-09 — M1 done (aba51ef, D390): layer-kind registry, stitch kind, layer operations, flatten and active-layer view, palette and crop across layers, format 8 with migration through the autosave, account saves and server readers, test-only second kind. Verified: vitest 1867 at commit (24 in `layers.spec.ts`); CI 37966659869 green (e2e 666 and 37, rust job); undo 0.7 MB for 50 edits, two-layer flatten 22 ms at 1500² (`scripts/measure-undo.ts`). Handover regenerated (G-130 paragraph added; G-094's "one layer" clause and the exports line corrected; nothing removed). Deferred to M3/M4: tool previews draw the active layer only; thread counts and status bar read the active layer; Export all's editable entry is written flat by the server (M4).
 - 2026-10-09 — Owner accepted the plan ("accept"), all four milestones and every proposed default, with no review stops.
 - 2026-10-09 — planned at the Owner's request ("Plan new goal. User should be able to add layers…"). Builds on G-094's document of layers (D289), which already keeps a chart as a list of stitch layers with one layer in use. Awaiting acceptance.
 ### G-108 · Charts saved to an account, a gallery, and who can see each (private by default) — DRAFT (part 2; part 1 signed off 2026-10-08)

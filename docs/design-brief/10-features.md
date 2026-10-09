@@ -21,6 +21,7 @@ The list is derived from what the editor has, so a new tool, export kind, genera
 | Group | Features | Core (never switched) |
 |---|---|---|
 | Workspaces | Photo (with Generate and choosing a photo), Edit, Export (with Save to file) | |
+| Edit | Layers (the list and all its changes) | |
 | Drawing tools | Brush, Fill, Line, Rectangle, Oval, Lasso fill, Picker (with Alt held), Text, Backstitch, BS edit | |
 | Selection and transformation | Select, Lasso, Crop, Move | |
 | Navigation | | Pan, Zoom |
@@ -39,6 +40,8 @@ Undo and Redo, opening a file, starting an empty grid, importing pixel art, the 
 ## What a switched-off feature does to what exists
 
 A chart keeps its data whatever the person's states: backstitch lines, text once placed, a texture or a brand its threads came from are shown and saved as they are. Only making more of the feature is withheld. A stored setting that names a feature the person cannot use is read as its default while the state lasts (a hidden stitch texture draws as Classic, a hidden brand generates in the full range, a locked dither pattern generates with no dithering) and is back the moment the feature is.
+
+A chart's layers are kept, shown and saved whatever the state of Layers; the tools work on the active layer. Locked, the Layers list is offered greyed with the note; hidden, it is not offered; either way no layer is added, deleted, hidden, renamed, moved or merged.
 
 The tool in hand is never a locked or hidden one: if it becomes one, the first usable tool the workspace offers is in hand instead.
 
