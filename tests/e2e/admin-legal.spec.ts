@@ -87,4 +87,7 @@ test("terms written, previewed, published twice and read at /terms, each version
   await expect(log.getByText(`Terms of service: version ${second} published`, { exact: true })).toHaveCount(1);
   await page.goto("/account");
   await expect(page.getByTestId("legal-links").getByRole("link", { name: "Terms of service" })).toHaveAttribute("href", "/terms");
+  // Registration links it too: read when asked, not frozen at the build, which saw no document.
+  await page.goto("/register");
+  await expect(page.getByTestId("legal-links").getByRole("link", { name: "Terms of service" })).toHaveAttribute("href", "/terms");
 });
