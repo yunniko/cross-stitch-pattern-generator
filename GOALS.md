@@ -195,10 +195,50 @@ Outside both: G-111's comments follow G-112; G-097 comes after G-108, whose char
 - [x] M3 — The launch checklist as a script (`npm run launch:check`): read-only checks against production of the webhook, the reconciliation service, live-mode keys, buying's feature state, the published documents and the test-clock record for the release; exercised in CI against the test server. Run live only at launch, with the Owner.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-10-09 — Legal finding (inference, not legal advice; sources in the Owner's private drafts): the app is a digital service, so the right of withdrawal is not lost when a subscription starts early. A consumer who withdraws pays a proportionate amount (Directive 2011/83 Art. 14(3), 16(a); CJEU C-641/19). A withdrawal button has been required since 19 June 2026 (Directive 2023/2673 Art. 11a). A link in the confirmation email is not a durable medium (CJEU C-49/11), which answers the D384 question. So M2's checkbox wording (item 5 above) is wrong and is corrected by G-129 (drafted). JulAI drafted the terms, the privacy policy and the withdrawal information, privately, because they hold the Owner's identity. Open with the Owner: a contact email, VAT status, retention, a Czech version and a lawyer's review.
 - 2026-10-09 — M1–M3 done and deployed together in v0.22.4 at the Owner's word ("deploy please"), buying still HIDDEN, no database dump; v0.22.3 failed to build on the server (`/register` prerendered the legal links before their migration), fixed in 893e9cc by reading them at request time. M1 (75a3b0b, D383) the documents; M2 (72df6c8, D384) consent before Checkout, CI e2e 666 and 32; M3 (528b157, f71f280, D385) `npm run launch:check` and `/api/billing/launch-status`. M3's CI caught the webhook answering an unsigned event 500, not 400: the fake adapter on `globalThis` threw another module copy's `BillingSignatureError`; both billing errors now carry a brand that `instanceof` reads (unit test loads a second copy). CI on f71f280: e2e 666 and 33; 1,799 unit. The Owner's: publishing the three documents at `/admin/legal`, whether the confirmation mail's link to the terms is enough as a durable medium (D384), and items (1)–(6); `launch:check` can pass only with live keys and a test-clock record (`docs/test-clock/`), so it runs at launch, with the Owner.
 - 2026-10-09 — JulAI's part planned as M1–M3 above, under the accepted plan (the entry below: it starts after G-127, the pages built with the missing text named as missing). The text itself is the Owner's: the admin writes it in the app, so no deploy waits on it. Personal data: M2 keeps a record of each buyer's consent (flagged; how long it is kept after an account is deleted is the Owner's, item 4).
 - 2026-10-08 — Owner accepted the plan ("you can go ahead with 109, 106 and 126 - 128"), to run after G-109 in the order G-106, G-126, G-127, G-128. Items (1) to (6) are the Owner's and wait on them. JulAI's part starts after G-127: the pages take the Owner's text, so they are built with the missing text named as missing, and the launch checklist as a script.
 - 2026-10-08 — drafted from G-106's constraints at the Owner's request.
+
+### G-129 · Withdrawal and refunds: a consumer's withdrawal button, proportionate refunds, and the admin's refund buttons — DRAFT (2026-10-09)
+- **What:**
+  - **The consumer's withdrawal.** For the 14 days after a purchase, the account page shows a "Withdraw from contract" button, followed by a confirmation step. Confirming does three things:
+    - ends the subscription at once;
+    - refunds the payment minus the proportionate amount for the days already used;
+    - records the withdrawal.
+    After the 14 days the button is gone and ordinary cancelling (at period end) remains.
+  - **The admin's refund buttons**, extending G-127's full refund. On any payment the admin can give back the whole remainder, the proportionate unused part, or an amount they enter. Each is idempotent per request, logged as a feature change, and confirmed by the provider's own refund event through the webhook.
+  - **The consent wording.** The checkbox before Checkout changes from "I lose my right of withdrawal" to "I ask for the subscription to start now, and I pay for the days used if I withdraw".
+  - **The confirmation email.** It carries the full terms and withdrawal information, not only a link. A withdrawal sends its own acknowledgment.
+- **Why:** this is the legal finding of 2026-10-09 (G-128's log).
+  - A subscription to an online app is a digital service, so starting it early does not end the right of withdrawal; the consumer owes a proportionate amount instead (Directive 2011/83 Art. 14(3) and 16(a); CJEU C-641/19 *PE Digital*).
+  - Since 19 June 2026 a trader concluding contracts online must offer a withdrawal function, with a confirmation step and an acknowledgment on a durable medium (Directive 2023/2673, Art. 11a; verified from secondary sources only).
+  - A link to a website is not a durable medium (CJEU C-49/11).
+  - Inferences to be confirmed by the Owner's lawyer, not legal advice.
+- **Acceptance criteria:**
+  - On the fake gateway, a subscriber who withdraws on day N of a period:
+    - loses paid access at once;
+    - is refunded exactly the computed proportionate amount;
+    - sees the refund in their history;
+    - has the withdrawal recorded once, even on a double click or a retried request.
+  - The button is absent on day 15, for a person who never paid, and for a renewal payment. Whether a renewal reopens the right is settled in planning, with the Owner's lawyer if needed.
+  - The admin's three refund kinds work on the fake; a refund larger than what is left is refused.
+  - The consent wording and the emails use the Owner's published text (`/admin/legal`).
+  - Unit and browser tests on the fake. The Stripe path is checked with test keys once G-106 M4 has them.
+- **Constraints:**
+  - Buying stays hidden, and no live key is set before G-128 is signed off (G-106/G-128).
+  - The legal wording is the Owner's, and the refund rule's details (days or seconds; rounding in the consumer's favour) are confirmed by them, because they are consumer-law terms.
+  - Emails go out only once sending is set up (G-113). Until then the withdrawal is acknowledged on screen, and the email part is built and tested on the test mailer.
+  - Refunding real money is the Owner's to approve (OPERATIONS §4); in production only the admin presses a refund button.
+
+**Milestones** (proposed, for the Owner's acceptance):
+- [ ] M1 — Proportionate refunds: a pure module computing the refund for a payment and a moment; the gateway contract's refund taking an amount (fake and Stripe adapter); the admin's three refund buttons. Unit and admin browser tests on the fake; a decision file on the refund rule.
+- [ ] M2 — The withdrawal button: an eligibility rule (within 14 days of the first payment), the button and its confirmation step on the account page, ending the subscription at once with the proportionate refund, a withdrawal record, the on-screen acknowledgment. Unit and browser tests, including double-submit and day 15.
+- [ ] M3 — Wording and durable medium: the consent checkbox changed to the early-start request; the purchase confirmation and the withdrawal acknowledgment carrying the full published texts. Tests on the test mailer. Deploys to `cross-stitch.craftodejnice.cz` (existing target), buying still hidden.
+
+**Progress log** (newest first; The Company appends at every stopping point):
+- 2026-10-09 — drafted at the Owner's request ("Draft the goal for refund buttons aswell, or include to the withdrawal goal"): withdrawal and refund buttons in one goal.
 
 ### G-108 · Charts saved to an account, a gallery, and who can see each (private by default) — DRAFT (part 2; part 1 signed off 2026-10-08)
 - **Part 1 (saving to the account, the account's Charts, previews) — DONE, Owner sign-off 2026-10-08;** archived in `docs/goals-archive/G-101-to-G-110.md`. Deployed in v0.15.0, v0.16.0 and v0.17.0.
