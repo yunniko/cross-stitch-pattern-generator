@@ -271,6 +271,15 @@ model BillingEvent {
   receivedAt DateTime @default(now())
 }
 
+/// When a scheduled billing pass last ran and whether it read everything (G-128 M3, D385): the launch check asks it.
+/// One row per pass, overwritten each run.
+model BillingRun {
+  /// "reconcile".
+  kind String   @id
+  at   DateTime
+  ok   Boolean
+}
+
 /// The history of a subscription (G-106; Architecture fit (4)): one row per change to its snapshot, append-only, as
 /// `FeatureChange` is for features. G-127's admin page shows it.
 model SubscriptionEvent {

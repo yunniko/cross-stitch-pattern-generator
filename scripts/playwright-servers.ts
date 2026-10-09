@@ -10,6 +10,9 @@ import path from "node:path";
  * therefore carry this same environment (HANDOVER, Rules in force).
  */
 
+/** The reconciliation's token on the suite's server, so a spec can read the launch status (G-128 M3). Not a secret. */
+export const E2E_RECONCILE_TOKEN = "e2e-suite-reconcile-token-not-a-secret-000";
+
 export interface ServerPairOptions {
   /** The app's port. */
   port: number;
@@ -92,6 +95,7 @@ export function appWithProcessor({
         // Billing through the fake provider (G-106 M3, D373): its Checkout and Portal are this server's own pages, and
         // its events reach this server's webhook. It runs only on a local address (`lib/billing/settings.ts`).
         BILLING_GATEWAY: "fake",
+        BILLING_RECONCILE_TOKEN: E2E_RECONCILE_TOKEN,
       },
       url: `http://localhost:${port}`,
       reuseExistingServer,

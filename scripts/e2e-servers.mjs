@@ -47,6 +47,7 @@ const env = {
   FEATURES_REFRESH_SECONDS: "5",
   // Billing through the fake provider (G-106 M3, D373), as scripts/playwright-servers.ts sets it.
   BILLING_GATEWAY: "fake",
+  BILLING_RECONCILE_TOKEN: "e2e-suite-reconcile-token-not-a-secret-000",
 };
 
 function run(command) {

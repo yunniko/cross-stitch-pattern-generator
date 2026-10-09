@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { reconcileRefusal } from "@/lib/billing/reconcile-access";
 import { billingGateway } from "@/lib/billing/gateway";
+import { recordReconcileRun } from "@/lib/billing/launch-status";
 import { deliverQueuedNotices } from "@/lib/billing/notice-delivery";
 import { prismaBillingStore, pruneUnlinkedConsents } from "@/lib/billing/prisma-store";
 import { reconcile } from "@/lib/billing/sync";
@@ -22,6 +23,8 @@ export async function POST(req: Request): Promise<Response> {
   const now = new Date();
   const report = await reconcile(gateway, prismaBillingStore, now, await billingPolicy());
   if (report.failed.length > 0) console.error("[billing] reconciliation could not read:", report.failed);
+  // The launch check reads when this last ran (D385).
+  await recordReconcileRun(now, report.failed.length === 0);
   // Also sends what an earlier delivery could not: the queue is retried hourly, as this pass runs (D377).
   const notices = await deliverQueuedNotices(now);
   // A consent whose Checkout was never completed is personal data with no purpose left (D384).

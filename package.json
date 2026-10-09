@@ -16,6 +16,7 @@
     "check:skin": "node scripts/check-skin.mjs",
     "check:fast": "tsc --noEmit && vitest run --changed && eslint --cache && prettier --check --cache --log-level warn . && node scripts/check-skin.mjs && npm run check:brief --silent && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/check-release-notes.mjs",
     "release": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/release.mjs",
+    "launch:check": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/launch-check.mjs",
     "check:brief": "node scripts/design-brief-coverage.mjs && node scripts/design-brief-words.mjs",
     "check:release-notes": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/check-release-notes.mjs",
     "test": "npm run test:unit && npm run test:e2e",

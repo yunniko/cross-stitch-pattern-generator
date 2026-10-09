@@ -421,3 +421,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D382 — A tier is deleted only when no one has had it and none of its prices is offered — active
 - D383 — The legal documents are versions an admin publishes in the app, never edited once published — active
 - D384 — A buyer agrees to the terms and acknowledges losing the right of withdrawal before Checkout, and is sent a confirmation — active
+- D385 — The launch check is a read-only script over an internal status route, the public site and a test-clock file — active
