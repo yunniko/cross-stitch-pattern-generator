@@ -528,3 +528,4 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | D387 | out of scope (billing) | |
 | D388 | out of scope (billing) | |
 | D389 | out of scope (billing) | |
+| G-130 | 04-editing 08-exports-and-files 10-features | the Layers tab; written in G-130 M2 |

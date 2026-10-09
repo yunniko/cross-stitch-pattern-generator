@@ -201,6 +201,68 @@ Outside both: G-111's comments follow G-112; G-097 comes after G-108, whose char
 - 2026-10-08 — Owner accepted the plan ("you can go ahead with 109, 106 and 126 - 128"), to run after G-109 in the order G-106, G-126, G-127, G-128. Items (1) to (6) are the Owner's and wait on them. JulAI's part starts after G-127: the pages take the Owner's text, so they are built with the missing text named as missing, and the launch checklist as a script.
 - 2026-10-08 — drafted from G-106's constraints at the Owner's request.
 
+### G-130 · Layers: stitches on separate layers, shown, hidden, ordered and merged in a Layers tab — DRAFT (planned 2026-10-09, awaiting the Owner's acceptance)
+- **What:** a chart holds one or more stitch layers. A new **Layers** tab in Edit's right panel lists them top first:
+  - **Adding:** a new layer goes above the active one and becomes active.
+  - **Visibility:** an eye icon beside each layer shows or hides it.
+  - **Deleting:** a layer can be deleted as long as at least one remains.
+  - **Active layer:** exactly one is active, and clicking a layer makes it active.
+  - **Dragging:** dropping a layer between others moves it; each other row shows a target rectangle while dragging, and dropping on it merges the two layers.
+  - **Tools:** every tool works on the active layer.
+  - **Colour picker:** takes the top visible stitch.
+  - **Backstitch:** stays above every layer, belonging to none.
+  - **Exports:** count only the top stitch of each cell among visible layers.
+  - **Feature:** layers are a feature in the feature list, switched on and off there.
+- **Why:** to keep parts of a design apart while working (a background under a motif, lettering over both), and to try changes without losing what was there. The layer kinds are meant to grow: bitmap or vector layers with different abilities may follow, so a layer's kind is an extension point, not a special case.
+- **Acceptance criteria:**
+  1. **Undo:** adding, deleting, showing or hiding, reordering, merging and renaming a layer are each one undo step. Making a layer active is not, and undo never leaves no layer active.
+  2. **Deleting:** the last layer cannot be deleted; its delete control is disabled and says why.
+  3. **Dragging:** a drop on a row's target rectangle merges the two layers; any other drop between rows reorders them. Keyboard and button alternatives exist for both (Move up / Move down / Merge down), so the tab is usable without a pointer.
+  4. **Tools on the active layer:**
+     - brush, eraser, fill, shapes, text, lasso fill, selection (select, move, cut, copy, paste, delete), stamps and mirroring read and write the active layer only;
+     - fill's boundaries are the active layer's own stitches;
+     - erasing reveals the layer below;
+     - the colour picker takes the colour of the topmost visible layer's stitch in that cell;
+     - backstitch is drawn over all layers, unaffected by their visibility or order.
+  5. **What is counted:**
+     - the screen, the thread list's counts, and every export (PDF, Pattern Keeper PDF, PNG, OXS) show the top stitch of each cell among visible layers;
+     - hidden layers count nowhere;
+     - the editable save file keeps every layer, its order, names and visibility.
+  6. **Older charts:** charts saved before layers open as one layer; the file format version is raised with a migration (D290's rule); saved charts in the account, the autosave and the server's readers all carry layers.
+  7. **Extensibility:** a layer kind is declared once in a registry: what it renders, whether and how it contributes stitches, how it merges, how it saves and loads, how chart-wide operations (crop, resize, rotate) transform it, and which tools work on it. A test proves a second, test-only kind can be added without touching the editor's core. Tools declare the kinds they work on, and a tool is unavailable on a layer kind it does not support.
+  8. **Feature:** a new feature `edit.layers` in the feature list, under Edit:
+     - **On:** the Layers tab.
+     - **Locked:** the tab is shown greyed.
+     - **Hidden:** no tab.
+     - **Not on (locked or hidden):** a chart's layers are kept and shown as they are, tools work on its active layer, and nothing can be added, deleted, reordered, merged or shown/hidden.
+- **Defaults proposed (the Owner may change any of them when accepting):**
+  - **Merging:** the result takes the target's place, name and visibility; where both layers have a stitch, the upper one's wins.
+  - **Hidden active layer:** drawing on a hidden active layer is refused, with a note saying the layer is hidden.
+  - **Palette:** the palette is shared by all layers; removing, merging or replacing a thread applies to every layer; a thread used only on a hidden layer is still in use.
+  - **Chart-wide operations:** crop, resize and rotate apply to all layers.
+  - **Generating:** generating from a photo makes a fresh one-layer chart.
+  - **Names and editing:** new layers are named "Layer 2", "Layer 3"…, renamed by double-click; a floating selection is dropped onto its layer before the active layer changes.
+  - **The tab:** the Layers tab is shown in Edit only.
+- **Constraints:** buying stays hidden (G-128); the undo memory budget measured in D289 holds with layers (a structural change keeps the documents, whose unchanged layers are shared, never copied).
+
+**Milestones:**
+- [ ] M1 — The layered document, no UI change:
+  - the layer-kind registry and the stitch kind;
+  - pure operations: add, delete (one always left), show/hide, reorder, merge, rename;
+  - flattening visible layers;
+  - the active-layer view tools edit and its write-back;
+  - palette operations across all layers;
+  - crop, resize and rotate across layers;
+  - undo for structural changes;
+  - file format v8 with its migration, through the autosave, account saves, server readers and the editable export;
+  - a test-only second kind proving the extension point;
+  - unit tests and a decision file on the architecture.
+- [ ] M2 — The Layers tab: the `edit.layers` feature; the tab with add, visibility eye, delete, active highlight, rename; drag to reorder and drag onto the target rectangle to merge; keyboard and button alternatives; undo points as specified. Unit and browser tests.
+- [ ] M3 — Tools on the active layer: every tool audited and moved onto the active layer (brush, eraser, fill, shapes, text, lasso fill, selection and its floating piece, stamps, mirrors, symmetry); the colour picker from the top visible stitch; the refusal on a hidden layer; backstitch above all. A browser test per tool family on a two-layer chart.
+- [ ] M4 — What leaves the editor: the thread list's counts and every export from visible top stitches; previews and saved charts; a release note for users. Browser tests on exports. Deploys to `cross-stitch.craftodejnice.cz` (existing target).
+
+**Progress log** (newest first; The Company appends at every stopping point):
+- 2026-10-09 — planned at the Owner's request ("Plan new goal. User should be able to add layers…"). Builds on G-094's document of layers (D289), which already keeps a chart as a list of stitch layers with one layer in use. Awaiting acceptance.
 ### G-108 · Charts saved to an account, a gallery, and who can see each (private by default) — DRAFT (part 2; part 1 signed off 2026-10-08)
 - **Part 1 (saving to the account, the account's Charts, previews) — DONE, Owner sign-off 2026-10-08;** archived in `docs/goals-archive/G-101-to-G-110.md`. Deployed in v0.15.0, v0.16.0 and v0.17.0.
 - **Part 2 (later, not in this plan):** unlisted and public visibility, the gallery and its moderation (G-111).
