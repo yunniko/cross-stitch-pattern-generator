@@ -201,7 +201,7 @@ Outside both: G-111's comments follow G-112; G-097 comes after G-108, whose char
 - 2026-10-08 — Owner accepted the plan ("you can go ahead with 109, 106 and 126 - 128"), to run after G-109 in the order G-106, G-126, G-127, G-128. Items (1) to (6) are the Owner's and wait on them. JulAI's part starts after G-127: the pages take the Owner's text, so they are built with the missing text named as missing, and the launch checklist as a script.
 - 2026-10-08 — drafted from G-106's constraints at the Owner's request.
 
-### G-130 · Layers: stitches on separate layers, shown, hidden, ordered and merged in a Layers tab — DRAFT (planned 2026-10-09, awaiting the Owner's acceptance)
+### G-130 · Layers: stitches on separate layers, shown, hidden, ordered and merged in a Layers tab — ACTIVE (accepted 2026-10-09)
 - **What:** a chart holds one or more stitch layers. A new **Layers** tab in Edit's right panel lists them top first:
   - **Adding:** a new layer goes above the active one and becomes active.
   - **Visibility:** an eye icon beside each layer shows or hides it.
@@ -262,6 +262,7 @@ Outside both: G-111's comments follow G-112; G-097 comes after G-108, whose char
 - [ ] M4 — What leaves the editor: the thread list's counts and every export from visible top stitches; previews and saved charts; a release note for users. Browser tests on exports. Deploys to `cross-stitch.craftodejnice.cz` (existing target).
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-10-09 — Owner accepted the plan ("accept"), all four milestones and every proposed default, with no review stops.
 - 2026-10-09 — planned at the Owner's request ("Plan new goal. User should be able to add layers…"). Builds on G-094's document of layers (D289), which already keeps a chart as a list of stitch layers with one layer in use. Awaiting acceptance.
 ### G-108 · Charts saved to an account, a gallery, and who can see each (private by default) — DRAFT (part 2; part 1 signed off 2026-10-08)
 - **Part 1 (saving to the account, the account's Charts, previews) — DONE, Owner sign-off 2026-10-08;** archived in `docs/goals-archive/G-101-to-G-110.md`. Deployed in v0.15.0, v0.16.0 and v0.17.0.
