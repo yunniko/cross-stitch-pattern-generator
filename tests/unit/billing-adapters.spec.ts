@@ -158,18 +158,20 @@ describe("Stripe's subscription read into the contract", () => {
       status: "active",
       cancel_at_period_end: false,
       ended_at: null,
+      start_date: seconds(T0),
       metadata: { userId: "user_1", consentId: "consent_1" },
       items: { data: [{ current_period_end: seconds(periodEnd), price: { id: "price_1" } }] },
       latest_invoice: { status: "paid", attempt_count: 1, created: seconds(T0), status_transitions: { finalized_at: seconds(T0) } },
       ...overrides,
     }) as unknown as StripeSubscription;
 
-  it("takes the period's end from the item, not the subscription", () => {
+  it("takes the period's end from the item, not the subscription, and the start from the subscription's start date", () => {
     expect(snapshotFromStripe(stripeSubscription())).toEqual({
       id: "sub_1",
       customerId: "cus_1",
       status: "active",
       priceId: "price_1",
+      startedAt: T0,
       currentPeriodEnd: periodEnd,
       cancelAtPeriodEnd: false,
       endedAt: null,

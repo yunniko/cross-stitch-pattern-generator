@@ -5,6 +5,7 @@ import { fakeBillingGateway } from "@/lib/billing/gateway";
 import { PillButton } from "@/app/components/ui";
 import {
   backdateFakeFailureAction,
+  backdateFakeStartAction,
   cancelFakeSubscriptionAction,
   endFakePeriodAction,
   failFakeRenewalAction,
@@ -54,6 +55,16 @@ export default async function FakePortalPage({ searchParams }: { searchParams: P
                 </PillButton>
               </form>
             )}
+            {subscription.status !== "canceled" &&
+              [3, 15].map((days) => (
+                <form key={days} action={backdateFakeStartAction}>
+                  <input type="hidden" name="subscription" value={subscription.id} />
+                  <input type="hidden" name="days" value={days} />
+                  <PillButton type="submit" variant="outline" size="md">
+                    {`Begun ${days} days ago`}
+                  </PillButton>
+                </form>
+              ))}
             <form action={endFakePeriodAction}>
               <input type="hidden" name="subscription" value={subscription.id} />
               <PillButton type="submit" variant="outline" size="md">

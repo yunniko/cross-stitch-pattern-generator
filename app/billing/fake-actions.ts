@@ -99,3 +99,16 @@ export async function backdateFakeFailureAction(formData: FormData): Promise<voi
   await deliverQueuedNotices(now);
   redirect("/account/plan");
 }
+
+/**
+ * The subscription moved back the days posted (3 or 15), as if it had begun then (G-129 M2): a withdrawal's refund and
+ * its 14 days are tried without waiting. No event comes of it, so the app reconciles as its hourly pass would.
+ */
+export async function backdateFakeStartAction(formData: FormData): Promise<void> {
+  const { gateway, id } = await ownSubscription(formData);
+  const days = Number(formData.get("days"));
+  if (days !== 3 && days !== 15) notFound();
+  gateway.backdateStart(id, days);
+  await reconcile(gateway, prismaBillingStore, new Date(), await billingPolicy());
+  redirect("/account/plan");
+}

@@ -423,3 +423,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D384 — A buyer agrees to the terms and acknowledges losing the right of withdrawal before Checkout, and is sent a confirmation — active
 - D385 — The launch check is a read-only script over an internal status route, the public site and a test-clock file — active
 - D386 — A refund is all that is left, the unused part of its period by exact time rounded up, or an amount — active
+- D387 — A withdrawal runs 14 Prague days from the subscription's start, is recorded first, and refunds each payment's unused part once — active

@@ -42,6 +42,7 @@ model User {
   sessions     Session[]
   subscription Subscription?
   consents     PurchaseConsent[]
+  withdrawals  Withdrawal[]
   features     UserFeature[]
   limits       UserLimit[]
   charts       SavedChart[]
@@ -212,6 +213,8 @@ model Subscription {
   status               String
   stripeCustomerId     String?
   stripeSubscriptionId String?   @unique
+  /// When the provider's subscription began: the contract's conclusion, from which the right of withdrawal runs (G-129).
+  startedAt            DateTime?
   /// From the subscription's item: Stripe no longer keeps the period on the subscription itself.
   currentPeriodEnd     DateTime?
   /// The person cancelled in the Portal; the subscription ends at `currentPeriodEnd`.
@@ -290,7 +293,7 @@ model SubscriptionEvent {
   /// The values before and after, as short text ("active", "2026-11-08").
   before         String?
   after          String?
-  /// "webhook", "reconcile" or "admin" (`HistorySource` in `lib/billing/sync.ts`).
+  /// "webhook", "reconcile", "admin" or "person" (`HistorySource` in `lib/billing/sync.ts`).
   source         String
   /// The Stripe event that brought the change, when one did.
   eventId        String?
@@ -502,4 +505,24 @@ model PurchaseConsent {
   @@index([userId, createdAt])
   @@index([subscriptionId])
   @@index([createdAt])
+}
+
+/// A consumer's withdrawal from a subscription within 14 days of its start (G-129 M2, D387): recorded before anything is
+/// asked of the provider, so a double submit or a retry finds it and finishes the same withdrawal. The refunds are decided
+/// once, when it is recorded, and asked under keys made from its id, so each is given once. Personal data: deleted with
+/// the account.
+model Withdrawal {
+  id                   String    @id @default(cuid())
+  userId               String
+  /// One withdrawal per provider subscription.
+  stripeSubscriptionId String    @unique
+  /// The refunds decided when it was recorded: [{ paymentId, amount, currency }], amounts in the minor unit.
+  refunds              Json
+  requestedAt          DateTime  @default(now())
+  /// Set once the subscription is ended and every refund asked; null while a step is left to do.
+  completedAt          DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, requestedAt])
 }

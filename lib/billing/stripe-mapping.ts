@@ -44,6 +44,7 @@ export function snapshotFromStripe(subscription: Stripe.Subscription, actionNeed
     customerId: typeof subscription.customer === "string" ? subscription.customer : subscription.customer.id,
     status: subscription.status,
     priceId: items[0]?.price.id ?? null,
+    startedAt: toDate(subscription.start_date),
     currentPeriodEnd: ends.length > 0 ? toDate(Math.min(...ends)) : null,
     cancelAtPeriodEnd: subscription.cancel_at_period_end,
     endedAt: toDate(subscription.ended_at),

@@ -57,6 +57,8 @@ export function historyText(line: HistoryLine, priceName: (id: string) => string
       return line.before ? `Given ${shown(line.after)}, in place of ${line.before}` : `Given ${shown(line.after)}`;
     case "grant-ended":
       return `Given by hand ended: ${shown(line.before)}, ${shown(line.after)}`;
+    case "withdrawal":
+      return `Withdrawn from by the person: ${shown(line.after)}`;
     default:
       return `${line.kind}: ${shown(line.before)} → ${shown(line.after)}`;
   }

@@ -323,6 +323,7 @@ export class FakeBilling implements BillingGateway {
       customerId: customerId ?? input.customerId ?? this.nextId("cus"),
       status: "active",
       priceId: price.id,
+      startedAt: this.now(),
       currentPeriodEnd: new Date(this.now().getTime() + PERIOD_MS[price.interval]),
       cancelAtPeriodEnd: false,
       endedAt: null,
@@ -451,6 +452,24 @@ export class FakeBilling implements BillingGateway {
     const subscription = this.get(id);
     if (!subscription.firstFailedAt) throw new Error(`the fake provider's subscription ${id} has no failing invoice`);
     subscription.firstFailedAt = new Date(subscription.firstFailedAt.getTime() - days * DAY);
+    return this.snapshot(subscription);
+  }
+
+  /**
+   * The subscription moved back `days`, as if it had begun that long ago (G-129): its start, its period and its charges
+   * all move, so a test reaches day 3 or day 15 of a withdrawal's period without waiting. No event comes of it.
+   */
+  backdateStart(id: string, days: number): SubscriptionSnapshot {
+    const subscription = this.get(id);
+    const back = (date: Date) => new Date(date.getTime() - days * DAY);
+    if (subscription.startedAt) subscription.startedAt = back(subscription.startedAt);
+    if (subscription.currentPeriodEnd) subscription.currentPeriodEnd = back(subscription.currentPeriodEnd);
+    subscription.invoiceFrom = back(subscription.invoiceFrom);
+    for (const charge of this.charges.values()) {
+      if (charge.subscriptionId !== id) continue;
+      charge.at = back(charge.at);
+      charge.period = { start: back(charge.period.start), end: back(charge.period.end) };
+    }
     return this.snapshot(subscription);
   }
 

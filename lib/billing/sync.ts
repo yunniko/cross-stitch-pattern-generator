@@ -24,6 +24,8 @@ export interface StoredSubscription {
   status: string;
   stripeCustomerId: string | null;
   stripeSubscriptionId: string | null;
+  /** When the provider's subscription began (D387); null for a grant, and for a row synced before it was kept. */
+  startedAt: Date | null;
   currentPeriodEnd: Date | null;
   cancelAtPeriodEnd: boolean;
   endedAt: Date | null;
@@ -50,8 +52,11 @@ export type HistoryKind =
   /** The admin asked the provider for a refund (G-127 M2); the provider's own "refund" line follows by the webhook. */
   | "refund-asked"
   | "granted"
-  | "grant-ended";
-export type HistorySource = "webhook" | "reconcile" | "admin";
+  | "grant-ended"
+  /** The person withdrew from the contract within its 14 days (G-129 M2, D387); `after` says what was given back. */
+  | "withdrawal";
+/** Who wrote a line: the provider's event, the hourly pass, an admin, or the person on their Plan page. */
+export type HistorySource = "webhook" | "reconcile" | "admin" | "person";
 
 /** One line of a subscription's history (`SubscriptionEvent`). */
 export interface HistoryEntry {
@@ -148,6 +153,7 @@ function fieldsOf(snapshot: SubscriptionSnapshot, userId: string, price: { id: s
     status: snapshot.status,
     stripeCustomerId: snapshot.customerId,
     stripeSubscriptionId: snapshot.id,
+    startedAt: snapshot.startedAt,
     currentPeriodEnd: snapshot.currentPeriodEnd,
     cancelAtPeriodEnd: snapshot.cancelAtPeriodEnd,
     endedAt: snapshot.endedAt,

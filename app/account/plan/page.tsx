@@ -3,7 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { FREE_PLAN, planName } from "@/lib/account/plan";
 import { ENTITLEMENT_SELECT, isGrant } from "@/lib/billing/entitlement";
-import { currentBillingSettings } from "@/lib/billing/gateway";
+import { billingGateway, currentBillingSettings } from "@/lib/billing/gateway";
 import { formatPrice } from "@/lib/billing/notices";
 import {
   BUYING_FEATURE,
@@ -15,12 +15,26 @@ import {
   type PriceRow,
 } from "@/lib/billing/purchase";
 import { CONSENT_REFUSED } from "@/lib/billing/consent";
+import {
+  deadlineLine,
+  readRefunds,
+  refundTotal,
+  withdrawalAcknowledgment,
+  withdrawalOpenUntil,
+  withdrawalRefunds,
+} from "@/lib/billing/withdrawal";
 import { featureUsable } from "@/lib/features/features";
 import { versionLine } from "@/lib/legal/documents";
 import { currentLegalVersions } from "@/lib/legal/server";
 import { featureStatesFor } from "@/lib/features/server";
 import { billingPolicy } from "@/lib/settings/server";
-import { ChoosePriceButton, ManageBillingButton, PlanConsent } from "@/app/components/account/billing-buttons";
+import {
+  ChoosePriceButton,
+  FinishWithdrawalButton,
+  ManageBillingButton,
+  PlanConsent,
+  WithdrawButton,
+} from "@/app/components/account/billing-buttons";
 import { ContentProse } from "@/app/components/content-prose";
 import { PageHead, SectionTitle } from "@/app/components/panel/panel-parts";
 
@@ -28,7 +42,8 @@ import { PageHead, SectionTitle } from "@/app/components/panel/panel-parts";
  * Plan (G-107 M2, G-106 M3): the plan the entitlement rule gives this person now, where their subscription stands, the
  * plans on sale with their current prices, and the way to the provider's Portal. Plans are offered only while billing
  * is on and the buying feature is usable for this person; it starts hidden in production (D372). A price is chosen only
- * once the terms are agreed to and the withdrawal acknowledged (G-128 M2, D384).
+ * once the terms are agreed to and the withdrawal acknowledged (G-128 M2, D384). For the 14 days after a purchase the
+ * person can withdraw from it here, and a withdrawal made is acknowledged here (G-129 M2, D387).
  */
 
 const RETURN_NOTICES: Record<string, string> = {
@@ -53,6 +68,8 @@ export default async function AccountPlanPage({ searchParams }: { searchParams: 
             payUrl: true,
             actionNeeded: true,
             stripeCustomerId: true,
+            stripeSubscriptionId: true,
+            startedAt: true,
             tierId: true,
             tier: { select: { name: true } },
           },
@@ -81,6 +98,7 @@ export default async function AccountPlanPage({ searchParams }: { searchParams: 
   const offered = billingOn && featureUsable(states, BUYING_FEATURE) ? offeredTiers(prices.map(toPriceRow)) : [];
   const live = hasPlanInPlace(stored, now);
   const notice = checkout ? RETURN_NOTICES[checkout] : undefined;
+  const withdrawal = await withdrawalShown(stored, billingOn, now);
   // A plan is chosen only with the terms, privacy policy and withdrawal acknowledgment published, and agreed to (D384).
   const documentsReady = Boolean(documents.terms && documents.privacy && documents.withdrawal);
   const canChoose = offered.length > 0 && !live && documentsReady;
@@ -187,6 +205,30 @@ export default async function AccountPlanPage({ searchParams }: { searchParams: 
       ) : (
         offers
       )}
+      {withdrawal && (
+        <section className="flex flex-col gap-3" aria-labelledby="plan-withdrawal">
+          <SectionTitle id="plan-withdrawal">Withdrawal</SectionTitle>
+          {withdrawal.kind === "recorded" ? (
+            <div
+              role="status"
+              className="flex flex-col gap-2 rounded-md border border-line p-3 text-[13px] text-ink"
+              data-testid="plan-withdrawal-ack"
+            >
+              {withdrawal.lines.map((line) => (
+                <p key={line} className="m-0">
+                  {line}
+                </p>
+              ))}
+              {!withdrawal.completed && <FinishWithdrawalButton />}
+            </div>
+          ) : (
+            <div className="flex flex-col items-start gap-2 rounded-md border border-line p-3" data-testid="plan-withdrawal-open">
+              <p className="m-0 text-[13px] text-muted">{withdrawal.line}</p>
+              <WithdrawButton estimate={withdrawal.estimate} />
+            </div>
+          )}
+        </section>
+      )}
       <section className="flex flex-col gap-3" aria-labelledby="plan-billing">
         <SectionTitle id="plan-billing">Billing</SectionTitle>
         {billingOn && stored?.stripeCustomerId ? (
@@ -220,4 +262,49 @@ function toPriceRow(price: {
     amount: price.amount,
     currency: price.currency,
   };
+}
+
+type WithdrawalShown =
+  { kind: "recorded"; lines: string[]; completed: boolean } | { kind: "open"; line: string; estimate: string | null } | null;
+
+/**
+ * The Withdrawal section: the acknowledgment of a withdrawal from the subscription the person holds, or, within its 14
+ * days, the button with what it would give back now. The estimate asks the provider; when it cannot answer, the button
+ * stays and says it in words.
+ */
+async function withdrawalShown(
+  stored: {
+    kind: string;
+    status: string;
+    endedAt: Date | null;
+    startedAt: Date | null;
+    stripeSubscriptionId: string | null;
+    stripeCustomerId: string | null;
+  } | null,
+  billingOn: boolean,
+  now: Date
+): Promise<WithdrawalShown> {
+  if (!stored?.stripeSubscriptionId) return null;
+  const recorded = await prisma.withdrawal.findUnique({
+    where: { stripeSubscriptionId: stored.stripeSubscriptionId },
+    select: { requestedAt: true, refunds: true, completedAt: true },
+  });
+  if (recorded) {
+    const refunds = readRefunds(recorded.refunds);
+    return {
+      kind: "recorded",
+      lines: withdrawalAcknowledgment({ requestedAt: recorded.requestedAt, refunds, completedAt: recorded.completedAt }),
+      completed: recorded.completedAt !== null,
+    };
+  }
+  const deadline = withdrawalOpenUntil(stored, now);
+  if (!deadline || !billingOn || !stored.stripeCustomerId || !stored.startedAt) return null;
+  let estimate: string | null = null;
+  try {
+    const gateway = await billingGateway();
+    if (gateway) estimate = refundTotal(withdrawalRefunds(await gateway.listPayments(stored.stripeCustomerId), stored.startedAt, now));
+  } catch {
+    estimate = null;
+  }
+  return { kind: "open", line: deadlineLine(deadline), estimate: estimate === "nothing" ? null : estimate };
 }

@@ -154,7 +154,16 @@ describe("delivering the queue", () => {
     await store.locked("k", async (tx) => {
       const id = await tx.save(
         null,
-        { userId: "user_1", tierId: "t", priceId: "p", stripeCustomerId: "c", stripeSubscriptionId: "s", ...FAILING, kind: "stripe" },
+        {
+          userId: "user_1",
+          tierId: "t",
+          priceId: "p",
+          stripeCustomerId: "c",
+          stripeSubscriptionId: "s",
+          startedAt: null,
+          ...FAILING,
+          kind: "stripe",
+        },
         [],
         { source: "webhook", eventId: null, at: now }
       );

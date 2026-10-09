@@ -20,6 +20,11 @@ export interface SubscriptionSnapshot {
   status: string;
   /** The provider's id of the price subscribed to (the first item's). */
   priceId: string | null;
+  /**
+   * When the subscription began: the contract's conclusion, from which a consumer's right of withdrawal runs (G-129,
+   * D387). A renewal does not move it; a new purchase is a new subscription with its own.
+   */
+  startedAt: Date | null;
   /** The end of the period paid for, read from the subscription's item. */
   currentPeriodEnd: Date | null;
   cancelAtPeriodEnd: boolean;

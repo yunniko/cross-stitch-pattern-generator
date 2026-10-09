@@ -3,6 +3,7 @@
 import { createContext, useActionState, useContext, useId, useState, type ReactNode } from "react";
 import { useFormStatus } from "react-dom";
 import { openPortalAction, startCheckoutAction, type BillingActionState } from "@/lib/billing/actions";
+import { withdrawAction } from "@/lib/billing/withdrawal-actions";
 import { PillButton } from "@/app/components/ui";
 
 /**
@@ -17,16 +18,18 @@ function Submit({
   variant,
   label,
   disabled = false,
+  pendingText = "Opening…",
 }: {
   children: ReactNode;
   variant: "primary" | "outline";
   label?: string;
   disabled?: boolean;
+  pendingText?: string;
 }) {
   const { pending } = useFormStatus();
   return (
     <PillButton type="submit" variant={variant} size="md" disabled={pending || disabled} aria-label={label}>
-      {pending ? "Opening…" : children}
+      {pending ? pendingText : children}
     </PillButton>
   );
 }
@@ -146,6 +149,53 @@ export function ManageBillingButton() {
   return (
     <form action={action} className="flex flex-col items-start gap-1.5">
       <Submit variant="outline">Manage billing</Submit>
+      <Refusal state={state} />
+    </form>
+  );
+}
+
+/**
+ * Withdrawing from the contract (G-129 M2, D387): the button, then a confirmation step saying what happens, as Directive
+ * 2023/2673 Art. 11a asks. Confirming ends the plan at once; the page then shows the acknowledgment.
+ */
+export function WithdrawButton({ estimate }: { estimate: string | null }) {
+  const [state, action] = useActionState(withdrawAction, {});
+  const [confirming, setConfirming] = useState(false);
+  if (!confirming)
+    return (
+      <PillButton type="button" variant="outline" size="md" onClick={() => setConfirming(true)}>
+        Withdraw from contract
+      </PillButton>
+    );
+  return (
+    <form action={action} className="flex flex-col gap-2.5 rounded-md border border-warning-edge p-3" data-testid="plan-withdraw-confirm">
+      <p className="m-0 text-[13px] text-ink">
+        Withdrawing ends your plan now, and the account moves to the free plan; your charts are kept.{" "}
+        {estimate
+          ? `About ${estimate} is given back to the card you paid with, for the time your plan was not used.`
+          : "The part of what you paid for the time your plan was not used is given back to the card you paid with."}
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <Submit variant="primary" pendingText="Withdrawing…">
+          Confirm withdrawal
+        </Submit>
+        <PillButton type="button" variant="outline" size="md" onClick={() => setConfirming(false)}>
+          Keep my plan
+        </PillButton>
+      </div>
+      <Refusal state={state} />
+    </form>
+  );
+}
+
+/** A withdrawal recorded but not finished, the provider having failed to answer: the same action finishes it. */
+export function FinishWithdrawalButton() {
+  const [state, action] = useActionState(withdrawAction, {});
+  return (
+    <form action={action} className="flex flex-col items-start gap-1.5">
+      <Submit variant="primary" pendingText="Withdrawing…">
+        Finish withdrawal
+      </Submit>
       <Refusal state={state} />
     </form>
   );
