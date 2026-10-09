@@ -3,6 +3,7 @@
 import { createContext, useActionState, useContext, useId, useState, type ReactNode } from "react";
 import { useFormStatus } from "react-dom";
 import { openPortalAction, startCheckoutAction, type BillingActionState } from "@/lib/billing/actions";
+import { cancelPlanAction, changePlanAction, keepCurrentPlanAction, keepPlanAction } from "@/lib/billing/plan-actions";
 import { withdrawAction } from "@/lib/billing/withdrawal-actions";
 import { PillButton } from "@/app/components/ui";
 
@@ -119,6 +120,19 @@ export function PlanConsent({
   );
 }
 
+/** The agreement's fields, posted with a choice that is an agreement to pay. */
+function ConsentFields({ consent }: { consent: Consent | null }) {
+  if (!consent) return null;
+  return (
+    <>
+      <input type="hidden" name="termsVersionId" value={consent.termsVersionId} />
+      <input type="hidden" name="withdrawalVersionId" value={consent.withdrawalVersionId} />
+      {consent.agreedTerms && <input type="hidden" name="agreeTerms" value="on" />}
+      {consent.agreedWithdrawal && <input type="hidden" name="agreeWithdrawal" value="on" />}
+    </>
+  );
+}
+
 /** Choose one price: Checkout for it opens, once the agreement above is given. */
 export function ChoosePriceButton({ priceId, children, label }: { priceId: string; children: ReactNode; label: string }) {
   const [state, action] = useActionState(startCheckoutAction, INITIAL);
@@ -127,14 +141,7 @@ export function ChoosePriceButton({ priceId, children, label }: { priceId: strin
   return (
     <form action={action} className="flex flex-col gap-1.5">
       <input type="hidden" name="priceId" value={priceId} />
-      {consent && (
-        <>
-          <input type="hidden" name="termsVersionId" value={consent.termsVersionId} />
-          <input type="hidden" name="withdrawalVersionId" value={consent.withdrawalVersionId} />
-          {consent.agreedTerms && <input type="hidden" name="agreeTerms" value="on" />}
-          {consent.agreedWithdrawal && <input type="hidden" name="agreeWithdrawal" value="on" />}
-        </>
-      )}
+      <ConsentFields consent={consent} />
       <Submit variant="primary" label={label} disabled={!agreed}>
         {children}
       </Submit>
@@ -195,6 +202,112 @@ export function FinishWithdrawalButton() {
     <form action={action} className="flex flex-col items-start gap-1.5">
       <Submit variant="primary" pendingText="Withdrawing…">
         Finish withdrawal
+      </Submit>
+      <Refusal state={state} />
+    </form>
+  );
+}
+
+/**
+ * Moving a held plan to another price (G-129 M3, D388): the button, then a step saying when the change starts and what is
+ * charged. A change made now charges at once, so it waits on the agreement above, as a purchase does; one at the renewal
+ * charges nothing now and needs none.
+ */
+export function ChangePlanButton({
+  priceId,
+  when,
+  label,
+  confirmation,
+}: {
+  priceId: string;
+  when: "now" | "renewal";
+  label: string;
+  confirmation: string;
+}) {
+  const [state, action] = useActionState(changePlanAction, {});
+  const [confirming, setConfirming] = useState(false);
+  const consent = useContext(ConsentContext);
+  const agreed = when === "renewal" || (consent !== null && consent.agreedTerms && consent.agreedWithdrawal);
+  const verb = when === "now" ? "Upgrade" : "Downgrade";
+  if (!confirming)
+    return (
+      <div className="flex flex-col gap-1.5">
+        <PillButton
+          type="button"
+          variant={when === "now" ? "primary" : "outline"}
+          size="md"
+          aria-label={`${verb} to ${label}`}
+          disabled={!agreed}
+          onClick={() => setConfirming(true)}
+        >
+          {verb}
+        </PillButton>
+      </div>
+    );
+  return (
+    <form action={action} className="flex flex-col gap-2.5 rounded-md border border-line p-3" data-testid="plan-change-confirm">
+      <input type="hidden" name="priceId" value={priceId} />
+      {when === "now" && <ConsentFields consent={consent} />}
+      <p className="m-0 text-[13px] text-ink">{confirmation}</p>
+      <div className="flex flex-wrap gap-2">
+        <Submit variant="primary" pendingText="Changing…" disabled={!agreed}>
+          {`Confirm ${verb.toLowerCase()}`}
+        </Submit>
+        <PillButton type="button" variant="outline" size="md" onClick={() => setConfirming(false)}>
+          Not now
+        </PillButton>
+      </div>
+      <Refusal state={state} />
+    </form>
+  );
+}
+
+/** Cancelling: the plan lasts to the period's end and does not renew. A step first says so. */
+export function CancelPlanButton({ confirmation }: { confirmation: string }) {
+  const [state, action] = useActionState(cancelPlanAction, {});
+  const [confirming, setConfirming] = useState(false);
+  if (!confirming)
+    return (
+      <PillButton type="button" variant="outline" size="md" onClick={() => setConfirming(true)}>
+        Cancel plan
+      </PillButton>
+    );
+  return (
+    <form action={action} className="flex flex-col gap-2.5 rounded-md border border-warning-edge p-3" data-testid="plan-cancel-confirm">
+      <p className="m-0 text-[13px] text-ink">{confirmation}</p>
+      <div className="flex flex-wrap gap-2">
+        <Submit variant="primary" pendingText="Cancelling…">
+          Confirm cancellation
+        </Submit>
+        <PillButton type="button" variant="outline" size="md" onClick={() => setConfirming(false)}>
+          Keep my plan
+        </PillButton>
+      </div>
+      <Refusal state={state} />
+    </form>
+  );
+}
+
+/** A plan set to end: taking the cancellation back, so it renews. */
+export function KeepPlanButton() {
+  const [state, action] = useActionState(keepPlanAction, {});
+  return (
+    <form action={action} className="flex flex-col items-start gap-1.5">
+      <Submit variant="primary" pendingText="Keeping…">
+        Keep my plan
+      </Submit>
+      <Refusal state={state} />
+    </form>
+  );
+}
+
+/** A change waiting for the renewal: dropping it, so the plan renews as it is. */
+export function KeepCurrentPlanButton() {
+  const [state, action] = useActionState(keepCurrentPlanAction, {});
+  return (
+    <form action={action} className="flex flex-col items-start gap-1.5">
+      <Submit variant="outline" pendingText="Keeping…">
+        Keep current plan
       </Submit>
       <Refusal state={state} />
     </form>

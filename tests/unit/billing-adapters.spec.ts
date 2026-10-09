@@ -172,6 +172,7 @@ describe("Stripe's subscription read into the contract", () => {
       status: "active",
       priceId: "price_1",
       startedAt: T0,
+      scheduledPriceId: null,
       currentPeriodEnd: periodEnd,
       cancelAtPeriodEnd: false,
       endedAt: null,

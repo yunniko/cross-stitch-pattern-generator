@@ -20,6 +20,8 @@ export interface SubscriptionSnapshot {
   status: string;
   /** The provider's id of the price subscribed to (the first item's). */
   priceId: string | null;
+  /** The price a change of plan moves to at the next renewal (G-129 M3, D388); null when none is waiting. */
+  scheduledPriceId: string | null;
   /**
    * When the subscription began: the contract's conclusion, from which a consumer's right of withdrawal runs (G-129,
    * D387). A renewal does not move it; a new purchase is a new subscription with its own.
@@ -177,8 +179,22 @@ export interface BillingGateway {
   fetchSubscription(id: string): Promise<SubscriptionSnapshot | null>;
   /** Every subscription of a customer that has not ended: how a second one is found. */
   listSubscriptions(customerId: string): Promise<SubscriptionSnapshot[]>;
-  /** Cancels now, or at the end of the period paid for; returns the subscription after. */
+  /**
+   * Cancels now, or at the end of the period paid for; returns the subscription after. A change of plan waiting for the
+   * renewal is dropped with it, as the subscription will not renew (D388).
+   */
   cancelSubscription(id: string, options: { atPeriodEnd: boolean }): Promise<SubscriptionSnapshot>;
+  /** Takes back a cancellation at the period's end: the subscription renews again. */
+  resumeSubscription(id: string): Promise<SubscriptionSnapshot>;
+  /**
+   * The person's change of plan (G-129 M3, D388). "now" moves to the price at once and charges the difference for the
+   * rest of the period; the change stands only once that payment succeeds, and `applied` is false when it did not.
+   * "renewal" leaves the price as it is and moves to the new one at the next renewal, charging nothing now; a change
+   * already waiting is replaced. The change comes back through the webhook, and the caller syncs it as well.
+   */
+  changePlan(subscriptionId: string, priceId: string, when: "now" | "renewal"): Promise<{ applied: boolean }>;
+  /** Drops a change of plan waiting for the renewal; the subscription renews on the price it has. */
+  dropScheduledChange(subscriptionId: string): Promise<void>;
   /** The customer a charge was made to: a dispute names only its charge (G-126). Null if the provider does not know it. */
   chargeCustomer(chargeId: string): Promise<string | null>;
   /** The provider's recurring prices, for the admin to attach to tiers (G-127). */

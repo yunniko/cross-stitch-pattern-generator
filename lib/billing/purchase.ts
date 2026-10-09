@@ -15,7 +15,7 @@ export const CHECKOUT_REFUSED = {
   off: "Plans cannot be bought just now.",
   hidden: "Plans are not on sale.",
   price: "That price is no longer offered. Please choose again.",
-  live: "You already have a plan. Change or cancel it under Manage billing.",
+  live: "You already have a plan. Change or cancel it on this page.",
   given: "Your plan was given to you by the site. A plan can be bought once it ends.",
   unavailable: "The payment page could not be opened just now. Please try again in a few minutes.",
 } as const;

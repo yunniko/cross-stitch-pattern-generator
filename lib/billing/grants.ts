@@ -60,6 +60,7 @@ export function grantRow(
     stripeCustomerId: stored?.stripeCustomerId ?? null,
     stripeSubscriptionId: null,
     startedAt: null,
+    scheduledPriceId: null,
     currentPeriodEnd: grant.until,
     cancelAtPeriodEnd: false,
     endedAt: null,

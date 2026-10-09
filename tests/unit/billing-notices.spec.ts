@@ -161,6 +161,7 @@ describe("delivering the queue", () => {
           stripeCustomerId: "c",
           stripeSubscriptionId: "s",
           startedAt: null,
+          scheduledPriceId: null,
           ...FAILING,
           kind: "stripe",
         },

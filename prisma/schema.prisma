@@ -209,6 +209,8 @@ model Subscription {
   tierId               String
   /// The price subscribed to; null for a row not made through Checkout (tests, and G-127's grants by hand).
   priceId              String?
+  /// The price a change of plan moves to at the next renewal (G-129 M3, D388); a plain id, as `PurchaseConsent.priceId`.
+  scheduledPriceId     String?
   /// Stripe's status, written through unchanged (`SUBSCRIPTION_STATUSES`).
   status               String
   stripeCustomerId     String?

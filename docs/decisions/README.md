@@ -424,3 +424,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D385 — The launch check is a read-only script over an internal status route, the public site and a test-clock file — active
 - D386 — A refund is all that is left, the unused part of its period by exact time rounded up, or an amount — active
 - D387 — A withdrawal runs 14 Prague days from the subscription's start, is recorded first, and refunds each payment's unused part once — active
+- D388 — A plan change to more starts now with the difference charged; to less, at the renewal — active

@@ -8,8 +8,12 @@ import type { ProviderPrice, SubscriptionSnapshot } from "./contract";
 
 const toDate = (seconds: number | null | undefined): Date | null => (typeof seconds === "number" ? new Date(seconds * 1000) : null);
 
-/** The subscription's latest invoice while it is open with a failed attempt; null otherwise. */
+/**
+ * The subscription's latest invoice while it is open with a failed attempt; null otherwise. The invoice of a change of
+ * plan whose payment is pending is not a renewal failing: the change waits on it, and the plan stays as it was (D388).
+ */
 export function failingInvoice(subscription: Stripe.Subscription): Stripe.Invoice | null {
+  if (subscription.pending_update) return null;
   const invoice = typeof subscription.latest_invoice === "object" ? subscription.latest_invoice : null;
   return invoice !== null && invoice.status === "open" && invoice.attempt_count > 0 ? invoice : null;
 }
@@ -20,6 +24,22 @@ export function invoicePaymentIntentId(invoice: Stripe.Invoice): string | null {
   const newest = [...payments].sort((a, b) => b.created - a.created)[0];
   const intent = newest?.payment.payment_intent;
   return typeof intent === "string" ? intent : (intent?.id ?? null);
+}
+
+const priceIdOf = (price: string | { id: string }): string => (typeof price === "string" ? price : price.id);
+
+/**
+ * The price a change of plan moves to at the next renewal (D388): the price of the schedule's phase after the current
+ * one, when it differs from the price now. `schedule` must be expanded; null when there is no such phase.
+ */
+export function scheduledPrice(subscription: Stripe.Subscription): string | null {
+  const schedule = typeof subscription.schedule === "object" ? subscription.schedule : null;
+  const current = schedule?.current_phase;
+  if (!schedule || !current || schedule.status !== "active") return null;
+  const next = schedule.phases.find((phase) => phase.start_date >= current.end_date);
+  const price = next?.items[0]?.price;
+  const id = price ? priceIdOf(price) : null;
+  return id && id !== subscription.items.data[0]?.price.id ? id : null;
 }
 
 const CANCELED_FOR: Partial<Record<Stripe.Subscription.CancellationDetails.Reason, "request" | "payment">> = {
@@ -44,6 +64,7 @@ export function snapshotFromStripe(subscription: Stripe.Subscription, actionNeed
     customerId: typeof subscription.customer === "string" ? subscription.customer : subscription.customer.id,
     status: subscription.status,
     priceId: items[0]?.price.id ?? null,
+    scheduledPriceId: scheduledPrice(subscription),
     startedAt: toDate(subscription.start_date),
     currentPeriodEnd: ends.length > 0 ? toDate(Math.min(...ends)) : null,
     cancelAtPeriodEnd: subscription.cancel_at_period_end,

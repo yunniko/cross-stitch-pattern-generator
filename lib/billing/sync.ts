@@ -21,6 +21,8 @@ export interface StoredSubscription {
   kind: string;
   tierId: string;
   priceId: string | null;
+  /** The app's price a change of plan moves to at the next renewal (D388); null when none is waiting. */
+  scheduledPriceId: string | null;
   status: string;
   stripeCustomerId: string | null;
   stripeSubscriptionId: string | null;
@@ -54,7 +56,9 @@ export type HistoryKind =
   | "granted"
   | "grant-ended"
   /** The person withdrew from the contract within its 14 days (G-129 M2, D387); `after` says what was given back. */
-  | "withdrawal";
+  | "withdrawal"
+  /** A change of plan waiting for the renewal was set, replaced or dropped (G-129 M3, D388). */
+  | "scheduled";
 /** Who wrote a line: the provider's event, the hourly pass, an admin, or the person on their Plan page. */
 export type HistorySource = "webhook" | "reconcile" | "admin" | "person";
 
@@ -139,17 +143,25 @@ export interface SyncFacts {
   /** The person the subscription belongs to, if it can be told. */
   userId: string | null;
   price: { id: string; tierId: string };
+  /** The app's price a change waiting for the renewal moves to; null or absent when none is, or it is not the site's. */
+  scheduledPrice?: { id: string } | null;
 }
 
 const text = (value: Date | boolean | string | null): string | null =>
   value === null ? null : value instanceof Date ? value.toISOString() : String(value);
 
-function fieldsOf(snapshot: SubscriptionSnapshot, userId: string, price: { id: string; tierId: string }): SubscriptionFields {
+function fieldsOf(
+  snapshot: SubscriptionSnapshot,
+  userId: string,
+  price: { id: string; tierId: string },
+  scheduledPrice: { id: string } | null
+): SubscriptionFields {
   return {
     userId,
     kind: "stripe",
     tierId: price.tierId,
     priceId: price.id,
+    scheduledPriceId: scheduledPrice?.id ?? null,
     status: snapshot.status,
     stripeCustomerId: snapshot.customerId,
     stripeSubscriptionId: snapshot.id,
@@ -175,6 +187,7 @@ export function historyOf(before: SubscriptionFields | null, after: Subscription
   compare("period", before.currentPeriodEnd, after.currentPeriodEnd);
   compare("cancel", before.cancelAtPeriodEnd, after.cancelAtPeriodEnd);
   compare("price", before.priceId, after.priceId);
+  compare("scheduled", before.scheduledPriceId, after.scheduledPriceId);
   compare("failure", before.firstFailedAt, after.firstFailedAt);
   compare("ended", before.endedAt, after.endedAt);
   return lines;
@@ -206,13 +219,13 @@ function overHeld(held: StoredSubscription, fields: SubscriptionFields): Subscri
 }
 
 /** Decides what one fetched snapshot does to the stored rows. Pure. */
-export function planSync({ snapshot, byProviderId, byUser, userId, price }: SyncFacts): SyncPlan {
+export function planSync({ snapshot, byProviderId, byUser, userId, price, scheduledPrice = null }: SyncFacts): SyncPlan {
   if (byProviderId) {
-    const fields = overHeld(byProviderId, fieldsOf(snapshot, byProviderId.userId, price));
+    const fields = overHeld(byProviderId, fieldsOf(snapshot, byProviderId.userId, price, scheduledPrice));
     return { kind: "save", id: byProviderId.id, fields, history: historyOf(byProviderId, fields), cancelNow: null };
   }
   if (!userId) return { kind: "ignore", reason: "the subscription names no person of this site" };
-  const fields = fieldsOf(snapshot, userId, price);
+  const fields = fieldsOf(snapshot, userId, price, scheduledPrice);
   // Stored even when it has already ended, as when every event arrives late: it gives Free, and the record of what
   // was paid is the admin's.
   if (!byUser) {
@@ -288,7 +301,9 @@ export async function syncSubscription(
       if (byProviderId || userId) throw new UnknownPriceError(snapshot.priceId);
       return done({ kind: "ignored", reason: "no tier, and nothing to store" });
     }
-    const plan = planSync({ snapshot, byProviderId, byUser, userId, price });
+    // A change waiting for a price the site does not know is not stored: nothing could be shown of it.
+    const scheduledPrice = snapshot.scheduledPriceId ? await tx.priceByProviderId(snapshot.scheduledPriceId) : null;
+    const plan = planSync({ snapshot, byProviderId, byUser, userId, price, scheduledPrice });
     if (plan.kind === "ignore") return done({ kind: "ignored", reason: plan.reason });
     // A cancellation runs before the write, inside the transaction: if the provider refuses it, nothing is written and
     // the event is not marked handled, so the provider retries it. Its own events come back through the webhook.

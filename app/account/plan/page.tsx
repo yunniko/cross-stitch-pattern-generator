@@ -4,7 +4,17 @@ import { prisma } from "@/lib/prisma";
 import { FREE_PLAN, planName } from "@/lib/account/plan";
 import { ENTITLEMENT_SELECT, isGrant } from "@/lib/billing/entitlement";
 import { billingGateway, currentBillingSettings } from "@/lib/billing/gateway";
-import { formatPrice } from "@/lib/billing/notices";
+import { formatDay, formatPrice } from "@/lib/billing/notices";
+import {
+  cancelConfirmation,
+  cancelRefusal,
+  changeConfirmation,
+  changeKind,
+  changeRefusal,
+  scheduledLine,
+  targetRefusal,
+} from "@/lib/billing/plan-change";
+import { isFinal } from "@/lib/billing/sync";
 import {
   BUYING_FEATURE,
   CHECKOUT_REFUSED,
@@ -29,8 +39,12 @@ import { currentLegalVersions } from "@/lib/legal/server";
 import { featureStatesFor } from "@/lib/features/server";
 import { billingPolicy } from "@/lib/settings/server";
 import {
+  CancelPlanButton,
+  ChangePlanButton,
   ChoosePriceButton,
   FinishWithdrawalButton,
+  KeepCurrentPlanButton,
+  KeepPlanButton,
   ManageBillingButton,
   PlanConsent,
   WithdrawButton,
@@ -43,7 +57,8 @@ import { PageHead, SectionTitle } from "@/app/components/panel/panel-parts";
  * plans on sale with their current prices, and the way to the provider's Portal. Plans are offered only while billing
  * is on and the buying feature is usable for this person; it starts hidden in production (D372). A price is chosen only
  * once the terms are agreed to and the withdrawal acknowledged (G-128 M2, D384). For the 14 days after a purchase the
- * person can withdraw from it here, and a withdrawal made is acknowledged here (G-129 M2, D387).
+ * person can withdraw from it here, and a withdrawal made is acknowledged here (G-129 M2, D387). A plan held is changed,
+ * cancelled and kept here too (G-129 M3, D388): more at once with the difference charged, less at the renewal.
  */
 
 const RETURN_NOTICES: Record<string, string> = {
@@ -71,7 +86,10 @@ export default async function AccountPlanPage({ searchParams }: { searchParams: 
             stripeSubscriptionId: true,
             startedAt: true,
             tierId: true,
+            priceId: true,
+            scheduledPriceId: true,
             tier: { select: { name: true } },
+            price: { select: { amount: true, currency: true, interval: true } },
           },
         },
       },
@@ -102,6 +120,21 @@ export default async function AccountPlanPage({ searchParams }: { searchParams: 
   // A plan is chosen only with the terms, privacy policy and withdrawal acknowledgment published, and agreed to (D384).
   const documentsReady = Boolean(documents.terms && documents.privacy && documents.withdrawal);
   const canChoose = offered.length > 0 && !live && documentsReady;
+  // A plan held is changed here while it can be; the reason it cannot is said once on each offer instead.
+  const bought = live && stored !== null && !isGrant(stored);
+  const changeBlocked = bought ? changeRefusal(stored) : null;
+  const canChange = bought && offered.length > 0 && changeBlocked === null && documentsReady;
+  const current = bought ? stored.price : null;
+  const changeTo = (price: PriceRow) =>
+    canChange && current && price.id !== stored?.priceId && targetRefusal(current, { ...price, current: true }) === null
+      ? changeKind(current, price)
+      : null;
+  // The agreement is asked only where a change would charge now.
+  const upgradeOffered = offered.some((tier) => [tier.month, tier.year].some((price) => price && changeTo(price) === "now"));
+  const renewalDay = stored?.currentPeriodEnd ? formatDay(stored.currentPeriodEnd) : null;
+  const scheduled = stored?.scheduledPriceId ? await scheduledPlan(stored.scheduledPriceId) : null;
+  const canCancel = bought && !stored.cancelAtPeriodEnd && cancelRefusal(stored) === null;
+  const canKeep = stored !== null && !isGrant(stored) && stored.cancelAtPeriodEnd && !isFinal(stored);
 
   const offers = (
     <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-4">
@@ -118,6 +151,14 @@ export default async function AccountPlanPage({ searchParams }: { searchParams: 
             {status}
           </p>
         )}
+        {scheduled && renewalDay && (
+          <div className="flex flex-col items-start gap-2" data-testid="plan-scheduled">
+            <p className="m-0 text-[13px] text-ink">{scheduledLine(scheduled, renewalDay)}</p>
+            {billingOn && <KeepCurrentPlanButton />}
+          </div>
+        )}
+        {billingOn && canKeep && <KeepPlanButton />}
+        {billingOn && canCancel && <CancelPlanButton confirmation={cancelConfirmation(renewalDay)} />}
       </div>
       {offered.map((tier) => (
         <div key={tier.tierId} className="flex flex-col gap-3 rounded-lg border border-line p-4" data-testid="plan-offer">
@@ -131,14 +172,22 @@ export default async function AccountPlanPage({ searchParams }: { searchParams: 
                     Choose
                   </ChoosePriceButton>
                 )}
+                {bought && price.id === stored.priceId && (
+                  <span className="text-[11px] font-medium tracking-[0.08em] text-accent uppercase">Your plan</span>
+                )}
+                {changeTo(price) && (
+                  <ChangePlanButton
+                    priceId={price.id}
+                    when={changeTo(price)!}
+                    label={`${tier.tierName}, ${formatPrice(price)}`}
+                    confirmation={changeConfirmation(changeTo(price)!, `${tier.tierName}, ${formatPrice(price)}`, renewalDay)}
+                  />
+                )}
               </div>
             ) : null
           )}
-          {live && (
-            <p className="m-0 text-[13px] text-muted">
-              {isGrant(stored) ? CHECKOUT_REFUSED.given : "You have a plan. Change or cancel it under Manage billing."}
-            </p>
-          )}
+          {live && isGrant(stored) && <p className="m-0 text-[13px] text-muted">{CHECKOUT_REFUSED.given}</p>}
+          {changeBlocked && <p className="m-0 text-[13px] text-muted">{changeBlocked}</p>}
         </div>
       ))}
       {offered.length === 0 && plan === FREE_PLAN && (
@@ -192,7 +241,7 @@ export default async function AccountPlanPage({ searchParams }: { searchParams: 
           {CONSENT_REFUSED.unpublished}
         </p>
       )}
-      {canChoose && documents.terms && documents.withdrawal ? (
+      {(canChoose || upgradeOffered) && documents.terms && documents.withdrawal ? (
         <PlanConsent
           termsVersionId={documents.terms.id}
           termsHref={`/terms?version=${documents.terms.version}`}
@@ -233,9 +282,7 @@ export default async function AccountPlanPage({ searchParams }: { searchParams: 
         <SectionTitle id="plan-billing">Billing</SectionTitle>
         {billingOn && stored?.stripeCustomerId ? (
           <div className="flex flex-col gap-2 rounded-md border border-line p-3">
-            <p className="m-0 text-[13px] text-muted">
-              Your card, monthly or yearly billing, invoices and cancellation are on the payment provider&apos;s page.
-            </p>
+            <p className="m-0 text-[13px] text-muted">Your card and invoices are on the payment provider&apos;s page.</p>
             <ManageBillingButton />
           </div>
         ) : (
@@ -307,4 +354,13 @@ async function withdrawalShown(
     estimate = null;
   }
   return { kind: "open", line: deadlineLine(deadline), estimate: estimate === "nothing" ? null : estimate };
+}
+
+/** The plan a change waiting for the renewal moves to, in words; null if its price is gone. */
+async function scheduledPlan(priceId: string): Promise<string | null> {
+  const price = await prisma.price.findUnique({
+    where: { id: priceId },
+    select: { amount: true, currency: true, interval: true, tier: { select: { name: true } } },
+  });
+  return price ? `${price.tier.name}, ${formatPrice(price)}` : null;
 }

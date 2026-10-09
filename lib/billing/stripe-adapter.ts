@@ -67,7 +67,15 @@ export function createStripeGateway(settings: { secretKey: string; webhookSecret
     const intent = intentId ? await stripe.paymentIntents.retrieve(intentId) : null;
     return snapshotFromStripe(subscription, intent?.status === "requires_action");
   };
-  const EXPAND = ["latest_invoice.payments"];
+  const EXPAND = ["latest_invoice.payments", "schedule"];
+
+  // A change of plan waiting for the renewal is a subscription schedule (D388); releasing it leaves the subscription on
+  // the price it has, with nothing waiting.
+  const releaseSchedule = async (subscriptionId: string) => {
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+    const schedule = typeof subscription.schedule === "string" ? subscription.schedule : subscription.schedule?.id;
+    if (schedule) await stripe.subscriptionSchedules.release(schedule);
+  };
 
   return {
     id: "stripe",
@@ -122,20 +130,67 @@ export function createStripeGateway(settings: { secretKey: string; webhookSecret
           customer: customerId,
           status: "all",
           limit: 100,
-          expand: ["data.latest_invoice.payments"],
+          expand: ["data.latest_invoice.payments", "data.schedule"],
         });
         const open = list.data.filter((subscription) => subscription.ended_at === null);
         return Promise.all(open.map(snapshot));
       }),
 
     cancelSubscription: (id, { atPeriodEnd }) =>
-      call("cancel a subscription", async () =>
-        snapshot(
-          atPeriodEnd
-            ? await stripe.subscriptions.update(id, { cancel_at_period_end: true, expand: EXPAND })
-            : await stripe.subscriptions.cancel(id, { expand: EXPAND })
-        )
+      call("cancel a subscription", async () => {
+        if (!atPeriodEnd) return snapshot(await stripe.subscriptions.cancel(id, { expand: EXPAND }));
+        // Stripe refuses a cancellation date on a subscription a schedule manages, and one that will not renew has no
+        // change to wait for.
+        await releaseSchedule(id);
+        return snapshot(await stripe.subscriptions.update(id, { cancel_at_period_end: true, expand: EXPAND }));
+      }),
+
+    resumeSubscription: (id) =>
+      call("resume a subscription", async () =>
+        snapshot(await stripe.subscriptions.update(id, { cancel_at_period_end: false, expand: EXPAND }))
       ),
+
+    changePlan: (subscriptionId, priceId, when) =>
+      call("change a plan", async () => {
+        const subscription = await stripe.subscriptions.retrieve(subscriptionId, { expand: ["schedule"] });
+        const item = subscription.items.data[0];
+        if (!item) throw new Error(`Stripe's subscription ${subscriptionId} has no item`);
+        const schedule = typeof subscription.schedule === "object" ? subscription.schedule : null;
+        if (when === "now") {
+          if (schedule) await stripe.subscriptionSchedules.release(schedule.id);
+          // The difference is invoiced and charged at once; the change stands only once that payment succeeds, so a
+          // declined card leaves the plan as it was (D376, D388).
+          const updated = await stripe.subscriptions.update(subscriptionId, {
+            items: [{ id: item.id, price: priceId }],
+            proration_behavior: "always_invoice",
+            payment_behavior: "pending_if_incomplete",
+          });
+          return { applied: updated.pending_update === null };
+        }
+        const target = await stripe.prices.retrieve(priceId);
+        if (!target.recurring) throw new Error(`Stripe's price ${priceId} does not recur`);
+        const held = schedule ?? (await stripe.subscriptionSchedules.create({ from_subscription: subscriptionId }));
+        const phase = held.current_phase;
+        if (!phase) throw new Error(`Stripe's schedule ${held.id} has no current phase`);
+        // The period paid for runs out on the price it has; the next one is the new price's, with nothing prorated.
+        await stripe.subscriptionSchedules.update(held.id, {
+          end_behavior: "release",
+          phases: [
+            { items: [{ price: item.price.id, quantity: 1 }], start_date: phase.start_date, end_date: phase.end_date },
+            {
+              items: [{ price: priceId, quantity: 1 }],
+              duration: { interval: target.recurring.interval, interval_count: 1 },
+              proration_behavior: "none",
+            },
+          ],
+        });
+        return { applied: true };
+      }),
+
+    dropScheduledChange: (subscriptionId) =>
+      call("drop a change of plan", async () => {
+        await releaseSchedule(subscriptionId);
+      }),
 
     chargeCustomer: (chargeId) =>
       call("read a charge", async () => {

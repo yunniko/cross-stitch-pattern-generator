@@ -57,6 +57,8 @@ export class FakeBilling implements BillingGateway {
   readonly events: SignedEvent[] = [];
   /** While true, every call to the provider fails as an outage would. */
   unavailable = false;
+  /** While true, the card declines the payment of a change of plan made now (G-129 M3), and the change does not stand. */
+  declineChanges = false;
 
   private readonly prices = new Map<string, ProviderPrice>();
   /** Prices made through the contract, by the request's key: the same key makes no second price, as at Stripe. */
@@ -160,6 +162,8 @@ export class FakeBilling implements BillingGateway {
   async cancelSubscription(id: string, options: { atPeriodEnd: boolean }): Promise<SubscriptionSnapshot> {
     this.reachable();
     const subscription = this.get(id);
+    // A subscription that will not renew has no change waiting for the renewal, as releasing Stripe's schedule does.
+    subscription.scheduledPriceId = null;
     if (options.atPeriodEnd) subscription.cancelAtPeriodEnd = true;
     else {
       subscription.status = "canceled";
@@ -170,6 +174,56 @@ export class FakeBilling implements BillingGateway {
     }
     this.emit("customer.subscription.updated", this.subscriptionObject(subscription));
     return this.snapshot(subscription);
+  }
+
+  async resumeSubscription(id: string): Promise<SubscriptionSnapshot> {
+    this.reachable();
+    const subscription = this.get(id);
+    subscription.cancelAtPeriodEnd = false;
+    this.emit("customer.subscription.updated", this.subscriptionObject(subscription));
+    return this.snapshot(subscription);
+  }
+
+  async changePlan(subscriptionId: string, priceId: string, when: "now" | "renewal"): Promise<{ applied: boolean }> {
+    this.reachable();
+    const subscription = this.get(subscriptionId);
+    const price = await this.knownPrice(priceId);
+    if (!price?.interval) throw new Error(`the fake provider has no recurring price ${priceId}`);
+    if (when === "renewal") {
+      subscription.scheduledPriceId = priceId;
+      this.emit("customer.subscription.updated", this.subscriptionObject(subscription));
+      return { applied: true };
+    }
+    // As Stripe's `payment_behavior: "pending_if_incomplete"`: a declined payment leaves the subscription as it was.
+    if (this.declineChanges) return { applied: false };
+    const old = subscription.priceId ? await this.knownPrice(subscription.priceId) : undefined;
+    const now = this.now();
+    const left = Math.max(0, subscription.currentPeriodEnd!.getTime() - now.getTime()) / PERIOD_MS[subscription.interval];
+    // The old price's unused part is credited, rounded up; the new one charged for the same time, rounded down (D386).
+    const credit = Math.ceil((old?.amount ?? 0) * left);
+    let amount: number;
+    if (price.interval === subscription.interval) amount = Math.floor((price.amount ?? 0) * left) - credit;
+    else {
+      // A change of period starts a new period now, as Stripe resets the billing cycle: the new price whole, less the credit.
+      subscription.currentPeriodEnd = new Date(now.getTime() + PERIOD_MS[price.interval]);
+      amount = (price.amount ?? 0) - credit;
+    }
+    subscription.priceId = priceId;
+    subscription.interval = price.interval;
+    subscription.scheduledPriceId = null;
+    subscription.invoiceFrom = now;
+    this.newInvoice(subscription);
+    if (amount > 0) this.charge(subscription, amount);
+    this.emit("invoice.paid", this.invoiceObject(subscription));
+    this.emit("customer.subscription.updated", this.subscriptionObject(subscription));
+    return { applied: true };
+  }
+
+  async dropScheduledChange(subscriptionId: string): Promise<void> {
+    this.reachable();
+    const subscription = this.get(subscriptionId);
+    subscription.scheduledPriceId = null;
+    this.emit("customer.subscription.updated", this.subscriptionObject(subscription));
   }
 
   async chargeCustomer(chargeId: string): Promise<string | null> {
@@ -323,6 +377,7 @@ export class FakeBilling implements BillingGateway {
       customerId: customerId ?? input.customerId ?? this.nextId("cus"),
       status: "active",
       priceId: price.id,
+      scheduledPriceId: null,
       startedAt: this.now(),
       currentPeriodEnd: new Date(this.now().getTime() + PERIOD_MS[price.interval]),
       cancelAtPeriodEnd: false,
@@ -365,6 +420,13 @@ export class FakeBilling implements BillingGateway {
       this.emit("customer.subscription.deleted", this.subscriptionObject(subscription));
       return this.snapshot(subscription);
     }
+    // A change of plan waiting for the renewal takes effect now, before the renewal is charged (D388).
+    const scheduled = subscription.scheduledPriceId ? this.prices.get(subscription.scheduledPriceId) : undefined;
+    if (scheduled?.interval) {
+      subscription.priceId = scheduled.id;
+      subscription.interval = scheduled.interval;
+    }
+    subscription.scheduledPriceId = null;
     subscription.invoiceFrom = subscription.currentPeriodEnd!;
     subscription.currentPeriodEnd = new Date(subscription.currentPeriodEnd!.getTime() + PERIOD_MS[subscription.interval]);
     this.newInvoice(subscription);
@@ -473,13 +535,16 @@ export class FakeBilling implements BillingGateway {
     return this.snapshot(subscription);
   }
 
-  /** The subscription's price is taken; a price the fake does not hold charges nothing, as no test reads its amount. */
-  private charge(subscription: FakeSubscription): void {
+  /**
+   * The subscription's price is taken, or `amount` when given (a change of plan's difference); a price the fake does not
+   * hold charges nothing, as no test reads its amount.
+   */
+  private charge(subscription: FakeSubscription, amount?: number): void {
     const price = subscription.priceId ? this.prices.get(subscription.priceId) : undefined;
     this.charges.set(this.nextId("ch"), {
       customerId: subscription.customerId,
       subscriptionId: subscription.id,
-      amount: price?.amount ?? 0,
+      amount: amount ?? price?.amount ?? 0,
       currency: price?.currency ?? "eur",
       at: this.now(),
       refunded: 0,

@@ -59,6 +59,10 @@ export function historyText(line: HistoryLine, priceName: (id: string) => string
       return `Given by hand ended: ${shown(line.before)}, ${shown(line.after)}`;
     case "withdrawal":
       return `Withdrawn from by the person: ${shown(line.after)}`;
+    case "scheduled":
+      return line.after === null
+        ? `Change at renewal to ${price(line.before)} dropped`
+        : `Changes at renewal to ${price(line.after)}${line.before === null ? "" : ` (was ${price(line.before)})`}`;
     default:
       return `${line.kind}: ${shown(line.before)} → ${shown(line.after)}`;
   }

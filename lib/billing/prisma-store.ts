@@ -38,6 +38,7 @@ export const STORED_SELECT = {
   stripeCustomerId: true,
   stripeSubscriptionId: true,
   startedAt: true,
+  scheduledPriceId: true,
   currentPeriodEnd: true,
   cancelAtPeriodEnd: true,
   endedAt: true,
