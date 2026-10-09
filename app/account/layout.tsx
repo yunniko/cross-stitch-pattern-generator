@@ -13,6 +13,7 @@ import { countStamps } from "@/lib/stamps/server";
 import { PanelHeader } from "@/app/components/panel/panel-header";
 import { SectionNav } from "@/app/components/panel/section-nav";
 import { PillButton } from "@/app/components/ui";
+import { LegalLinks } from "@/app/components/legal-links";
 
 /**
  * Every `/account/*` page shares this frame (G-107): the header, and a sidebar of the sections in `ACCOUNT_SECTIONS`.
@@ -60,6 +61,7 @@ export default async function AccountLayout({ children }: { children: ReactNode 
               Log out
             </PillButton>
           </form>
+          <LegalLinks />
         </aside>
         <main className="flex min-w-0 flex-col gap-6">{children}</main>
       </div>

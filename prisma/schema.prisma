@@ -447,3 +447,21 @@ model Stamp {
 
   @@index([userId, updatedAt])
 }
+
+/// A version of a document the site publishes (G-128 M1, D383): the terms, the privacy policy, or the withdrawal
+/// acknowledgment a buyer agrees to. Written by an admin; a published version is never changed, a new one takes its
+/// place, so a buyer's consent names the exact text they read.
+model LegalVersion {
+  id          String   @id @default(cuid())
+  /// "terms", "privacy" or "withdrawal" (`lib/legal/documents.ts`).
+  kind        String
+  /// 1 for a kind's first, one more for each after it.
+  version     Int
+  /// Markdown, drawn with raw HTML escaped (`renderMarkdown`'s `authored`).
+  body        String
+  publishedAt DateTime @default(now())
+  /// The admin's address, as the Change log names them.
+  publishedBy String
+
+  @@unique([kind, version])
+}

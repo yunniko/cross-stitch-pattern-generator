@@ -419,3 +419,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D380 — The admin makes prices through the billing contract, never edits one — active
 - D381 — The admin moves subscribers to the current price from their next renewal, with no charge now — active
 - D382 — A tier is deleted only when no one has had it and none of its prices is offered — active
+- D383 — The legal documents are versions an admin publishes in the app, never edited once published — active
