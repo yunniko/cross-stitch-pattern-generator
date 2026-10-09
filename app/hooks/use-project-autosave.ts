@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { SavedChartLink } from "@/lib/charts/saved-chart-link";
 import type { ProjectStore } from "@/lib/editor/project-store";
 import { NO_SYMMETRY, type SymmetryAxes } from "@/lib/editor/symmetry-axes";
-import type { StitchPattern } from "@/lib/types";
+import type { ChartDocument } from "@/lib/document/types";
 
 export type AutosaveStatus = "idle" | "saving" | "saved" | "unavailable";
 
@@ -10,7 +10,7 @@ export type AutosaveStatus = "idle" | "saving" | "saved" | "unavailable";
 export const AUTOSAVE_DEBOUNCE_MS = 500;
 
 interface Snapshot {
-  pattern: StitchPattern | null;
+  pattern: ChartDocument | null;
   symmetry: SymmetryAxes;
   savedChart: SavedChartLink | null;
 }
@@ -36,7 +36,7 @@ const same = (a: Snapshot, b: Snapshot) => a.pattern === b.pattern && a.symmetry
  * written too, so a reload still overwrites the same saved chart.
  */
 export function useProjectAutosave(
-  pattern: StitchPattern | null,
+  pattern: ChartDocument | null,
   enabled: boolean,
   store: ProjectStore,
   symmetry: SymmetryAxes = NO_SYMMETRY,

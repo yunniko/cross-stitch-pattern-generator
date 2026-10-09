@@ -1,11 +1,16 @@
 import { tidyKinds } from "./stitch-kind";
 import { generationPaletteData } from "./palette-set";
+import { asDocument, flatten, isFlatDocument, type ChartInput } from "../document/convert";
+import type { ChartDocument } from "../document/types";
 import {
-  deserializePattern,
-  deserializePatternData,
+  deserializeChart,
+  deserializeChartData,
+  FLAT_FORMAT_VERSION,
   FORMAT_VERSION,
   readSymmetry,
+  serializeLayer,
   serializeSymmetry,
+  type SerializedLayer,
   type SerializedSymmetry,
 } from "./pattern-serialize";
 import { NO_SYMMETRY, type SymmetryAxes } from "./symmetry-axes";
@@ -49,7 +54,11 @@ interface StoredSourceImage {
   offsetY: number;
 }
 
-/** What is actually written under `CURRENT_PROJECT_KEY`. `cellPalette` is stored as the typed array itself (structured clone), never a JSON number array. */
+/**
+ * What is actually written under `CURRENT_PROJECT_KEY`. The planes are stored as the typed arrays themselves (structured
+ * clone), never JSON number arrays. A chart of one plain layer is stored as before layers, its stitches in `cellPalette`; any
+ * other has `layers` instead (format 8, G-130, D390).
+ */
 export interface StoredProjectRecord {
   storeVersion: number;
   /** The pattern format the record's contents follow; absent on records written before G-033, whose sources are inferred (D122). */
@@ -57,9 +66,12 @@ export interface StoredProjectRecord {
   width: number;
   height: number;
   isLandscape: boolean;
-  cellPalette: Uint8Array;
+  /** The stitches of a chart of one plain layer; absent when the record has `layers`. */
+  cellPalette?: Uint8Array;
   /** The stitch kind of each cell (G-082), stored as the typed array itself; absent while every stitch is whole. */
   cellKind?: Uint8Array;
+  /** The layers, bottom first, of a chart that is more than one plain layer (G-130). */
+  layers?: SerializedLayer[];
   palette: Array<{ rgb: RGB; symbol: string; name: string; source?: ThreadSwatchRef }>;
   name?: string;
   threadBrand?: StitchPattern["threadBrand"];
@@ -90,7 +102,8 @@ export interface ProjectLoadFailure {
 }
 
 export interface ProjectLoadResult {
-  pattern: StitchPattern | null;
+  /** The chart, every layer kept; null when none was saved or it could not be read. */
+  document: ChartDocument | null;
   /** The symmetry axes saved with the project; off when absent or unreadable. */
   symmetry?: SymmetryAxes;
   /** The account chart saved with the project, when it is one (G-108). */
@@ -102,35 +115,35 @@ export interface ProjectLoadResult {
 export interface ProjectStore {
   load(): Promise<ProjectLoadResult>;
   /**
-   * Saves `pattern` with its symmetry axes and the account chart it is saved as, or clears the slot (and any stored photo)
+   * Saves the chart with its symmetry axes and the account chart it is saved as, or clears the slot (and any stored photo)
    * when null. Rejects when the underlying storage fails.
    */
-  save(pattern: StitchPattern | null, symmetry?: SymmetryAxes, savedChart?: SavedChartLink | null): Promise<void>;
+  save(chart: ChartInput | null, symmetry?: SymmetryAxes, savedChart?: SavedChartLink | null): Promise<void>;
 }
 
 export function createProjectStore(kv: KeyValueStore): ProjectStore {
   return {
     async load() {
       const record = await kv.get(CURRENT_PROJECT_KEY);
-      if (record === undefined) return { pattern: null };
+      if (record === undefined) return { document: null };
       const photoKey = photoKeyOf(record);
       const photo = photoKey ? await kv.get(photoKey) : undefined;
       try {
-        const pattern = decodeRecord(record, photo);
+        const document = decodeRecord(record, photo);
         const { symmetry, savedChart } = record as { symmetry?: unknown; savedChart?: unknown };
-        return { pattern, symmetry: readSymmetry(symmetry, pattern.width, pattern.height), savedChart: readSavedChartLink(savedChart) };
+        return { document, symmetry: readSymmetry(symmetry, document.width, document.height), savedChart: readSavedChartLink(savedChart) };
       } catch (error) {
         await kv.delete(CURRENT_PROJECT_KEY).catch(() => {});
-        return { pattern: null, failure: { error, payload: describeRecord(record, photo) } };
+        return { document: null, failure: { error, payload: describeRecord(record, photo) } };
       }
     },
-    async save(pattern, symmetry = NO_SYMMETRY, savedChart = null) {
-      if (!pattern) {
+    async save(chart, symmetry = NO_SYMMETRY, savedChart = null) {
+      if (!chart) {
         await kv.delete(CURRENT_PROJECT_KEY);
         await prunePhotos(kv, null);
         return;
       }
-      const { record, photo } = await encodeRecord(pattern, symmetry);
+      const { record, photo } = await encodeRecord(chart, symmetry);
       if (savedChart) record.savedChart = { ...savedChart };
       // Photo first, then the record that references it: a failure in
       // between leaves an orphan photo (pruned on the next save), never a
@@ -150,17 +163,21 @@ async function prunePhotos(kv: KeyValueStore, keep: string | null): Promise<void
 
 /** A chart as it is written to the store, with its photo apart; the tries are stored the same way (`tries-store.ts`). */
 export async function encodeRecord(
-  pattern: StitchPattern,
+  chart: ChartInput,
   symmetry: SymmetryAxes
 ): Promise<{ record: StoredProjectRecord; photo?: { key: string; dataUrl: string } }> {
+  const document = asDocument(chart);
+  const pattern = flatten(document);
+  const flat = isFlatDocument(document);
   const record: StoredProjectRecord = {
     storeVersion: STORE_VERSION,
-    // Still store version 1, so an older open tab can read the record; `formatVersion` tells legacy records apart (D122).
-    formatVersion: FORMAT_VERSION,
+    // Still store version 1, so an older open tab can read the record; `formatVersion` tells legacy records apart (D122),
+    // and a chart of one plain layer is still the version before layers, which that tab reads too (D390).
+    formatVersion: flat ? FLAT_FORMAT_VERSION : FORMAT_VERSION,
     width: pattern.width,
     height: pattern.height,
     isLandscape: pattern.isLandscape,
-    cellPalette: pattern.cellPalette,
+    ...(flat ? { cellPalette: pattern.cellPalette } : { layers: document.layers.map(serializeLayer) }),
     palette: pattern.palette.map((c) =>
       c.source ? { rgb: c.rgb, symbol: c.symbol, name: c.name, source: c.source } : { rgb: c.rgb, symbol: c.symbol, name: c.name }
     ),
@@ -178,7 +195,7 @@ export async function encodeRecord(
   // it here. Backstitch was: a reload silently lost every line (found on the live build, 2026-09-25).
   if (pattern.backstitch?.length) record.backstitch = [...pattern.backstitch];
   // Half stitches (G-082) are named here for the same reason; absent while every stitch is whole.
-  const kinds = tidyKinds(pattern.cellPalette, pattern.cellKind);
+  const kinds = flat ? tidyKinds(pattern.cellPalette, pattern.cellKind) : undefined;
   if (kinds) record.cellKind = kinds;
   if (pattern.fabric) record.fabric = { ...pattern.fabric };
   const storedSymmetry = serializeSymmetry(symmetry);
@@ -198,8 +215,8 @@ function photoKeyOf(record: unknown): string | null {
   return typeof key === "string" ? key : null;
 }
 
-/** Rebuilds a `StitchPattern` from a stored record; a missing/invalid photo only drops `sourceImage`, it never fails the whole load. Throws on a malformed record. */
-export function decodeRecord(record: unknown, photoDataUrl: unknown): StitchPattern {
+/** Rebuilds the chart from a stored record; a missing/invalid photo only drops `sourceImage`, it never fails the whole load. Throws on a malformed record. */
+export function decodeRecord(record: unknown, photoDataUrl: unknown): ChartDocument {
   if (typeof record !== "object" || record === null) throw new Error("The saved project record isn't an object.");
   const r = record as Record<string, unknown>;
   if (r.storeVersion !== STORE_VERSION) throw new Error(`Unknown saved-project version ${String(r.storeVersion)}.`);
@@ -211,7 +228,7 @@ export function decodeRecord(record: unknown, photoDataUrl: unknown): StitchPatt
     // it, byte for byte (found in the G-094 QA pass; the two differed only in the order of these keys).
     sourceImage = { dataUrl: photoDataUrl, ...rest };
   }
-  return deserializePatternData({ ...r, sourceImage });
+  return deserializeChartData({ ...r, sourceImage });
 }
 
 function describeRecord(record: unknown, photo: unknown): string {
@@ -371,17 +388,17 @@ export interface LegacyProjectSlot {
 
 export async function restoreProject(store: ProjectStore, legacy?: LegacyProjectSlot): Promise<ProjectLoadResult> {
   const result = await store.load();
-  if (result.pattern || result.failure || !legacy) return result;
+  if (result.document || result.failure || !legacy) return result;
   const raw = legacy.read();
   if (!raw) return result;
-  let pattern: StitchPattern;
+  let document: ChartDocument;
   try {
-    pattern = deserializePattern(raw);
+    document = deserializeChart(raw);
   } catch (error) {
     legacy.clear();
-    return { pattern: null, failure: { error, payload: raw } };
+    return { document: null, failure: { error, payload: raw } };
   }
   legacy.clear();
-  await store.save(pattern).catch(() => {}); // the in-memory pattern is what matters; the autosave hook will retry on the next edit
-  return { pattern };
+  await store.save(document).catch(() => {}); // the in-memory chart is what matters; the autosave hook will retry on the next edit
+  return { document };
 }

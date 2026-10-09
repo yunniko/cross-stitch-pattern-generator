@@ -13,7 +13,7 @@ import {
   type PhotoHistory,
 } from "@/lib/photo/photo-history";
 import { photoStepBytes, type PhotoMeta, type PhotoStep } from "@/lib/photo/photo-step";
-import type { StitchPattern } from "@/lib/types";
+import type { SourceImageRef } from "@/lib/types";
 
 export type SourceImageMeta = PhotoMeta;
 
@@ -58,15 +58,15 @@ export function useSourceImage() {
   }
 
   /** Adopts a loaded pattern's embedded photo, or clears the photo when it has none, so Regenerate, Move and the underlay keep working (G-012). */
-  async function adoptPatternPhoto(pattern: StitchPattern, fallbackName: string) {
+  async function adoptPatternPhoto(sourceImage: SourceImageRef | undefined, fallbackName: string) {
     cancelActiveGeneration();
     const myRevision = ++revisionRef.current;
-    if (!pattern.sourceImage) {
+    if (!sourceImage) {
       clear();
       return;
     }
     try {
-      const decoded = await decodeSourceImage(pattern.sourceImage.dataUrl);
+      const decoded = await decodeSourceImage(sourceImage.dataUrl);
       if (revisionRef.current !== myRevision) return;
       adopt(decoded);
       setFileName(fallbackName);

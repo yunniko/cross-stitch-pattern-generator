@@ -1,5 +1,5 @@
 import { MAX_STITCHES } from "../types";
-import type { CanvasResizeDelta } from "./pattern-edit";
+import type { CanvasResizeDelta } from "../document/plane-geometry";
 
 /**
  * The Crop tool's frame as data (G-089): how far each edge of the chart moves **in**, in whole stitches. 3 on the left cuts three

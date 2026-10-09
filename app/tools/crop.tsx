@@ -5,17 +5,17 @@ import { act } from "./shared";
 import type { EditorApi, ToolModule, ToolRuntime } from "./types";
 import { useCallback, useState } from "react";
 import { cropError, cropSize, insetsToDelta, isNoCrop, NO_CROP, withInset, type CropEdge, type CropInsets } from "@/lib/editor/crop-frame";
-import { resizeCanvas } from "@/lib/editor/pattern-edit";
+import type { ChartTransform } from "@/lib/document/layer-kinds";
 import type { StitchPattern } from "@/lib/types";
 
 /**
  * The Crop tool's state (G-089): whether it is open, and the frame, which is the four numbers beside it (`crop-frame.ts`).
  *
  * The frame belongs to the chart it was made over. When that chart's size changes under it (an undo, a redo, another chart) the
- * frame reads as no crop, rather than as numbers that mean something else on a different grid. Apply is `resizeCanvas`, the
- * one place a canvas is resized, committed as one undo step.
+ * frame reads as no crop, rather than as numbers that mean something else on a different grid. Apply resizes the whole
+ * chart, every layer (`transformDocument`), as one undo step.
  */
-export function useCropTool(pattern: StitchPattern | null, commit: (next: StitchPattern) => void) {
+export function useCropTool(pattern: StitchPattern | null, transformChart: (transform: ChartTransform) => void) {
   const [open, setOpen] = useState(false);
   const [held, setHeld] = useState<{ width: number; height: number; insets: CropInsets }>({ width: 0, height: 0, insets: NO_CROP });
 
@@ -49,8 +49,8 @@ export function useCropTool(pattern: StitchPattern | null, commit: (next: Stitch
 
   const apply = useCallback(() => {
     if (!pattern || !open || isNoCrop(insets) || cropError(pattern.width, pattern.height, insets)) return;
-    commit(resizeCanvas(pattern, insetsToDelta(insets)));
-  }, [commit, insets, open, pattern]);
+    transformChart({ type: "resize", delta: insetsToDelta(insets) });
+  }, [transformChart, insets, open, pattern]);
 
   return { open, insets, size, error, changed: !isNoCrop(insets), setInsets, setEdge, reset, begin, close, clearFrame, apply };
 }
@@ -90,7 +90,7 @@ export const cropModule = {
     },
   ],
   useRuntime(api: EditorApi): ToolRuntime {
-    const crop = useCropTool(api.pattern, api.commit);
+    const crop = useCropTool(api.pattern, api.transformChart);
     const shown = crop.open && api.pattern !== null && !api.startingNew && !api.viewOnly;
     const bar: CropBarProps | undefined =
       shown && crop.size && api.pattern

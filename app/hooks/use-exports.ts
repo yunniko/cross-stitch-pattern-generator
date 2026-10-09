@@ -4,7 +4,8 @@ import { NO_SYMMETRY, type SymmetryAxes } from "@/lib/editor/symmetry";
 import type { WorkspaceOptions } from "@/lib/editor/workspace-storage";
 import { downloadBlob } from "@/lib/export/a4-export";
 import { calculateA4Layout } from "@/lib/export/a4-layout";
-import { serializePattern } from "@/lib/editor/pattern-serialize";
+import type { ChartDocument } from "@/lib/document/types";
+import { serializeChart } from "@/lib/editor/pattern-serialize";
 import type { ExportChoice, ExportKind } from "@/lib/export/export-jobs";
 import { paletteFileText, setFromPattern } from "@/lib/editor/palette-set";
 import { pixelArtPngBlob } from "@/lib/export/pixel-art-png";
@@ -34,7 +35,13 @@ function messageForExport(error: unknown, fallback: string): string {
  * responsive and shows page progress (D125); the busy label paints before any work starts. The symmetry axes travel
  * with every request but only reach the editable JSON (G-037).
  */
-export function useExports(pattern: StitchPattern | null, options: WorkspaceOptions, symmetry: SymmetryAxes = NO_SYMMETRY) {
+export function useExports(
+  pattern: StitchPattern | null,
+  /** The whole chart, every layer: what the editable file keeps (G-130). The other exports are made from `pattern`. */
+  chart: ChartDocument | null,
+  options: WorkspaceOptions,
+  symmetry: SymmetryAxes = NO_SYMMETRY
+) {
   const [exportKind, setExportKind] = useState<ExportChoice>("editable");
   const [isExporting, setIsExporting] = useState(false);
   const [isExportingAll, setIsExportingAll] = useState(false);
@@ -79,7 +86,10 @@ export function useExports(pattern: StitchPattern | null, options: WorkspaceOpti
         throw new Error("This chart has no colours yet, so there is no palette to export.");
       const { blob, filename } =
         kind === "editable"
-          ? { blob: new Blob([serializePattern(pattern, symmetry)], { type: "application/json" }), filename: `${baseName}_editable.json` }
+          ? {
+              blob: new Blob([serializeChart(chart ?? pattern, symmetry)], { type: "application/json" }),
+              filename: `${baseName}_editable.json`,
+            }
           : kind === "palette"
             ? {
                 blob: new Blob([paletteFileText(setFromPattern(pattern), baseName)], { type: "application/json" }),

@@ -3,7 +3,13 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { loadPatternFromFile } from "@/lib/editor/pattern-import";
-import { deserializePattern, FORMAT_VERSION, parsePatternDocument, readSymmetry, serializePattern } from "@/lib/editor/pattern-serialize";
+import {
+  deserializePattern,
+  FLAT_FORMAT_VERSION,
+  parsePatternDocument,
+  readSymmetry,
+  serializePattern,
+} from "@/lib/editor/pattern-serialize";
 import { createMemoryKeyValueStore, createProjectStore } from "@/lib/editor/project-store";
 import { NO_SYMMETRY, type SymmetryAxes } from "@/lib/editor/symmetry";
 import type { PaletteColor, RGB, StitchPattern } from "@/lib/types";
@@ -51,8 +57,8 @@ describe("symmetry in the editable JSON", () => {
 
   it("keeps the format version: the field is optional and older builds ignore it", () => {
     const withField = JSON.parse(serializePattern(makePattern(4, 4), axes({ diagonal: true })));
-    expect(withField.formatVersion).toBe(FORMAT_VERSION);
-    expect(FORMAT_VERSION).toBe(7);
+    expect(withField.formatVersion).toBe(FLAT_FORMAT_VERSION);
+    expect(FLAT_FORMAT_VERSION).toBe(7);
     // The existing parser still reads the file and ignores the field.
     expect(deserializePattern(JSON.stringify(withField)).width).toBe(4);
   });
@@ -82,7 +88,7 @@ describe("symmetry in the autosaved project", () => {
     const pattern = makePattern(5, 5);
     await store.save(pattern, axes({ vertical: true, antidiagonal: true }));
     const loaded = await store.load();
-    expect(loaded.pattern?.width).toBe(5);
+    expect(loaded.document?.width).toBe(5);
     expect(loaded.symmetry).toEqual(axes({ vertical: true, antidiagonal: true }));
   });
 

@@ -7,7 +7,8 @@ import { WHATS_NEW_PATH } from "@/lib/app-version";
 import { useDrawingColours } from "./hooks/use-drawing-colours";
 import { useSymmetryAxes } from "./hooks/use-symmetry-axes";
 import { downloadPatternLoadReport } from "@/lib/editor/error-report";
-import { mergeColors, renamePattern } from "@/lib/editor/pattern-edit";
+import { mergeColorsInDocument, transformDocument } from "@/lib/editor/document-edit";
+import { renamePattern } from "@/lib/editor/pattern-edit";
 import { useChartFabric } from "./hooks/use-chart-fabric";
 import { useEditorView } from "./hooks/use-editor-view";
 import { useLitThreads } from "./hooks/use-lit-threads";
@@ -210,6 +211,7 @@ export default function Workspace({ account }: WorkspaceProps) {
     viewOnly: lookingOnly,
     startingNew,
     commit: history.set,
+    transformChart: (transform) => history.apply((document) => transformDocument(document, transform)),
     history,
     colorForPointer: colours.colorForPointer,
     takeColor: colours.takeColor,
@@ -307,9 +309,9 @@ export default function Workspace({ account }: WorkspaceProps) {
     });
   });
 
-  const exports = useExports(pattern, options, liveSymmetry);
+  const exports = useExports(pattern, history.document, options, liveSymmetry);
   // Saving to the account (G-108): which saved chart this is, kept by the replace table and autosaved with the chart.
-  const accountSave = useAccountSave(pattern, liveSymmetry);
+  const accountSave = useAccountSave(history.document, liveSymmetry);
   // Every way a chart arrives or leaves (`use-chart-lifecycle.ts`). What it is handed here is the state other owners keep
   // that a new chart resets; which of them a given way in resets is the table in `lib/editor/document-replace.ts`.
   const lifecycle = useChartLifecycle({
@@ -468,7 +470,8 @@ export default function Workspace({ account }: WorkspaceProps) {
 
   function handleMergeColors(sourceIndex: number, targetIndex: number) {
     if (!pattern || sourceIndex === targetIndex) return;
-    history.set(mergeColors(pattern, sourceIndex, targetIndex));
+    // On every layer, hidden ones too: the palette is the chart's (G-130).
+    history.apply((document) => mergeColorsInDocument(document, sourceIndex, targetIndex));
     tools.piece.invalidateClipboard();
     // A merge renumbers the palette, so a square holding an index above the merged one would otherwise be
     // pointing at a different thread than the reader picked.

@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { saveOutcome, saveRequest, type SavedChartLink } from "@/lib/charts/saved-chart-link";
-import { serializePattern } from "@/lib/editor/pattern-serialize";
+import type { ChartDocument } from "@/lib/document/types";
+import { serializeChart } from "@/lib/editor/pattern-serialize";
 import type { SymmetryAxes } from "@/lib/editor/symmetry";
-import type { StitchPattern } from "@/lib/types";
 
 /**
  * Saving the open chart to the person's account (G-108 part 1, D355). The first Save makes a saved chart with an id of the
@@ -15,7 +15,8 @@ import type { StitchPattern } from "@/lib/types";
 
 export type AccountSaveMessage = { tone: "info" | "error"; text: string };
 
-export function useAccountSave(pattern: StitchPattern | null, symmetry: SymmetryAxes) {
+/** `chart` is the whole document, every layer of it, as the editable file keeps it (G-130). */
+export function useAccountSave(chart: ChartDocument | null, symmetry: SymmetryAxes) {
   const [link, setLink] = useState<SavedChartLink | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<AccountSaveMessage | null>(null);
@@ -23,13 +24,13 @@ export function useAccountSave(pattern: StitchPattern | null, symmetry: Symmetry
   const [conflict, setConflict] = useState<{ version: number; savedAt: string } | null>(null);
 
   async function send(over: SavedChartLink | null, copy: boolean) {
-    if (!pattern || busy) return;
+    if (!chart || busy) return;
     setBusy(true);
     setMessage(null);
     setConflict(null);
     try {
       const { url, method, headers } = saveRequest(over);
-      const response = await fetch(url, { method, headers, body: serializePattern(pattern, symmetry) });
+      const response = await fetch(url, { method, headers, body: serializeChart(chart, symmetry) });
       const outcome = saveOutcome(response.status, await response.json().catch(() => null));
       if (outcome.kind === "saved") {
         setLink(outcome.link);

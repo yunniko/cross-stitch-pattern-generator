@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { applyChange, recordChange } from "../../lib/document/change";
-import { BASE_LAYER_ID, documentFromPattern, flatten, newRevision } from "../../lib/document/convert";
+import { BASE_LAYER_ID, BASE_LAYER_NAME, documentFromPattern, flatten, newRevision } from "../../lib/document/convert";
 import {
   MAX_HISTORY,
   canRedo,
@@ -11,6 +11,7 @@ import {
   undoHistory,
   type DocumentHistory,
 } from "../../lib/document/history";
+import type { StitchLayer } from "../../lib/document/types";
 import { EMPTY_CELL, type PaletteColor, type StitchPattern } from "../../lib/types";
 
 /**
@@ -54,7 +55,8 @@ const shape = (p: StitchPattern | null) =>
     height: p.height,
     cells: Array.from(p.cellPalette),
     kinds: p.cellKind ? Array.from(p.cellKind) : "absent",
-    palette: p.palette,
+    // A colour's count is of the flattened chart, recounted there (tested above); these fixtures carry none.
+    palette: p.palette.map((color) => ({ ...color, count: undefined })),
     name: p.name,
     backstitch: p.backstitch,
     fabric: p.fabric,
@@ -70,8 +72,10 @@ describe("a flat chart as a document", () => {
     const document = documentFromPattern(pattern);
     expect(document.layers).toHaveLength(1);
     expect(document.layers[0].id).toBe(BASE_LAYER_ID);
-    expect(document.layers[0].cells).toBe(pattern.cellPalette);
-    expect(document.layers[0].kinds).toBe(pattern.cellKind);
+    const layer = document.layers[0] as StitchLayer;
+    expect(layer).toMatchObject({ kind: "stitches", name: BASE_LAYER_NAME, visible: true });
+    expect(layer.cells).toBe(pattern.cellPalette);
+    expect(layer.kinds).toBe(pattern.cellKind);
     expect(document.properties).toEqual({ name: "A", isLandscape: true });
     expect(flatten(document)).toBe(pattern);
   });
@@ -83,18 +87,24 @@ describe("a flat chart as a document", () => {
 
   it("flattens several layers top down: an empty stitch shows the layer below, with its kind, and the counts are of the result", () => {
     const base = documentFromPattern(chart(2, 2, 0, { cellKind: Uint8Array.from([1, 1, 1, 1]) }));
-    const upper = { id: "upper", kind: "stitches" as const, cells: Uint8Array.from([EMPTY_CELL, 2, EMPTY_CELL, 3]) };
+    const upper: StitchLayer = {
+      id: "upper",
+      kind: "stitches",
+      name: "Layer 2",
+      visible: true,
+      cells: Uint8Array.from([EMPTY_CELL, 2, EMPTY_CELL, 3]),
+    };
     const flat = flatten({ ...base, revision: newRevision(), layers: [base.layers[0], upper] });
     expect(Array.from(flat.cellPalette)).toEqual([0, 2, 0, 3]);
     expect(Array.from(flat.cellKind!)).toEqual([1, 0, 1, 0]);
     expect(flat.palette.map((c) => c.count)).toEqual([2, 0, 1, 1]);
     // The layers themselves are not touched.
-    expect(Array.from(base.layers[0].cells)).toEqual([0, 0, 0, 0]);
+    expect(Array.from((base.layers[0] as StitchLayer).cells)).toEqual([0, 0, 0, 0]);
   });
 
   it("refuses a layer that is not the size of its document, by name", () => {
     const base = documentFromPattern(chart(2, 2));
-    const short = { id: "short", kind: "stitches" as const, cells: new Uint8Array(3) };
+    const short: StitchLayer = { id: "short", kind: "stitches", name: "Short", visible: true, cells: new Uint8Array(3) };
     expect(() => flatten({ ...base, revision: newRevision(), layers: [base.layers[0], short] })).toThrow(
       'The layer "short" is not the size of its document (2 × 2).'
     );
@@ -161,7 +171,9 @@ describe("a recorded change", () => {
   });
 
   it("keeps a changed palette, backstitch or property as the two values, and a removed one comes back removed", () => {
-    const before = chart(2, 2, 0, { name: "Old", fabric: { count: 14, unit: "cm" } });
+    const plain = chart(2, 2, 0, { name: "Old", fabric: { count: 14, unit: "cm" } });
+    // Counted right, so the flattened chart can hand back the very palette it holds.
+    const before = { ...plain, palette: plain.palette.map((color) => ({ ...color, count: color.index === 0 ? 4 : 0 })) };
     const after: StitchPattern = {
       ...before,
       name: "New",

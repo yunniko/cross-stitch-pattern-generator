@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { documentFromPattern } from "../../lib/document/convert";
+import type { ChartDocument } from "../../lib/document/types";
 import { REPLACE_PLANS, type ReplaceReason } from "../../lib/editor/document-replace";
 import { replaceDocument, type ReplaceEffects } from "../../lib/editor/document-replace-run";
 import { NEUTRAL_ADJUST } from "../../lib/pipeline/photo-adjust";
@@ -9,8 +11,16 @@ import { EMPTY_CELL, type StitchPattern } from "../../lib/types";
  * on purpose. The rows were first pinned as the eight workspace functions behaved, then made alike (D283).
  */
 
-function chart(extra: Partial<StitchPattern> = {}): StitchPattern {
-  return { width: 2, height: 2, cellPalette: new Uint8Array(4).fill(EMPTY_CELL), palette: [], isLandscape: true, name: "c", ...extra };
+function chart(extra: Partial<StitchPattern> = {}): ChartDocument {
+  return documentFromPattern({
+    width: 2,
+    height: 2,
+    cellPalette: new Uint8Array(4).fill(EMPTY_CELL),
+    palette: [],
+    isLandscape: true,
+    name: "c",
+    ...extra,
+  });
 }
 
 function recorder() {

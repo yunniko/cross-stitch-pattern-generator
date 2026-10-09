@@ -7,6 +7,7 @@
 //   add "kinds" to give the chart half stitches (a second plane), "fill" to make every edit repaint a third of the chart
 import { performance } from "node:perf_hooks";
 import { withCellPalette } from "../lib/editor/pattern-edit";
+import type { StitchLayer } from "../lib/document/types";
 import type { StitchPattern } from "../lib/types";
 
 /** The history of full copies, as `lib/editor/undo-history.ts` kept it until G-094 replaced it: here so "before" can be measured again. */
@@ -152,7 +153,8 @@ async function main() {
     const t1 = performance.now();
     for (let i = 0; i < 100; i++) flatten(one);
     console.log(`flatten, one layer (cached): ${((performance.now() - t1) / 100).toFixed(4)} ms`);
-    const two = { ...one, layers: [one.layers[0], { ...one.layers[0], id: "second", cells: new Uint8Array(one.layers[0].cells) }] };
+    const bottom = one.layers[0] as StitchLayer;
+    const two = { ...one, layers: [bottom, { ...bottom, id: "second", cells: new Uint8Array(bottom.cells) }] };
     const times: number[] = [];
     for (let i = 0; i < 10; i++) {
       const t = performance.now();

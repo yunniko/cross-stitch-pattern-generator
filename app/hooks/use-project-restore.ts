@@ -4,7 +4,7 @@ import { logPatternLoadFailure } from "@/lib/editor/error-report";
 import { getProjectStore, restoreProject, type ProjectLoadFailure, type ProjectLoadResult } from "@/lib/editor/project-store";
 import { NO_SYMMETRY, type SymmetryAxes } from "@/lib/editor/symmetry";
 import { legacyProjectSlot } from "@/lib/editor/workspace-storage";
-import type { StitchPattern } from "@/lib/types";
+import type { ChartDocument } from "@/lib/document/types";
 import { useLatest } from "./use-latest";
 
 /**
@@ -13,7 +13,7 @@ import { useLatest } from "./use-latest";
  * `restored` gates autosave, so the first render can't overwrite the saved project before it has been read back. A
  * failure is logged at once and kept for the banner.
  */
-export function useProjectRestore(onRestored: (pattern: StitchPattern, symmetry: SymmetryAxes, savedChart: SavedChartLink | null) => void) {
+export function useProjectRestore(onRestored: (chart: ChartDocument, symmetry: SymmetryAxes, savedChart: SavedChartLink | null) => void) {
   const [restored, setRestored] = useState(false);
   const [failure, setFailure] = useState<ProjectLoadFailure | null>(null);
   const onRestoredRef = useLatest(onRestored);
@@ -21,14 +21,14 @@ export function useProjectRestore(onRestored: (pattern: StitchPattern, symmetry:
   useEffect(() => {
     let cancelled = false;
     void restoreProject(getProjectStore(), legacyProjectSlot)
-      .catch((error: unknown): ProjectLoadResult => ({ pattern: null, failure: { error, payload: "" } }))
+      .catch((error: unknown): ProjectLoadResult => ({ document: null, failure: { error, payload: "" } }))
       .then((result) => {
         if (cancelled) return;
         if (result.failure) {
           logPatternLoadFailure({ source: "auto-restore", error: result.failure.error });
           setFailure(result.failure);
         }
-        if (result.pattern) onRestoredRef.current(result.pattern, result.symmetry ?? NO_SYMMETRY, result.savedChart ?? null);
+        if (result.document) onRestoredRef.current(result.document, result.symmetry ?? NO_SYMMETRY, result.savedChart ?? null);
         setRestored(true);
       });
     return () => {

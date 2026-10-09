@@ -2,12 +2,16 @@ import { MoveIcon } from "./icons";
 import { inputsFrom } from "./shared";
 import type { EditorApi, ToolModule, ToolRuntime } from "./types";
 import { useRef } from "react";
-import { shiftPattern } from "@/lib/editor/pattern-edit";
+import type { ChartTransform } from "@/lib/document/layer-kinds";
 import type { StitchPattern } from "@/lib/types";
 import { releaseCapture, capturePointer } from "../editor-geometry";
 import { type CanvasToolInputs, type PointerLike } from "./shared";
 
-export function useMoveTool({ frameRef, rendererRef, pattern, cellSize, commit }: CanvasToolInputs) {
+/** Moves the whole design, every layer with the backstitch and the photo, as Crop resizes it (G-130, D390). */
+export function useMoveTool(
+  { frameRef, rendererRef, pattern, cellSize }: CanvasToolInputs,
+  transformChart: (transform: ChartTransform) => void
+) {
   const moveRef = useRef<{
     pointerId: number;
     basePattern: StitchPattern;
@@ -41,7 +45,7 @@ export function useMoveTool({ frameRef, rendererRef, pattern, cellSize, commit }
     moveRef.current = null;
     const moved = move.lastDx !== 0 || move.lastDy !== 0;
     rendererRef.current?.endGesture(!moved);
-    if (moved) commit(shiftPattern(move.basePattern, move.lastDx, move.lastDy));
+    if (moved) transformChart({ type: "shift", dx: move.lastDx, dy: move.lastDy });
     releaseCapture(frameRef.current, e.pointerId);
     return true;
   }
@@ -61,7 +65,7 @@ export const moveModule = {
     },
   ],
   useRuntime(api: EditorApi): ToolRuntime {
-    const move = useMoveTool(inputsFrom(api));
+    const move = useMoveTool(inputsFrom(api), api.transformChart);
     return { onPointerDown: move.onPointerDown, onPointerMove: move.onPointerMove, onPointerUp: move.onPointerUp };
   },
 } as const satisfies ToolModule;

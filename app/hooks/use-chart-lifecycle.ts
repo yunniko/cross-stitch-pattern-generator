@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { chartToOpen, NEW_CHART_PARAM, OPEN_CHART_PARAM, openOutcome, type SavedChartLink } from "@/lib/charts/saved-chart-link";
+import { asDocument, withProperties, type ChartInput } from "@/lib/document/convert";
+import type { ChartDocument } from "@/lib/document/types";
 import { createBlankPattern } from "@/lib/editor/blank-pattern";
 import { replaceDocument, type ReplaceEffects, type ReplaceExtras } from "@/lib/editor/document-replace-run";
 import type { ReplaceReason } from "@/lib/editor/document-replace";
@@ -14,7 +16,7 @@ import { NO_SYMMETRY, type SymmetryAxes } from "@/lib/editor/symmetry";
 import type { WorkspaceOptions } from "@/lib/editor/workspace-storage";
 import { STANDARD_AIDA_COUNTS } from "@/lib/export/finished-size";
 import type { ChartFabric, StitchPattern } from "@/lib/types";
-import type { UndoHistory } from "./use-document-history";
+import type { EditorHistory } from "./use-document-history";
 import { DEFAULT_CHART_NAME } from "./use-name-draft";
 import { useProjectAutosave } from "./use-project-autosave";
 import { useProjectRestore } from "./use-project-restore";
@@ -38,7 +40,7 @@ export type LifecycleResets = Omit<
 >;
 
 export interface ChartLifecycleInputs {
-  history: UndoHistory<StitchPattern | null>;
+  history: EditorHistory;
   source: ReturnType<typeof useSourceImage>;
   /** The browser's own settings, not the chart's: what an OXS file's count is compared with, and the unit it is given. */
   browserOptions: WorkspaceOptions;
@@ -88,7 +90,7 @@ export function useChartLifecycle({
   const effects: ReplaceEffects = {
     ...resets,
     resetHistory: history.reset,
-    pushHistory: history.set,
+    pushHistory: (next) => history.apply(() => next),
     bumpDocument: () => setDocumentId((id) => id + 1),
     clearMessages: () => {
       setPhotoError(null);
@@ -96,27 +98,32 @@ export function useChartLifecycle({
       setOpenNotice(null);
     },
     leaveStart: () => setStartingNew(false),
-    adoptPhoto: (chart, fallbackName) => source.adoptPatternPhoto(chart, fallbackName),
+    adoptPhoto: (chart, fallbackName) => source.adoptPatternPhoto(chart.properties.sourceImage, fallbackName),
     forgetAutosave: () => void getProjectStore().save(null),
   };
-  const replace = (reason: ReplaceReason, next: StitchPattern | null, extras?: ReplaceExtras) =>
-    replaceDocument(reason, next, effects, extras);
+  /** A flat chart (generated, an empty grid, pixel art) arrives as a document of one layer. */
+  const replace = (reason: ReplaceReason, next: ChartInput | null, extras?: ReplaceExtras) =>
+    replaceDocument(reason, next && asDocument(next), effects, extras);
+
+  /** A chart that arrives without a name takes the file's. */
+  const named = (loaded: ChartDocument, fallbackName: string) =>
+    loaded.properties.name ? loaded : withProperties(loaded, { name: fallbackName });
 
   /** Lands a restored or opened chart in every piece of state that depends on it, including its embedded photo. */
   function open(
-    loaded: StitchPattern,
+    loaded: ChartDocument,
     fallbackName: string,
     savedSymmetry: SymmetryAxes = NO_SYMMETRY,
     reason: "open" | "restore" = "open",
     link: SavedChartLink | null = null
   ) {
-    return replace(reason, { ...loaded, name: loaded.name ?? fallbackName }, { symmetry: savedSymmetry, fallbackName, savedChart: link });
+    return replace(reason, named(loaded, fallbackName), { symmetry: savedSymmetry, fallbackName, savedChart: link });
   }
 
   const restore = useProjectRestore(
-    (restored, savedSymmetry, link) => void open(restored, restored.name ?? DEFAULT_CHART_NAME, savedSymmetry, "restore", link)
+    (restored, savedSymmetry, link) => void open(restored, restored.properties.name ?? DEFAULT_CHART_NAME, savedSymmetry, "restore", link)
   );
-  const autosaveStatus = useProjectAutosave(pattern, restore.restored, getProjectStore(), symmetry, savedChart);
+  const autosaveStatus = useProjectAutosave(history.document, restore.restored, getProjectStore(), symmetry, savedChart);
 
   /**
    * Opens a chart saved to the account (G-108), read as an opened file is. It is read before anything is asked: when it
@@ -134,14 +141,9 @@ export function useChartLifecycle({
       }
       const fallbackName = outcome.name || DEFAULT_CHART_NAME;
       const file = new File([await response.text()], `${fallbackName}.json`, { type: "application/json" });
-      const { pattern: loaded, symmetry: savedSymmetry } = await loadPatternFromFile(file);
+      const { document: loaded, symmetry: savedSymmetry } = await loadPatternFromFile(file);
       startNewChart(
-        () =>
-          void replace(
-            "open-saved",
-            { ...loaded, name: loaded.name ?? fallbackName },
-            { symmetry: savedSymmetry, fallbackName, savedChart: outcome.link }
-          )
+        () => void replace("open-saved", named(loaded, fallbackName), { symmetry: savedSymmetry, fallbackName, savedChart: outcome.link })
       );
     } catch (err) {
       logPatternLoadFailure({ source: "open-saved", error: err });
@@ -254,11 +256,13 @@ export function useChartLifecycle({
       setOpenError(null);
       setOpenNotice(null);
       loadPatternFromFile(file)
-        .then(async ({ pattern: loaded, oxsReport, symmetry: savedSymmetry }) => {
+        .then(async ({ document: loaded, oxsReport, symmetry: savedSymmetry }) => {
           // An OXS file states its fabric count; the chart opened from it carries that count, in the browser's unit.
           const notice = oxsReport ? oxsImportNotice(oxsReport, browserOptions.aidaCount, STANDARD_AIDA_COUNTS) : null;
           const chart =
-            notice?.aidaCount !== undefined ? setFabric(loaded, { count: notice.aidaCount, unit: browserOptions.sizeUnit }) : loaded;
+            notice?.aidaCount !== undefined
+              ? withProperties(loaded, { fabric: { count: notice.aidaCount, unit: browserOptions.sizeUnit } })
+              : loaded;
           await open(chart, file.name.replace(/\.[^.]+$/, "").replace(/[-_]editable$/, ""), savedSymmetry);
           if (notice) setOpenNotice(notice.text);
         })

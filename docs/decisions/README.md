@@ -426,3 +426,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D387 — A withdrawal runs 14 Prague days from the subscription's start, is recorded first, and refunds each payment's unused part once — active
 - D388 — A plan change to more starts now with the difference charged; to less, at the renewal — active
 - D389 — Withdrawal information and the early-start request are separate documents, both sent in full — active
+- D390 — A chart is an ordered list of layers, each of a kind declared once in a registry — active

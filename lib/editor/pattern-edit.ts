@@ -1,5 +1,6 @@
 import { nameNewColor } from "../color/color-names";
 import { clipLines, shiftLines, withColorRemovedFromLines } from "./backstitch";
+import { resizePlane, wrapShift, type CanvasResizeDelta } from "../document/plane-geometry";
 import { floodFillDiagonal, labelRegions } from "../pipeline/regions";
 import { SYMBOL_SET } from "../color/symbols";
 import { kindBuffer, kindsAfterWholePainting, STITCH_WHOLE, tidyKinds } from "./stitch-kind";
@@ -166,35 +167,11 @@ export function shiftPattern(pattern: StitchPattern, dx: number, dy: number): St
   };
 }
 
-/**
- * A buffer shifted by whole cells with wrap-around. Two whole-row copies per row rather than a modulo per cell: the tail of
- * the source row wraps to the front (G-039 M2, same bytes as the per-cell form).
- */
-function wrapShift(source: Uint8Array, width: number, height: number, dx: number, dy: number): Uint8Array {
-  const shifted = new Uint8Array(source.length);
-  const offsetX = ((dx % width) + width) % width;
-  for (let y = 0; y < height; y++) {
-    const srcY = ((((y - dy) % height) + height) % height) * width;
-    const destY = y * width;
-    shifted.set(source.subarray(srcY + width - offsetX, srcY + width), destY);
-    shifted.set(source.subarray(srcY, srcY + width - offsetX), destY + offsetX);
-  }
-  return shifted;
-}
-
 /** Lines shifted by whole cells and clipped to a chart of the given size; `undefined` when none survive. */
 function movedLines(pattern: StitchPattern, dx: number, dy: number, width: number, height: number) {
   if (!pattern.backstitch?.length) return undefined;
   const kept = clipLines(shiftLines(pattern.backstitch, dx, dy), width, height);
   return kept.length ? kept : undefined;
-}
-
-/** Signed per-edge cell counts for `resizeCanvas` -- positive expands that edge, negative crops it, 0 leaves it alone. */
-export interface CanvasResizeDelta {
-  left: number;
-  right: number;
-  top: number;
-  bottom: number;
 }
 
 /**
@@ -215,18 +192,8 @@ export function resizeCanvas(pattern: StitchPattern, delta: CanvasResizeDelta): 
     );
   }
 
-  const cellPalette = new Uint8Array(newWidth * newHeight);
-  const cellKind = pattern.cellKind ? new Uint8Array(newWidth * newHeight) : undefined;
-  for (let ny = 0; ny < newHeight; ny++) {
-    const oy = ny - top;
-    const inRowBounds = oy >= 0 && oy < pattern.height;
-    for (let nx = 0; nx < newWidth; nx++) {
-      const ox = nx - left;
-      const inside = inRowBounds && ox >= 0 && ox < pattern.width;
-      cellPalette[ny * newWidth + nx] = inside ? pattern.cellPalette[oy * pattern.width + ox] : EMPTY_CELL;
-      if (cellKind && inside) cellKind[ny * newWidth + nx] = pattern.cellKind![oy * pattern.width + ox];
-    }
-  }
+  const cellPalette = resizePlane(pattern.cellPalette, pattern.width, pattern.height, delta, EMPTY_CELL);
+  const cellKind = pattern.cellKind ? resizePlane(pattern.cellKind, pattern.width, pattern.height, delta, STITCH_WHOLE) : undefined;
 
   const resized = withCounts(pattern, cellPalette, pattern.palette, cellKind);
   return {

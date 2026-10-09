@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { flatten } from "@/lib/document/convert";
 import {
   CURRENT_PROJECT_KEY,
   createMemoryKeyValueStore,
@@ -71,7 +72,8 @@ describe("project-store", () => {
       })),
     });
 
-    const { pattern, failure } = await store.load();
+    const { document, failure } = await store.load();
+    const pattern = document && flatten(document);
     expect(failure).toBeUndefined();
     expect(pattern).not.toBeNull();
     expect(Array.from(pattern!.cellPalette)).toEqual([0, 1, EMPTY_CELL, 0]);
@@ -85,7 +87,8 @@ describe("project-store", () => {
   it("keeps edgeMode crisp-plus through autosave (G-038)", async () => {
     const store = createProjectStore(createMemoryKeyValueStore());
     await store.save(makePattern({ edgeMode: "crisp-plus" }));
-    const { pattern, failure } = await store.load();
+    const { document, failure } = await store.load();
+    const pattern = document && flatten(document);
     expect(failure).toBeUndefined();
     expect(pattern!.edgeMode).toBe("crisp-plus");
   });
@@ -99,13 +102,14 @@ describe("project-store", () => {
     ];
     const store = createProjectStore(createMemoryKeyValueStore());
     await store.save(makePattern({ backstitch: lines }));
-    const { pattern, failure } = await store.load();
+    const { document, failure } = await store.load();
+    const pattern = document && flatten(document);
     expect(failure).toBeUndefined();
     expect(pattern!.backstitch).toEqual(lines);
 
     const plain = createProjectStore(createMemoryKeyValueStore());
     await plain.save(makePattern());
-    expect((await plain.load()).pattern!.backstitch).toBeUndefined();
+    expect(flatten((await plain.load()).document!).backstitch).toBeUndefined();
   });
 
   it("keeps the four photo sliders through autosave (G-074)", async () => {
@@ -114,11 +118,11 @@ describe("project-store", () => {
     const photoAdjust = { brightness: 25, contrast: -40, saturation: 60, temperature: -15 };
     const store = createProjectStore(createMemoryKeyValueStore());
     await store.save(makePattern({ photoAdjust }));
-    expect((await store.load()).pattern!.photoAdjust).toEqual(photoAdjust);
+    expect(flatten((await store.load()).document!).photoAdjust).toEqual(photoAdjust);
 
     const plain = createProjectStore(createMemoryKeyValueStore());
     await plain.save(makePattern());
-    expect((await plain.load()).pattern!.photoAdjust).toBeUndefined();
+    expect(flatten((await plain.load()).document!).photoAdjust).toBeUndefined();
   });
 
   it("stores cellPalette as the typed array itself, not a JSON number array", async () => {
@@ -141,7 +145,8 @@ describe("project-store", () => {
     const record = JSON.stringify(await kv.get(CURRENT_PROJECT_KEY));
     expect(record).not.toContain(PHOTO.dataUrl); // the record references the photo, it doesn't embed it
 
-    const { pattern } = await store.load();
+    const { document } = await store.load();
+    const pattern = document && flatten(document);
     expect(pattern!.sourceImage).toEqual({ ...PHOTO, offsetX: 3 });
   });
 
@@ -159,7 +164,7 @@ describe("project-store", () => {
     await store.save(makePattern({ sourceImage: PHOTO }));
     await store.save(null);
     expect(kv.size()).toBe(0);
-    expect(await store.load()).toEqual({ pattern: null });
+    expect(await store.load()).toEqual({ document: null });
   });
 
   it("returns a failure (and clears the slot) for a corrupt record instead of throwing or returning a broken pattern", async () => {
@@ -174,11 +179,11 @@ describe("project-store", () => {
     const store = createProjectStore(kv);
 
     const result = await store.load();
-    expect(result.pattern).toBeNull();
+    expect(result.document).toBeNull();
     expect(result.failure?.error).toBeInstanceOf(Error);
     expect(result.failure?.payload).toContain('"width":2'); // the exact stored content, for the error report
     expect(await kv.get(CURRENT_PROJECT_KEY)).toBeUndefined(); // won't fail again on the next load
-    expect(await store.load()).toEqual({ pattern: null });
+    expect(await store.load()).toEqual({ document: null });
   });
 
   it("rejects a record from an unknown store version rather than guessing at its shape", async () => {
@@ -191,7 +196,7 @@ describe("project-store", () => {
       palette: [{ rgb: [0, 0, 0], symbol: "x", name: "A" }],
     });
     const result = await createProjectStore(kv).load();
-    expect(result.pattern).toBeNull();
+    expect(result.document).toBeNull();
     expect(String(result.failure?.error)).toMatch(/version 99/);
   });
 
@@ -201,7 +206,8 @@ describe("project-store", () => {
     await store.save(makePattern({ sourceImage: PHOTO }));
     for (const key of await photoKeys(kv)) await kv.delete(key);
 
-    const { pattern, failure } = await store.load();
+    const { document, failure } = await store.load();
+    const pattern = document && flatten(document);
     expect(failure).toBeUndefined();
     expect(pattern!.sourceImage).toBeUndefined();
     expect(pattern!.width).toBe(2);
@@ -241,8 +247,8 @@ describe("project-store", () => {
       await store.save(makePattern({ name: "from-idb" }));
       const slot = legacy(serializePattern(makePattern({ name: "from-legacy" })));
 
-      const { pattern } = await restoreProject(store, slot);
-      expect(pattern!.name).toBe("from-idb");
+      const { document } = await restoreProject(store, slot);
+      expect(document!.properties.name).toBe("from-idb");
       expect(slot.value).not.toBeNull(); // untouched: nothing was migrated
     });
 
@@ -251,11 +257,11 @@ describe("project-store", () => {
       const store = createProjectStore(kv);
       const slot = legacy(serializePattern(makePattern({ name: "from-legacy", sourceImage: PHOTO })));
 
-      const { pattern } = await restoreProject(store, slot);
-      expect(pattern!.name).toBe("from-legacy");
-      expect(pattern!.sourceImage).toEqual(PHOTO);
+      const { document } = await restoreProject(store, slot);
+      expect(document!.properties.name).toBe("from-legacy");
+      expect(document!.properties.sourceImage).toEqual(PHOTO);
       expect(slot.value).toBeNull();
-      expect((await store.load()).pattern?.name).toBe("from-legacy");
+      expect(flatten((await store.load()).document!).name).toBe("from-legacy");
     });
 
     it("reports a corrupt legacy slot as a failure with its raw content, and clears it", async () => {
@@ -263,13 +269,13 @@ describe("project-store", () => {
       const slot = legacy("{not json");
 
       const result = await restoreProject(store, slot);
-      expect(result.pattern).toBeNull();
+      expect(result.document).toBeNull();
       expect(result.failure?.payload).toBe("{not json");
       expect(slot.value).toBeNull();
     });
 
     it("returns an empty result when neither slot has anything", async () => {
-      expect(await restoreProject(createProjectStore(createMemoryKeyValueStore()), legacy(null))).toEqual({ pattern: null });
+      expect(await restoreProject(createProjectStore(createMemoryKeyValueStore()), legacy(null))).toEqual({ document: null });
     });
   });
 });

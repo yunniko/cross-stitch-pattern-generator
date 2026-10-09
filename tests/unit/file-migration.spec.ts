@@ -1,6 +1,7 @@
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { FORMAT_VERSION, fileVersion, migrateToCurrent } from "@/lib/document/migrate";
+import { flatten } from "@/lib/document/convert";
+import { FLAT_FORMAT_VERSION, FORMAT_VERSION, fileVersion, migrateToCurrent } from "@/lib/document/migrate";
 import { setFabric } from "@/lib/editor/pattern-edit";
 import { deserializePattern, parsePatternDocument, readFabric, serializePattern } from "@/lib/editor/pattern-serialize";
 import { decodeRecord } from "@/lib/editor/project-store";
@@ -27,7 +28,7 @@ process.env.CS_JOB_BINARY = path.join(
 const dmc = THREAD_BRANDS.dmc.colors;
 const cells = [0, 1, 0, 1, 255, 0];
 
-/** A file exactly as the current version writes it, with every optional field, in the writer's order. */
+/** A chart of one layer exactly as the current version writes it (format 7, G-130 D390), with every optional field, in the writer's order. */
 const CURRENT_FULL =
   `{"formatVersion":7,"width":3,"height":2,"isLandscape":true,"cellPalette":[${cells.join(",")}],` +
   `"palette":[{"rgb":[200,30,40],"symbol":"A","name":"${formatThreadName(dmc[0])}","source":{"brand":"dmc","code":"${dmc[0].code}"}},` +
@@ -42,7 +43,7 @@ const resave = (text: string) => {
   return serializePattern(pattern, symmetry);
 };
 
-describe("a file of the current version", () => {
+describe("a chart of one layer, written as format 7", () => {
   it("re-saves as the same bytes, with every optional field and with none", () => {
     // The photo sliders are read through their own check; this guards the test's own fixture against a renamed field.
     expect(deserializePattern(CURRENT_FULL).photoAdjust).toBeDefined();
@@ -50,8 +51,8 @@ describe("a file of the current version", () => {
     expect(resave(CURRENT_PLAIN)).toBe(CURRENT_PLAIN);
   });
 
-  it("is handed on untouched by the migration step", () => {
-    const data = JSON.parse(CURRENT_PLAIN) as Record<string, unknown>;
+  it("is handed on untouched by the migration step when it is of the current version", () => {
+    const data = { formatVersion: FORMAT_VERSION, width: 1, height: 1, palette: [], layers: [] } as Record<string, unknown>;
     expect(migrateToCurrent(data)).toBe(data);
   });
 });
@@ -88,7 +89,7 @@ describe("a file of an earlier version", () => {
     ]);
     // Saved again it is a current file, and that file re-saves as itself.
     const saved = serializePattern(pattern);
-    expect(JSON.parse(saved).formatVersion).toBe(FORMAT_VERSION);
+    expect(JSON.parse(saved).formatVersion).toBe(FLAT_FORMAT_VERSION);
     expect(resave(saved)).toBe(saved);
   });
 
@@ -137,9 +138,9 @@ describe("a file of an earlier version", () => {
 
 describe("a file of a later version", () => {
   it("is refused by name, as a file and as an autosaved record", () => {
-    const later = CURRENT_PLAIN.replace('"formatVersion":7', '"formatVersion":8');
+    const later = CURRENT_PLAIN.replace('"formatVersion":7', '"formatVersion":9');
     expect(() => deserializePattern(later)).toThrow(
-      "That file was saved by a newer version of this app (format 8; this one reads up to 7). Reload the page to get the latest version, then open it again."
+      "That file was saved by a newer version of this app (format 9; this one reads up to 8). Reload the page to get the latest version, then open it again."
     );
     expect(() => decodeRecord({ ...JSON.parse(later), storeVersion: 1 }, undefined)).toThrow(/newer version of this app/);
   });
@@ -205,7 +206,7 @@ describe("a chart's fabric", () => {
     const chart = setFabric({ ...deserializePattern(CURRENT_FULL), sourceImage }, { count: 16, unit: "in" });
     await store.save(chart, NO_SYMMETRY);
     const loaded = await store.load();
-    expect(serializePattern(loaded.pattern!, NO_SYMMETRY)).toBe(serializePattern(chart, NO_SYMMETRY));
+    expect(serializePattern(flatten(loaded.document!), NO_SYMMETRY)).toBe(serializePattern(chart, NO_SYMMETRY));
   });
 
   it("survives the autosave record", async () => {
@@ -219,7 +220,7 @@ describe("a chart's fabric", () => {
     });
     await store.save(setFabric(plain, { count: 18, unit: "cm" }), NO_SYMMETRY);
     const loaded = await store.load();
-    expect(loaded.pattern?.fabric).toEqual({ count: 18, unit: "cm" });
+    expect(loaded.document?.properties.fabric).toEqual({ count: 18, unit: "cm" });
   });
 });
 

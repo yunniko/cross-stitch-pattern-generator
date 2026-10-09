@@ -1,5 +1,6 @@
 import { NEUTRAL_ADJUST, type PhotoAdjust } from "../pipeline/photo-adjust";
-import type { GenerationPalette, StitchPattern } from "../types";
+import type { ChartDocument } from "../document/types";
+import type { GenerationPalette } from "../types";
 import { REPLACE_PLANS, type ReplaceReason } from "./document-replace";
 import type { SymmetryAxes } from "./symmetry";
 import type { SavedChartLink } from "../charts/saved-chart-link";
@@ -9,8 +10,8 @@ import type { SavedChartLink } from "../charts/saved-chart-link";
  * shell supplies its state setters and a test supplies recorders.
  */
 export interface ReplaceEffects {
-  resetHistory(next: StitchPattern | null): void;
-  pushHistory(next: StitchPattern): void;
+  resetHistory(next: ChartDocument | null): void;
+  pushHistory(next: ChartDocument): void;
   /** A new document identity: an open colour editor closes. */
   bumpDocument(): void;
   clearSelection(): void;
@@ -30,7 +31,7 @@ export interface ReplaceEffects {
   showWorkspace(workspace: "photo" | "edit"): void;
   clearMessages(): void;
   leaveStart(): void;
-  adoptPhoto(pattern: StitchPattern, fallbackName: string): Promise<void>;
+  adoptPhoto(chart: ChartDocument, fallbackName: string): Promise<void>;
   forgetAutosave(): void;
   /** The next colour recommendation to arrive sets the colour count. */
   awaitRecommendedCount(): void;
@@ -49,7 +50,7 @@ export interface ReplaceExtras {
 
 export async function replaceDocument(
   reason: ReplaceReason,
-  next: StitchPattern | null,
+  next: ChartDocument | null,
   effects: ReplaceEffects,
   extras: ReplaceExtras = {}
 ): Promise<void> {
@@ -68,7 +69,7 @@ export async function replaceDocument(
   // A file without a recorded set is a new chart, which starts without one (G-087, D277).
   if (plan.paletteSet === "reset") effects.resetPaletteSet();
   else if (plan.paletteSet === "from-file") {
-    if (next?.generationPalette) effects.restorePaletteSet(next.generationPalette);
+    if (next?.properties.generationPalette) effects.restorePaletteSet(next.properties.generationPalette);
     else effects.resetPaletteSet();
   }
 
@@ -93,5 +94,5 @@ export async function replaceDocument(
 
   if (plan.workspace !== "keep") effects.showWorkspace(plan.workspace);
   if (plan.leaveStart) effects.leaveStart();
-  if (plan.adoptPhoto && next) await effects.adoptPhoto(next, extras.fallbackName ?? next.name ?? "cross-stitch-pattern");
+  if (plan.adoptPhoto && next) await effects.adoptPhoto(next, extras.fallbackName ?? next.properties.name ?? "cross-stitch-pattern");
 }

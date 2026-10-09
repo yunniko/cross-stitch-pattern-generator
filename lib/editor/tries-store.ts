@@ -1,3 +1,4 @@
+import { flatten } from "../document/convert";
 import { NO_SYMMETRY } from "./symmetry-axes";
 import { decodeRecord, encodeRecord, type KeyValueStore } from "./project-store";
 import { parseTrySettings, type Try, type TryMeta } from "./tries";
@@ -76,7 +77,7 @@ export function createTriesStore(kv: KeyValueStore): TriesStore {
       const tries: Try[] = [];
       for (const { settings, ...meta } of index.tries) {
         try {
-          const pattern = decodeRecord(await kv.get(RECORD_PREFIX + meta.id), photoDataUrl);
+          const pattern = flatten(decodeRecord(await kv.get(RECORD_PREFIX + meta.id), photoDataUrl));
           tries.push({ ...meta, settings: parseTrySettings(settings), pattern });
         } catch {
           // A chart that cannot be read is one try fewer, not a reason to lose the others.

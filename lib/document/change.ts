@@ -1,13 +1,15 @@
 import { newRevision } from "./convert";
-import type { ChartDocument, StitchLayer } from "./types";
+import { layerKind } from "./layer-kinds";
+import { isStitchLayer, type ChartDocument, type Layer, type StitchLayer } from "./types";
 
 /**
  * A recorded change (G-094, D289): what differs between two documents, kept so that either can be made from the other.
  *
  * The stitches that changed are kept as runs of `before XOR after`, one byte a stitch, so the same bytes undo and redo.
  * Everything else a chart carries (the palette, the backstitch, a property) is kept as the two values, which are shared
- * with the documents themselves and cost nothing more. A change of size, of the set of layers, or to or from no chart at
- * all is kept as the two documents.
+ * with the documents themselves and cost nothing more. A layer of another kind than stitches that changed is kept as its two
+ * versions. A change of size, of the layers themselves (one added, deleted, moved, merged, renamed, shown or hidden), or to
+ * or from no chart at all is kept as the two documents, whose unchanged planes are shared with the steps beside them.
  */
 
 /** The runs of a plane that differ, and `before XOR after` over them, end to end. */
@@ -23,6 +25,8 @@ export interface LayerDelta {
   kinds?: PlaneDelta;
   /** Whether the layer had a plane of stitch kinds before and after, when that differs: absent and all-whole are not the same value. */
   kindsPresent?: readonly [before: boolean, after: boolean];
+  /** A layer of another kind, as it was and as it became. */
+  versions?: readonly [before: Layer, after: Layer];
 }
 
 /** One value that differs: `palette`, `backstitch`, or a property by name. */
@@ -90,9 +94,9 @@ function applyPlane(plane: Uint8Array, delta: PlaneDelta): Uint8Array {
   return next;
 }
 
+const sameHeader = (a: Layer, b: Layer) => a.id === b.id && a.kind === b.kind && a.name === b.name && a.visible === b.visible;
 const sameLayerSet = (a: ChartDocument, b: ChartDocument) =>
-  a.layers.length === b.layers.length &&
-  a.layers.every((layer, index) => layer.id === b.layers[index].id && layer.kind === b.layers[index].kind);
+  a.layers.length === b.layers.length && a.layers.every((layer, index) => sameHeader(layer, b.layers[index]));
 
 /** What turns `before` into `after`, and back. */
 export function recordChange(before: ChartDocument | null, after: ChartDocument | null): Change {
@@ -103,6 +107,10 @@ export function recordChange(before: ChartDocument | null, after: ChartDocument 
   const layers: LayerDelta[] = [];
   before.layers.forEach((layer, index) => {
     const other = after.layers[index];
+    if (!isStitchLayer(layer) || !isStitchLayer(other)) {
+      if (layer !== other && !layerKind(layer).sameContents(layer, other)) layers.push({ id: layer.id, versions: [layer, other] });
+      return;
+    }
     const delta: LayerDelta = { id: layer.id };
     if (layer.cells !== other.cells) delta.cells = planeDelta(layer.cells, other.cells);
     if (layer.kinds !== other.kinds) {
@@ -133,14 +141,19 @@ export function applyChange(document: ChartDocument | null, change: Change, dire
   if (change.type === "replace") return direction === "undo" ? change.before : change.after;
   if (!document) throw new Error("A recorded edit was applied to no chart.");
 
-  const layers = document.layers.map((layer): StitchLayer => {
+  const layers = document.layers.map((layer): Layer => {
     const delta = change.layers.find((candidate) => candidate.id === layer.id);
     if (!delta) return layer;
+    if (delta.versions) return delta.versions[to];
+    if (!isStitchLayer(layer)) throw new Error(`A recorded edit of stitches was applied to the layer "${layer.name}", which has none.`);
     const cells = delta.cells ? applyPlane(layer.cells, delta.cells) : layer.cells;
     let kinds = layer.kinds;
     if (delta.kinds) kinds = applyPlane(kinds ?? new Uint8Array(layer.cells.length), delta.kinds);
     if (delta.kindsPresent) kinds = delta.kindsPresent[to] ? (kinds ?? new Uint8Array(layer.cells.length)) : undefined;
-    return { id: layer.id, kind: layer.kind, cells, ...(kinds ? { kinds } : {}) };
+    const { kinds: _kinds, ...header } = layer;
+    void _kinds;
+    const edited: StitchLayer = { ...header, cells, ...(kinds ? { kinds } : {}) };
+    return edited;
   });
 
   const next: ChartDocument = {

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { flatten } from "@/lib/document/convert";
 import { createBlankPattern, describeBlankSizeProblem, isPhotoFree, isValidBlankSize } from "@/lib/editor/blank-pattern";
 import { deserializePattern, serializePattern } from "@/lib/editor/pattern-serialize";
 import { createMemoryKeyValueStore, createProjectStore } from "@/lib/editor/project-store";
@@ -99,7 +100,8 @@ describe("saving a blank chart", () => {
     const store = createProjectStore(createMemoryKeyValueStore());
     await store.save(createBlankPattern(30, 20, "Sampler"));
 
-    const { pattern, failure } = await store.load();
+    const { document, failure } = await store.load();
+    const pattern = document && flatten(document);
     expect(failure).toBeUndefined();
     expect(pattern!.width).toBe(30);
     expect(pattern!.height).toBe(20);

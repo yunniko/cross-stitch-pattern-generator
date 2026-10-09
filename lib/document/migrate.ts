@@ -1,4 +1,5 @@
 import { formatThreadName, THREAD_BRANDS, THREAD_BRAND_IDS, type ThreadBrand } from "../threads/thread-brands";
+import { BASE_LAYER_ID, BASE_LAYER_NAME } from "./convert";
 
 /**
  * The file format's version, and the one place an older file is brought up to date (G-094, D290).
@@ -9,9 +10,16 @@ import { formatThreadName, THREAD_BRANDS, THREAD_BRAND_IDS, type ThreadBrand } f
  *
  * **When the version is raised.** An optional field that an older build can ignore is added without raising it (D138): the
  * version is raised only when an older build would read the file wrongly, and the same change adds the step here that brings
- * older files across. Layers will be such a change.
+ * older files across. Layers were such a change (version 8).
  */
-export const FORMAT_VERSION = 7;
+export const FORMAT_VERSION = 8;
+
+/**
+ * The version a chart of one plain layer is still written as (D390): the stitches at the top level, as before layers. A
+ * build from before layers reads such a file, and an autosave it cannot read is one it deletes, so a chart nobody gave a
+ * second layer is never put out of an older open tab's reach. A file of this version is read through the step to 8 below.
+ */
+export const FLAT_FORMAT_VERSION = 7;
 
 type FileData = Record<string, unknown>;
 
@@ -48,6 +56,15 @@ const MIGRATIONS: readonly Migration[] = [
         return thread ? { ...entry, source: { brand, code: thread.code } } : entry;
       });
       return { ...data, palette };
+    },
+  },
+  {
+    to: 8,
+    what: "the stitches (`cellPalette`, `cellKind`) became the first of the chart's `layers` (G-130, D390)",
+    apply: (data) => {
+      const { cellPalette, cellKind, ...rest } = data;
+      const layer = { id: BASE_LAYER_ID, kind: "stitches", name: BASE_LAYER_NAME, visible: true, cells: cellPalette };
+      return { ...rest, layers: [cellKind === undefined ? layer : { ...layer, kinds: cellKind }] };
     },
   },
 ];

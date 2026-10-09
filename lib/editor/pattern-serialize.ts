@@ -1,4 +1,4 @@
-import { isStitchKind, tidyKinds } from "./stitch-kind";
+import { tidyKinds } from "./stitch-kind";
 import { generationPaletteData, parseGenerationPalette } from "./palette-set";
 import { dedupeLines } from "./backstitch";
 import { DITHER_MODES, type DitherMode } from "../pipeline/dither";
@@ -6,10 +6,12 @@ import { isValidDitherTexture, type DitherTexture } from "../pipeline/dither-han
 import { isEnhancementModeId, type EnhancementModeId } from "./legacy-enhancement";
 import { readSavedAdjust, type PhotoAdjust } from "../pipeline/photo-adjust";
 import { findThread, THREAD_BRAND_IDS, type ThreadBrand } from "../threads/thread-brands";
-import { FORMAT_VERSION, migrateToCurrent } from "../document/migrate";
+import { FLAT_FORMAT_VERSION, FORMAT_VERSION, migrateToCurrent } from "../document/migrate";
+import { asDocument, flatten, isFlatDocument, newRevision, type ChartInput } from "../document/convert";
+import { isLayerKind, layerKind } from "../document/layer-kinds";
+import { MAX_LAYER_NAME, MAX_LAYERS, type ChartDocument, type ChartProperties, type Layer } from "../document/types";
 import { effectiveSymmetryAxes, NO_SYMMETRY, SYMMETRY_AXES, type SymmetryAxes, type SymmetryAxis } from "./symmetry-axes";
 import {
-  EMPTY_CELL,
   MAX_COLORS,
   type BackstitchLine,
   type ChartFabric,
@@ -24,7 +26,7 @@ import {
 // Plain JSON, not a PNG with embedded data (Owner decision, 2026-09-09, HANDOVER.md D21): the simplest reliable format, at
 // the cost of not being previewable as an image on its own. The format's version, what each version changed and how an
 // older file is brought up to date are in `lib/document/migrate.ts` (G-094).
-export { FORMAT_VERSION };
+export { FLAT_FORMAT_VERSION, FORMAT_VERSION };
 
 export interface SerializedPattern {
   formatVersion: number;
@@ -103,6 +105,21 @@ export interface SerializedPattern {
   fabric?: ChartFabric;
 }
 
+/** One layer as a file or the autosave holds it: its header, and its kind's own fields (`LayerKindDefinition.write`). */
+export interface SerializedLayer {
+  id: string;
+  kind: string;
+  name: string;
+  visible: boolean;
+  [field: string]: unknown;
+}
+
+/**
+ * A chart of more than one plain layer (format 8, G-130, D390): every field of a flat chart but its stitches, which are in
+ * its layers, bottom first.
+ */
+export type SerializedLayeredChart = Omit<SerializedPattern, "cellPalette" | "cellKind"> & { layers: SerializedLayer[] };
+
 /** Only the axes that are on, each `true`. */
 export type SerializedSymmetry = Partial<Record<SymmetryAxis, true>>;
 
@@ -125,13 +142,44 @@ export function readSymmetry(value: unknown, width: number, height: number): Sym
 }
 
 /**
+ * A flat chart as a file: the visible stitches as one grid, in the format a build from before layers reads, and the one
+ * the exporters read (the Rust sidecar among them). What the editor saves is `serializeChart`, which keeps the layers.
+ *
  * `count`/`index` are left out -- both are derived from `cellPalette` and recomputed on load, not stored. `symmetry` is
  * written only when an axis is on, so a file saved with symmetry off is byte-identical to one saved before G-037.
  */
 export function serializePattern(pattern: StitchPattern, symmetry: SymmetryAxes = NO_SYMMETRY): string {
+  return JSON.stringify(flatFields(pattern, symmetry));
+}
+
+/**
+ * The open chart as its editable file: a chart that is one plain layer exactly as `serializePattern` writes it (format 7,
+ * byte for byte as before layers), and any other with its layers, their order, names and visibility (format 8).
+ */
+export function serializeChart(chart: ChartInput, symmetry: SymmetryAxes = NO_SYMMETRY): string {
+  const document = asDocument(chart);
+  if (isFlatDocument(document)) return serializePattern(flatten(document), symmetry);
+  return JSON.stringify(layeredFields(document, symmetry), (_key, value: unknown) =>
+    value instanceof Uint8Array ? Array.from(value) : value
+  );
+}
+
+/** A layered document's fields, its planes left as the typed arrays they are (the autosave stores them so). */
+export function layeredFields(document: ChartDocument, symmetry: SymmetryAxes): SerializedLayeredChart {
+  const { cellPalette: _cells, cellKind: _kinds, ...fields } = flatFields(flatten(document), symmetry);
+  void _cells;
+  void _kinds;
+  return { ...fields, formatVersion: FORMAT_VERSION, layers: document.layers.map(serializeLayer) };
+}
+
+export function serializeLayer(layer: Layer): SerializedLayer {
+  return { id: layer.id, kind: layer.kind, name: layer.name, visible: layer.visible, ...layerKind(layer).write(layer) };
+}
+
+function flatFields(pattern: StitchPattern, symmetry: SymmetryAxes): SerializedPattern {
   const kinds = tidyKinds(pattern.cellPalette, pattern.cellKind);
-  const data: SerializedPattern = {
-    formatVersion: FORMAT_VERSION,
+  return {
+    formatVersion: FLAT_FORMAT_VERSION,
     width: pattern.width,
     height: pattern.height,
     isLandscape: pattern.isLandscape,
@@ -156,30 +204,35 @@ export function serializePattern(pattern: StitchPattern, symmetry: SymmetryAxes 
     cellKind: kinds ? Array.from(kinds) : undefined,
     fabric: pattern.fabric ? { count: pattern.fabric.count, unit: pattern.fabric.unit } : undefined,
   };
-  return JSON.stringify(data);
 }
 
-/** A saved file: its pattern plus the symmetry axes stored with it (off when absent or unreadable). */
-export function parsePatternDocument(json: string): { pattern: StitchPattern; symmetry: SymmetryAxes } {
-  let data: unknown;
+function parseJson(json: string): unknown {
   try {
-    data = JSON.parse(json);
+    return JSON.parse(json);
   } catch {
     throw new Error("That file isn't valid JSON.");
   }
-  const pattern = deserializePatternData(data);
-  return { pattern, symmetry: readSymmetry((data as { symmetry?: unknown }).symmetry, pattern.width, pattern.height) };
 }
 
-/** Throws a descriptive error on malformed/tampered input rather than producing a silently-broken pattern. */
+/**
+ * A saved file: the chart as a document (every layer), the visible chart flattened from it (what a preview or an export
+ * takes), and the symmetry axes stored with it (off when absent or unreadable).
+ */
+export function parsePatternDocument(json: string): { document: ChartDocument; pattern: StitchPattern; symmetry: SymmetryAxes } {
+  const data = parseJson(json);
+  const document = deserializeChartData(data);
+  const symmetry = readSymmetry((data as { symmetry?: unknown }).symmetry, document.width, document.height);
+  return { document, pattern: flatten(document), symmetry };
+}
+
+/** The visible chart of a file. Throws a descriptive error on malformed/tampered input rather than producing a silently-broken pattern. */
 export function deserializePattern(json: string): StitchPattern {
-  let data: unknown;
-  try {
-    data = JSON.parse(json);
-  } catch {
-    throw new Error("That file isn't valid JSON.");
-  }
-  return deserializePatternData(data);
+  return deserializePatternData(parseJson(json));
+}
+
+/** A file's chart as a document, every layer kept. */
+export function deserializeChart(json: string): ChartDocument {
+  return deserializeChartData(parseJson(json));
 }
 
 /**
@@ -228,7 +281,43 @@ function readBackstitch(raw: unknown, width: number, height: number, paletteLeng
   return dedupeLines(lines);
 }
 
+/** The visible chart of a file's parsed data: its layers flattened (`deserializeChartData`). */
 export function deserializePatternData(data: unknown): StitchPattern {
+  return flatten(deserializeChartData(data));
+}
+
+/**
+ * A chart's layers from a file (G-130), each checked by its kind as strictly as the rest of the file (D099). A layer of a
+ * kind this build does not know is refused by name rather than dropped: what it put on the chart would silently go.
+ */
+function readLayers(raw: unknown, width: number, height: number, paletteLength: number): Layer[] {
+  if (!Array.isArray(raw) || raw.length === 0) throw new Error("That file has no layers.");
+  if (raw.length > MAX_LAYERS) throw new Error(`That file has ${raw.length} layers, more than the maximum of ${MAX_LAYERS}.`);
+  const ids = new Set<string>();
+  return raw.map((entry: unknown, index) => {
+    if (typeof entry !== "object" || entry === null) throw new Error("That file has a layer that isn't an object.");
+    const fields = entry as Record<string, unknown>;
+    const { id, kind } = fields;
+    if (typeof id !== "string" || id === "" || ids.has(id)) throw new Error("That file's layers don't each have an id of their own.");
+    ids.add(id);
+    if (!isLayerKind(kind)) {
+      throw new Error(
+        `That file has a layer of a kind this version of the app doesn't know ("${String(kind)}"). Reload the page to get the latest version, then open it again.`
+      );
+    }
+    // A name or visibility that cannot be read is not worth losing the chart over: the layer opens named by its place, and shown.
+    const name = typeof fields.name === "string" ? fields.name.trim().slice(0, MAX_LAYER_NAME) : "";
+    const header = { id, kind, name: name === "" ? `Layer ${index + 1}` : name, visible: fields.visible !== false };
+    return layerKind(header).read(fields, header, { width, height }, paletteLength);
+  });
+}
+
+/**
+ * A file's parsed data as a document, shared with the IndexedDB project store (`lib/editor/project-store.ts`), whose
+ * records are never JSON text: a plane may be a plain array or a typed array. A file of a version before layers is read as
+ * one layer (`lib/document/migrate.ts`).
+ */
+export function deserializeChartData(data: unknown): ChartDocument {
   if (typeof data !== "object" || data === null) throw new Error("That file doesn't look like an editable pattern.");
   // Whatever version the file is, what is read below is the current one (`lib/document/migrate.ts`).
   const d = migrateToCurrent(data as Record<string, unknown>);
@@ -244,13 +333,8 @@ export function deserializePatternData(data: unknown): StitchPattern {
     throw new Error(`That file's dimensions (${width}×${height}) exceed the maximum supported size of ${MAX_STITCHES} stitches per side.`);
   }
 
-  const cellPalette = d.cellPalette;
-  if (!isIndexList(cellPalette) || cellPalette.length !== width * height) {
-    throw new Error("That file's stitch data doesn't match its stated dimensions.");
-  }
-
   const rawPalette = d.palette;
-  // An empty palette is legal only for a chart with nothing stitched yet (G-040): the per-cell check below then accepts
+  // An empty palette is legal only for a chart with nothing stitched yet (G-040): the per-cell check in the layer's kind then accepts
   // `EMPTY_CELL` alone, so a file that names a colour it doesn't carry is still refused.
   if (!Array.isArray(rawPalette)) {
     throw new Error("That file has no color palette.");
@@ -264,18 +348,7 @@ export function deserializePatternData(data: unknown): StitchPattern {
     throw new Error("That file's palette gives the same symbol to more than one color.");
   }
 
-  for (let i = 0; i < cellPalette.length; i++) {
-    const index = cellPalette[i];
-    if (!Number.isInteger(index) || (index !== EMPTY_CELL && (index < 0 || index >= entries.length))) {
-      throw new Error("That file references a color that isn't in its own palette.");
-    }
-  }
-
-  const counts = new Array<number>(entries.length).fill(0);
-  for (let i = 0; i < cellPalette.length; i++) {
-    const index = cellPalette[i];
-    if (index !== EMPTY_CELL) counts[index]++;
-  }
+  const layers = readLayers(d.layers, width, height, entries.length);
 
   // Thread identity (D122): every colour names its thread, or is a custom one. A file from before that was given its
   // sources by the migration step.
@@ -283,19 +356,16 @@ export function deserializePatternData(data: unknown): StitchPattern {
   // A lock means every color is that brand's thread; when that can't be established, the lock goes and the sources stay.
   if (threadBrand && entries.some((entry) => entry.source?.brand !== threadBrand)) threadBrand = undefined;
 
+  // The counts are of the visible chart, which `flatten` makes; a document's own palette does not keep them.
   const palette: PaletteColor[] = entries.map((c, i) => {
-    const color: PaletteColor = { index: i, rgb: c.rgb, symbol: c.symbol, name: c.name, count: counts[i] };
+    const color: PaletteColor = { index: i, rgb: c.rgb, symbol: c.symbol, name: c.name, count: 0 };
     return c.source ? { ...color, source: c.source } : color;
   });
 
   const backstitch = readBackstitch(d.backstitch, width, height, entries.length);
 
-  return {
-    width,
-    height,
+  const properties: ChartProperties = {
     isLandscape: typeof d.isLandscape === "boolean" ? d.isLandscape : width >= height,
-    cellPalette: Uint8Array.from(cellPalette),
-    palette,
     name: typeof d.name === "string" && d.name.trim() !== "" ? d.name : undefined,
     sourceImage: isValidSourceImageRef(d.sourceImage) ? d.sourceImage : undefined,
     threadBrand,
@@ -312,10 +382,9 @@ export function deserializePatternData(data: unknown): StitchPattern {
     vivid: d.vivid === true ? true : undefined,
     // A set that is not one (a newer build's, or damaged) is dropped, and the chart opens without it.
     generationPalette: parseGenerationPalette(d.generationPalette),
-    backstitch,
-    cellKind: readCellKind(d.cellKind, cellPalette),
     ...fabricField(d.fabric),
   };
+  return { revision: newRevision(), width, height, layers, palette, ...(backstitch ? { backstitch } : {}), properties };
 }
 
 /** A chart's fabric from a file. One that is not a count above zero with a unit is dropped, and the chart opens without it. */
@@ -332,31 +401,12 @@ function fabricField(value: unknown): { fabric?: ChartFabric } {
   return fabric ? { fabric } : {};
 }
 
-/**
- * The stitch kinds of a saved chart, or `undefined` (every stitch whole) when the field is absent, malformed or all whole. A
- * value outside 0 to 2 or a list of the wrong length is not trusted: the stitches still open, as whole ones.
- */
-function readCellKind(value: unknown, cellPalette: ArrayLike<number>): Uint8Array | undefined {
-  if (!isIndexList(value) || value.length !== cellPalette.length) return undefined;
-  const kinds = new Uint8Array(value.length);
-  for (let i = 0; i < value.length; i++) {
-    const kind = value[i];
-    if (!isStitchKind(kind)) return undefined;
-    kinds[i] = kind;
-  }
-  return tidyKinds(cellPalette, kinds);
-}
-
 function isDitherModeId(value: unknown): value is DitherMode {
   return typeof value === "string" && (DITHER_MODES as readonly string[]).includes(value);
 }
 
 function isPositiveInteger(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value > 0;
-}
-
-function isIndexList(value: unknown): value is ArrayLike<number> {
-  return Array.isArray(value) || value instanceof Uint8Array;
 }
 
 function isByte(value: unknown): value is number {

@@ -2,9 +2,14 @@ import JSZip from "jszip";
 import { looksLikeOxs, MAX_OXS_TEXT_LENGTH, parseOxs, type OxsImportReport } from "./oxs";
 import { parsePatternDocument } from "./pattern-serialize";
 import { NO_SYMMETRY, type SymmetryAxes } from "./symmetry-axes";
+import { documentFromPattern } from "../document/convert";
+import type { ChartDocument } from "../document/types";
 import type { StitchPattern } from "../types";
 
 export interface LoadedPatternFile {
+  /** The chart, every layer kept (an OXS file is one). */
+  document: ChartDocument;
+  /** Its visible layers as one chart. */
   pattern: StitchPattern;
   format: "json" | "zip" | "oxs";
   /** The symmetry axes saved with this app's own files (G-037); off for OXS and for files without the field. */
@@ -33,7 +38,7 @@ export async function loadPatternFromFile(file: File, options: LoadPatternOption
     if (file.size > maxOxsBytes)
       throw new Error(`That OXS file is ${formatSize(file.size)}, larger than the ${formatSize(maxOxsBytes)} this app can open.`);
     const { pattern, report } = parseOxs(await file.text());
-    return { pattern, format: "oxs", symmetry: NO_SYMMETRY, oxsReport: report };
+    return { document: documentFromPattern(pattern), pattern, format: "oxs", symmetry: NO_SYMMETRY, oxsReport: report };
   }
 
   const buffer = await file.arrayBuffer();
@@ -56,7 +61,7 @@ export async function loadPatternFromFile(file: File, options: LoadPatternOption
       }
       try {
         const { pattern, report } = parseOxs(text);
-        return { pattern, format: "oxs", symmetry: NO_SYMMETRY, oxsReport: report };
+        return { document: documentFromPattern(pattern), pattern, format: "oxs", symmetry: NO_SYMMETRY, oxsReport: report };
       } catch (err) {
         oxsError = err;
       }

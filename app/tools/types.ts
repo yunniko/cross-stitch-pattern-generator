@@ -1,4 +1,5 @@
 import type { FeatureDeclaration } from "@/lib/features/features";
+import type { ChartTransform } from "@/lib/document/layer-kinds";
 import type { ComponentType, DragEvent, MouseEvent, PointerEvent, ReactNode, RefObject } from "react";
 import type { StampOffset } from "@/lib/editor/brush-stamp";
 import type { CommandDefinition, CommandState } from "@/lib/editor/commands";
@@ -91,8 +92,10 @@ export interface EditorApi {
   viewOnly: boolean;
   /** The start screen covers the chart. */
   startingNew: boolean;
-  /** Pushes one undoable step. */
+  /** Pushes one undoable step: `next` is the active layer's view (`pattern`), edited. */
   commit: (next: StitchPattern) => void;
+  /** Crops, expands or moves the whole chart, every layer of it, as one undoable step (G-130). */
+  transformChart: (transform: ChartTransform) => void;
   history: { canUndo: boolean; canRedo: boolean; undo: () => void; redo: () => void };
   /** The colour a press paints with: the foreground for the main button, the background for the other. */
   colorForPointer: (button: number) => number | null;
