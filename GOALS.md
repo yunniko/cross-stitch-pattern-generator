@@ -201,7 +201,7 @@ Outside both: G-111's comments follow G-112; G-097 comes after G-108, whose char
 - 2026-10-08 — Owner accepted the plan ("you can go ahead with 109, 106 and 126 - 128"), to run after G-109 in the order G-106, G-126, G-127, G-128. Items (1) to (6) are the Owner's and wait on them. JulAI's part starts after G-127: the pages take the Owner's text, so they are built with the missing text named as missing, and the launch checklist as a script.
 - 2026-10-08 — drafted from G-106's constraints at the Owner's request.
 
-### G-129 · Withdrawal and refunds: a consumer's withdrawal button, proportionate refunds, and the admin's refund buttons — DRAFT (2026-10-09)
+### G-129 · A subscriber's buttons: change plan, cancel, withdraw; proportionate refunds and the admin's refund buttons — DRAFT (2026-10-09)
 - **What:**
   - **The consumer's withdrawal.** For the 14 days after a purchase, the account page shows a "Withdraw from contract" button, followed by a confirmation step. Confirming does three things:
     - ends the subscription at once;
@@ -209,6 +209,10 @@ Outside both: G-111's comments follow G-112; G-097 comes after G-108, whose char
     - records the withdrawal.
     After the 14 days the button is gone and ordinary cancelling (at period end) remains.
   - **The admin's refund buttons**, extending G-127's full refund. On any payment the admin can give back the whole remainder, the proportionate unused part, or an amount they enter. Each is idempotent per request, logged as a feature change, and confirmed by the provider's own refund event through the webhook.
+  - **Changing plan and cancelling in the app**, on the Plan page, instead of only through Stripe's Customer Portal (which then keeps card details and invoices).
+    - **Upgrade** (a higher tier, or monthly to yearly): takes effect at once, after the same consent as a first purchase is recorded. The difference for the rest of the period is charged.
+    - **Downgrade:** takes effect at the next renewal, and the page shows the change that is scheduled.
+    - **Cancel:** at the end of the paid period, with "Keep my plan" to undo it until then.
   - **The consent wording.** The checkbox before Checkout changes from "I lose my right of withdrawal" to "I ask for the subscription to start now, and I pay for the days used if I withdraw".
   - **The confirmation email.** It carries the full terms and withdrawal information, not only a link. A withdrawal sends its own acknowledgment.
 - **Why:** this is the legal finding of 2026-10-09 (G-128's log).
@@ -216,6 +220,7 @@ Outside both: G-111's comments follow G-112; G-097 comes after G-108, whose char
   - Since 19 June 2026 a trader concluding contracts online must offer a withdrawal function, with a confirmation step and an acknowledgment on a durable medium (Directive 2023/2673, Art. 11a; verified from secondary sources only).
   - A link to a website is not a durable medium (CJEU C-49/11).
   - Inferences to be confirmed by the Owner's lawyer, not legal advice.
+  - A plan changed in Stripe's Portal records no consent, and its proration follows the dashboard's settings rather than the app's tested rules. It is also untested, because the fake Portal can only cancel (the Owner asked, 2026-10-09).
 - **Acceptance criteria:**
   - On the fake gateway, a subscriber who withdraws on day N of a period:
     - loses paid access at once;
@@ -224,6 +229,12 @@ Outside both: G-111's comments follow G-112; G-097 comes after G-108, whose char
     - has the withdrawal recorded once, even on a double click or a retried request.
   - The button is absent on day 15, for a person who never paid, and for a renewal payment. Whether a renewal reopens the right is settled in planning, with the Owner's lawyer if needed.
   - The admin's three refund kinds work on the fake; a refund larger than what is left is refused.
+  - On the fake, each of these gives the person the tier and access they should have, and records it in the subscription's history:
+    - an upgrade, which charges the difference;
+    - a downgrade, which keeps the tier until renewal;
+    - a cancel and its undo;
+    - each of these during a payment failure (G-126) and during the withdrawal period.
+  - An upgrade without consent is refused.
   - The consent wording and the emails use the Owner's published text (`/admin/legal`).
   - Unit and browser tests on the fake. The Stripe path is checked with test keys once G-106 M4 has them.
 - **Constraints:**
@@ -231,13 +242,16 @@ Outside both: G-111's comments follow G-112; G-097 comes after G-108, whose char
   - The legal wording is the Owner's, and the refund rule's details (days or seconds; rounding in the consumer's favour) are confirmed by them, because they are consumer-law terms.
   - Emails go out only once sending is set up (G-113). Until then the withdrawal is acknowledged on screen, and the email part is built and tested on the test mailer.
   - Refunding real money is the Owner's to approve (OPERATIONS §4); in production only the admin presses a refund button.
+  - The upgrade and downgrade rules (charging the difference at once; downgrading at renewal) are confirmed by the Owner, because they decide what a person pays. The matching Customer Portal setting, switching plans off, is the Owner's dashboard change (G-128 item 1).
 
 **Milestones** (proposed, for the Owner's acceptance):
 - [ ] M1 — Proportionate refunds: a pure module computing the refund for a payment and a moment; the gateway contract's refund taking an amount (fake and Stripe adapter); the admin's three refund buttons. Unit and admin browser tests on the fake; a decision file on the refund rule.
 - [ ] M2 — The withdrawal button: an eligibility rule (within 14 days of the first payment), the button and its confirmation step on the account page, ending the subscription at once with the proportionate refund, a withdrawal record, the on-screen acknowledgment. Unit and browser tests, including double-submit and day 15.
-- [ ] M3 — Wording and durable medium: the consent checkbox changed to the early-start request; the purchase confirmation and the withdrawal acknowledgment carrying the full published texts. Tests on the test mailer. Deploys to `cross-stitch.craftodejnice.cz` (existing target), buying still hidden.
+- [ ] M3 — Change plan and cancel in the app: the gateway contract's plan change (immediate with the difference charged, or at renewal) and cancel/undo, in the fake and the Stripe adapter; the fake learning both; the Plan page's Upgrade, Downgrade, Cancel and Keep my plan, with consent on an upgrade and the scheduled change shown; the sync applying a change that arrives by webhook. Unit and browser tests on the fake, including during a payment failure; a decision file on the rules.
+- [ ] M4 — Wording and durable medium: the consent checkbox changed to the early-start request; the purchase confirmation and the withdrawal acknowledgment carrying the full published texts. Tests on the test mailer. Deploys to `cross-stitch.craftodejnice.cz` (existing target), buying still hidden.
 
 **Progress log** (newest first; The Company appends at every stopping point):
+- 2026-10-09 — Changing plan and cancelling in the app added as M3 at the Owner's request ("add it please"). Until now both happen only in Stripe's Portal, behind Manage billing, and the Portal's switching of plans is neither set up nor tested.
 - 2026-10-09 — drafted at the Owner's request ("Draft the goal for refund buttons aswell, or include to the withdrawal goal"): withdrawal and refund buttons in one goal.
 
 ### G-108 · Charts saved to an account, a gallery, and who can see each (private by default) — DRAFT (part 2; part 1 signed off 2026-10-08)
