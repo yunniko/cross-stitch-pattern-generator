@@ -9,6 +9,10 @@ their last state in `GOALS.md`; decision references (Dnn) now resolve to
 (STANDARDS.md → Documentation). This page is the index: every completed goal, newest first, and the file
 holding it.
 
+- **G-127** · Subscriptions, part 3: the admin's controls (tiers, prices, people's subscriptions, grants by hand, revenue) — DONE (2026-10-09, deployed v0.22.2, Owner sign-off 2026-10-09) — [`G-121-to-G-130.md`](goals-archive/G-121-to-G-130.md)
+- **G-109** · Limits on server-side actions, set like feature states and given to tiers — DONE (2026-10-08, deployed v0.21.0, Owner sign-off 2026-10-09) — [`G-101-to-G-110.md`](goals-archive/G-101-to-G-110.md)
+- **G-119** · Transparency as colour, and a library of stamps kept with the account — DONE (2026-10-08, deployed v0.18.0–v0.20.0, Owner sign-off 2026-10-09) — [`G-111-to-G-120.md`](goals-archive/G-111-to-G-120.md)
+- **G-124** · Editing the photo in Photo: a Wand that deletes with hard edges, and adjustments that are applied — DONE (2026-10-08, deployed v0.14.0, Owner sign-off 2026-10-09) — [`G-121-to-G-130.md`](goals-archive/G-121-to-G-130.md)
 - **G-108 part 1** · Charts saved to an account: Save to the account, the account's Charts, previews — DONE (2026-10-08, deployed v0.15.0–v0.17.0, Owner sign-off 2026-10-08) — [`G-101-to-G-110.md`](goals-archive/G-101-to-G-110.md)
 - **G-107** · The admin area and the account pages redesigned — DONE (2026-10-07, deployed 2026-10-07, Owner sign-off 2026-10-07) — [`G-101-to-G-110.md`](goals-archive/G-101-to-G-110.md)
 - **G-113** · Email from the app: confirming an address, resetting a password — DONE (2026-10-07, deployed with sending off, Owner sign-off 2026-10-07) — [`G-111-to-G-120.md`](goals-archive/G-111-to-G-120.md)
