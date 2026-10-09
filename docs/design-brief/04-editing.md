@@ -155,7 +155,7 @@ Dragging a thread's entry onto a stitch fills the connected region (stitches not
 |---|---|
 | **Purpose** | Draw without a pointing device |
 | **Arrow keys** | Move the outlined stitch by one (with Shift, ten) |
-| **Enter** | The pen: press to paint, hold while moving to draw a stroke or stretch a line, rectangle or oval, release to finish |
+| **Enter** | The pen: press to paint, hold while moving to draw a stroke or stretch a line, rectangle or oval, release to finish. Not while typing in a field, where Enter commits what was typed |
 | **Available when** | A chart in an editable view, a tool that paints (Brush, Fill, Line, Rectangle, Oval), no piece in hand; arrow keys do nothing while a field, choice list or similar control has the focus and uses them itself |
 | **Interaction** | Works through the same paths as the pointer, so the lock, outline, rulers' marker and status readout behave identically; a real pointer move hands control back to the pointer |
 

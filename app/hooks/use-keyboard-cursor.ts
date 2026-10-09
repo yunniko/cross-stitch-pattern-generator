@@ -106,10 +106,12 @@ export function useKeyboardCursor({ frameRef, scrollerRef, enabled, width, heigh
     /**
      * Enter is the pen where nothing else is using it: with the page or the well focused, or with the pointer over the chart
      * and a button holding the focus (a tool just picked), where the pen wins. A button the pointer is not over keeps its
-     * own Enter, so a keyboard user tabbing through the panels still presses it.
+     * own Enter, so a keyboard user tabbing through the panels still presses it. A field always keeps it: Enter there
+     * commits what was typed (a layer's or thread's name), and must not also paint where the pointer last was.
      */
     function ownsEnter(target: EventTarget | null): boolean {
-      if (isTypingTarget(target) || isKeyTarget(target)) return false;
+      if (isTypingTarget(target)) return true;
+      if (isKeyTarget(target)) return false;
       return !(target instanceof HTMLButtonElement && overChart.current);
     }
 
