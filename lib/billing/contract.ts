@@ -118,11 +118,31 @@ export interface CheckoutInput {
   cancelUrl: string;
 }
 
+/**
+ * The billing errors are recognised by a brand, not by class identity: the fake adapter is one per process on
+ * `globalThis` (D373), so the class that threw it can be another bundle's copy of this module, and a plain `instanceof`
+ * then fails. `instanceof` still works everywhere; it reads the brand.
+ */
+const BRAND = Symbol.for("cross-stitch.billing-error");
+
+function branded(error: Error, name: string): void {
+  error.name = name;
+  Object.defineProperty(error, BRAND, { value: name });
+}
+
+function carries(value: unknown, name: string): boolean {
+  return typeof value === "object" && value !== null && (value as Record<symbol, unknown>)[BRAND] === name;
+}
+
 /** The provider refused the event's signature: missing, malformed, wrong or too old. The webhook answers 400. */
 export class BillingSignatureError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = "BillingSignatureError";
+    branded(this, "BillingSignatureError");
+  }
+
+  static [Symbol.hasInstance](value: unknown): boolean {
+    return carries(value, "BillingSignatureError");
   }
 }
 
@@ -130,7 +150,11 @@ export class BillingSignatureError extends Error {
 export class BillingUnavailableError extends Error {
   constructor(message: string, options?: { cause?: unknown }) {
     super(message, options);
-    this.name = "BillingUnavailableError";
+    branded(this, "BillingUnavailableError");
+  }
+
+  static [Symbol.hasInstance](value: unknown): boolean {
+    return carries(value, "BillingUnavailableError");
   }
 }
 

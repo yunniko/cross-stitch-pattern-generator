@@ -35,7 +35,7 @@ test("the launch check reads production's side and names what is not ready @alon
   const verdict = (start: string) => report.checks.find((check) => check.name.startsWith(start));
   expect(verdict("Billing is on through Stripe")).toMatchObject({ ok: false, detail: "gateway: fake" });
   expect(verdict("The keys are live-mode")).toMatchObject({ ok: false });
-  expect(verdict("The webhook is reachable")).toMatchObject({ ok: true });
+  expect(verdict("The webhook is reachable"), verdict("The webhook is reachable")?.detail).toMatchObject({ ok: true });
   expect(verdict("The reconciliation is running")).toMatchObject({ ok: true });
   expect(verdict("The test-clock scenarios passed")).toMatchObject({ ok: false, detail: `no record for ${read.version}` });
 
