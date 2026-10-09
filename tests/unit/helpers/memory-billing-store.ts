@@ -1,5 +1,6 @@
 import type { NoticeQueue, PendingNotice, PlannedNotice } from "../../../lib/billing/notices";
 import { NOTICE_MAX_AGE_MS, NOTICE_MAX_ATTEMPTS } from "../../../lib/billing/notices";
+import type { ConsentRecord } from "../../../lib/billing/consent";
 import type { BillingStore, BillingTx, HistoryEntry, HistoryMeta, StoredSubscription, SubscriptionFields } from "../../../lib/billing/sync";
 
 /**
@@ -24,6 +25,8 @@ interface State {
   history: HistoryRow[];
   events: Map<string, string>;
   notices: NoticeRecord[];
+  /** Consents recorded before Checkout (D384), with whose they are. */
+  consents: (ConsentRecord & { userId: string })[];
 }
 
 const found = (row: StoredSubscription | undefined): StoredSubscription | null => (row ? { ...row } : null);
@@ -33,10 +36,11 @@ const copy = (state: State): State => ({
   history: state.history.map((row) => ({ ...row })),
   events: new Map(state.events),
   notices: state.notices.map((row) => ({ ...row })),
+  consents: state.consents.map((row) => ({ ...row })),
 });
 
 export class MemoryBillingStore implements BillingStore, NoticeQueue {
-  state: State = { subscriptions: [], history: [], events: new Map(), notices: [] };
+  state: State = { subscriptions: [], history: [], events: new Map(), notices: [], consents: [] };
   readonly users = new Set<string>();
   /** Each person's address, for delivery; a user without one is given `<id>@example.test`. */
   readonly emails = new Map<string, string>();
@@ -92,6 +96,16 @@ export class MemoryBillingStore implements BillingStore, NoticeQueue {
           this.serial += 1;
           state.notices.push({ ...notice, id: `notice${this.serial}`, subscriptionId, createdAt: this.clock(), sentAt: null, attempts: 0 });
         }
+      },
+      consentFor: async (id, userId) => {
+        const row = state.consents.find((consent) => consent.id === id && consent.userId === userId);
+        if (!row) return null;
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { userId: _owner, ...record } = row;
+        return record;
+      },
+      linkConsent: async (id, subscriptionId) => {
+        state.consents.find((consent) => consent.id === id)!.subscriptionId = subscriptionId;
       },
     };
   }

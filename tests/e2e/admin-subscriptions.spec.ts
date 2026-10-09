@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { registerReader, signInAs, signInAsAdmin, uniqueEmail } from "./helpers/auth";
-import { putTierOnSale, takeTierOffSale } from "./helpers/billing";
+import { agreeAndChoose, ensureLegalDocuments, putTierOnSale, takeTierOffSale } from "./helpers/billing";
 import { setSiteFeatures } from "./helpers/features";
 
 /**
@@ -21,11 +21,12 @@ test("a person's subscription read, refunded, moved to the current price, and li
   const email = uniqueEmail("subscribed");
   const tier = `E2E Subscribed ${email.split("@")[0]}`;
   await putTierOnSale(tier, {});
+  await ensureLegalDocuments();
   try {
     await setSiteFeatures({ "billing.buy": "on" });
     await registerReader(page, email);
     await page.goto("/account/plan");
-    await page.getByRole("button", { name: `Choose ${tier}, €10.00 a month` }).click();
+    await agreeAndChoose(page, `Choose ${tier}, €10.00 a month`);
     await page.getByRole("button", { name: "Pay" }).click();
     await expect(page.getByTestId("plan-current")).toContainText(tier);
 

@@ -41,6 +41,7 @@ model User {
   accounts     Account[]
   sessions     Session[]
   subscription Subscription?
+  consents     PurchaseConsent[]
   features     UserFeature[]
   limits       UserLimit[]
   charts       SavedChart[]
@@ -227,11 +228,12 @@ model Subscription {
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 
-  user    User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tier    Tier                @relation(fields: [tierId], references: [id])
-  price   Price?              @relation(fields: [priceId], references: [id])
-  events  SubscriptionEvent[]
-  notices BillingNotice[]
+  user     User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tier     Tier                @relation(fields: [tierId], references: [id])
+  price    Price?              @relation(fields: [priceId], references: [id])
+  events   SubscriptionEvent[]
+  notices  BillingNotice[]
+  consents PurchaseConsent[]
 
   /// A dispute or refund names only the customer (G-126).
   @@index([stripeCustomerId])
@@ -463,5 +465,32 @@ model LegalVersion {
   /// The admin's address, as the Change log names them.
   publishedBy String
 
+  termsConsents      PurchaseConsent[] @relation("consentTerms")
+  withdrawalConsents PurchaseConsent[] @relation("consentWithdrawal")
+
   @@unique([kind, version])
+}
+
+/// A buyer's agreement before Checkout (G-128 M2, D384): the terms version they agreed to and the withdrawal
+/// acknowledgment they gave, recorded before Stripe is asked, and tied to the subscription the webhook then brings.
+/// Personal data: deleted with the account. One left unlinked (Checkout abandoned) is pruned after two days.
+model PurchaseConsent {
+  id                  String   @id @default(cuid())
+  userId              String
+  /// The price chosen; a plain id, as the price may be deleted later while the record stays.
+  priceId             String
+  termsVersionId      String
+  withdrawalVersionId String
+  /// Set when the subscription the Checkout made is first synced; null until then.
+  subscriptionId      String?
+  createdAt           DateTime @default(now())
+
+  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  termsVersion      LegalVersion  @relation("consentTerms", fields: [termsVersionId], references: [id])
+  withdrawalVersion LegalVersion  @relation("consentWithdrawal", fields: [withdrawalVersionId], references: [id])
+  subscription      Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([subscriptionId])
+  @@index([createdAt])
 }

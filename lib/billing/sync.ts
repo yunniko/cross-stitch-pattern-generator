@@ -1,5 +1,6 @@
 import { BillingSignatureError, type BillingEventRead, type BillingGateway, type SubscriptionSnapshot } from "./contract";
 import { isGrant, type BillingPolicy } from "./entitlement";
+import { planConfirmation, type ConsentRecord } from "./consent";
 import { planNotices, type NoticeSlot, type PlannedNotice } from "./notices";
 
 /**
@@ -78,6 +79,10 @@ export interface BillingTx {
   queueNotices(subscriptionId: string, notices: PlannedNotice[]): Promise<void>;
   /** Appends history to a row without changing it. */
   appendHistory(id: string, history: HistoryEntry[], meta: HistoryMeta): Promise<void>;
+  /** The person's consent a Checkout was started with (D384); null when it is not theirs or not found. */
+  consentFor(id: string, userId: string): Promise<ConsentRecord | null>;
+  /** Ties a consent to the subscription row its Checkout made. */
+  linkConsent(id: string, subscriptionId: string): Promise<void>;
 }
 
 export interface HistoryMeta {
@@ -299,6 +304,13 @@ export async function syncSubscription(
       now: context.now,
     });
     if (notices.length > 0) await tx.queueNotices(rowId, notices);
+    // The consent the Checkout was started with is tied to the row, and its confirmation sent once the plan starts (D384).
+    const consent = snapshot.consentId ? await tx.consentFor(snapshot.consentId, plan.fields.userId) : null;
+    if (consent) {
+      if (consent.subscriptionId === null) await tx.linkConsent(consent.id, rowId);
+      const confirmation = planConfirmation({ consent, rowId, status: plan.fields.status, queued: await tx.noticesOf(rowId) });
+      if (confirmation) await tx.queueNotices(rowId, [confirmation]);
+    }
     return done({ kind: "saved", changes: plan.history.length });
   });
 }

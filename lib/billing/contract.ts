@@ -36,6 +36,8 @@ export interface SubscriptionSnapshot {
   canceledFor: "request" | "payment" | null;
   /** Our user id, as Checkout wrote it into the subscription's metadata; null if it is missing. */
   userId: string | null;
+  /** The buyer's consent record (G-128 M2, D384), as Checkout wrote it into the metadata; null if it is missing. */
+  consentId: string | null;
 }
 
 /** A provider event, verified. Only what the webhook needs to find the subscription; the payload is not kept. */
@@ -110,6 +112,8 @@ export interface CheckoutInput {
   email: string;
   /** The person's customer id from an earlier subscription, so the provider keeps one customer per person. */
   customerId: string | null;
+  /** The consent recorded before Checkout (D384), carried in the subscription's metadata so the sync can tie them. */
+  consentId: string;
   successUrl: string;
   cancelUrl: string;
 }

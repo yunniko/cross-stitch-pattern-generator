@@ -158,7 +158,7 @@ describe("Stripe's subscription read into the contract", () => {
       status: "active",
       cancel_at_period_end: false,
       ended_at: null,
-      metadata: { userId: "user_1" },
+      metadata: { userId: "user_1", consentId: "consent_1" },
       items: { data: [{ current_period_end: seconds(periodEnd), price: { id: "price_1" } }] },
       latest_invoice: { status: "paid", attempt_count: 1, created: seconds(T0), status_transitions: { finalized_at: seconds(T0) } },
       ...overrides,
@@ -179,6 +179,7 @@ describe("Stripe's subscription read into the contract", () => {
       actionNeeded: false,
       canceledFor: null,
       userId: "user_1",
+      consentId: "consent_1",
     });
   });
 
@@ -248,6 +249,7 @@ describe("Stripe's subscription read into the contract", () => {
       endedAt: T0,
       cancelAtPeriodEnd: true,
       userId: null,
+      consentId: null,
       priceId: null,
       currentPeriodEnd: null,
     });
@@ -286,6 +288,7 @@ describe("the fake provider", () => {
       userId: "user_1",
       email: "a@example.com",
       customerId: null,
+      consentId: "consent_1",
       successUrl: "x",
       cancelUrl: "y",
     });

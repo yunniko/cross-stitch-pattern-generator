@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { registerReader, uniqueEmail } from "./helpers/auth";
-import { putTierOnSale, takeTierOffSale } from "./helpers/billing";
+import { agreeAndChoose, ensureLegalDocuments, putTierOnSale, takeTierOffSale } from "./helpers/billing";
 import { setSiteFeatures } from "./helpers/features";
 import { latestMessageTo, messagesTo } from "./helpers/mail";
 
@@ -34,14 +34,20 @@ test("a renewal that fails: told once, paid, failed again past the grace to Free
   const email = uniqueEmail("failing");
   const tier = `E2E Failing ${email.split("@")[0]}`;
   await putTierOnSale(tier, {});
+  await ensureLegalDocuments();
   try {
     await setSiteFeatures({ "billing.buy": "on" });
     await registerReader(page, email);
     await page.goto("/account/plan");
-    await page.getByRole("button", { name: `Choose ${tier}, €10.00 a month` }).click();
+    await agreeAndChoose(page, `Choose ${tier}, €10.00 a month`);
     await page.getByRole("button", { name: "Pay" }).click();
     await expect(page.getByTestId("plan-current")).toContainText(tier);
     await expect(notice(page)).toHaveCount(0);
+    // The purchase confirmed by mail, repeating what was agreed to (D384).
+    const confirmed = await latestMessageTo(email, /your plan has started/);
+    expect(confirmed.text).toContain(`${tier}, €10.00 a month`);
+    expect(confirmed.text).toMatch(/\/terms\?version=\d+/);
+    expect(confirmed.text).toContain("right to withdraw");
 
     // The renewal fails: the tier is kept, with the grace's end, the next try and the way to pay.
     await inPortal(page, "Renewal fails");
@@ -81,6 +87,7 @@ test("a renewal that fails: told once, paid, failed again past the grace to Free
     await expect
       .poll(() => subjects(email).filter((subject) => /plan/.test(subject)))
       .toEqual([
+        "your plan has started",
         "a payment for your plan did not go through",
         "your plan's payment has gone through",
         "a payment for your plan did not go through",

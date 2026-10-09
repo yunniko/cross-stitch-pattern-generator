@@ -4,8 +4,7 @@ import { FAILING_STATUSES, formatMoney, monthRange } from "@/lib/billing/admin-v
 import type { PaymentTotals } from "@/lib/billing/contract";
 import { GRANT_KIND } from "@/lib/billing/entitlement";
 import { billingGateway } from "@/lib/billing/gateway";
-import { formatDay } from "@/lib/billing/notices";
-import { formatPrice } from "@/lib/billing/purchase";
+import { formatDay, formatPrice } from "@/lib/billing/notices";
 
 /**
  * The top of `/admin/billing` (G-127 M2): counts and revenue read from the provider through the contract (Acceptance 4:

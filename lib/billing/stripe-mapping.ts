@@ -53,6 +53,7 @@ export function snapshotFromStripe(subscription: Stripe.Subscription, actionNeed
     actionNeeded: failing !== null && actionNeeded,
     canceledFor: subscription.status === "canceled" && reason ? (CANCELED_FOR[reason] ?? null) : null,
     userId: subscription.metadata?.userId || null,
+    consentId: subscription.metadata?.consentId || null,
   };
 }
 

@@ -40,6 +40,7 @@ test("the admin area: its mark, its sections, and the ways to the account and th
     "Features",
     "Billing",
     "Settings",
+    "Documents",
     "Change log",
   ]);
   await expect(panel.current(page)).toHaveText("Overview");

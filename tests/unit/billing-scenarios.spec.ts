@@ -335,6 +335,7 @@ async function run(scenario: Scenario, delivery: Delivery) {
           userId: "user_1",
           email: "a@example.com",
           customerId: null,
+          consentId: "consent_1",
           successUrl: "x",
           cancelUrl: "y",
         });

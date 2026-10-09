@@ -84,12 +84,6 @@ export function offeredTiers(currentPricesNewestFirst: readonly PriceRow[]): Off
   return [...tiers.values()].sort((a, b) => monthly(a) - monthly(b) || a.tierName.localeCompare(b.tierName));
 }
 
-/** "€10.00 a month": the amount is in the currency's minor unit, as Stripe keeps it. */
-export function formatPrice(price: { amount: number; currency: string; interval: BillingInterval }): string {
-  const amount = new Intl.NumberFormat("en-GB", { style: "currency", currency: price.currency.toUpperCase() }).format(price.amount / 100);
-  return `${amount} a ${price.interval === "MONTH" ? "month" : "year"}`;
-}
-
 export interface StoredForStatus extends EntitlementInput {
   cancelAtPeriodEnd: boolean;
 }

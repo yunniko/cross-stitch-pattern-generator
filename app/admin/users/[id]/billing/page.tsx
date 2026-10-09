@@ -6,8 +6,7 @@ import { historyText, moveRefusal } from "@/lib/billing/admin-view";
 import type { ProviderPayment } from "@/lib/billing/contract";
 import { GRANT_KIND } from "@/lib/billing/entitlement";
 import { billingGateway } from "@/lib/billing/gateway";
-import { formatDay } from "@/lib/billing/notices";
-import { formatPrice } from "@/lib/billing/purchase";
+import { formatDay, formatPrice } from "@/lib/billing/notices";
 import { PersonBilling } from "./person-billing";
 
 /**

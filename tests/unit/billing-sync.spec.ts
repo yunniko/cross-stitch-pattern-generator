@@ -35,6 +35,7 @@ function setUp() {
       userId,
       email: "a@example.com",
       customerId,
+      consentId: "consent_1",
       successUrl: "x",
       cancelUrl: "y",
     });
@@ -393,6 +394,7 @@ describe("planSync, the decision alone", () => {
     actionNeeded: false,
     canceledFor: null,
     userId: "user_1",
+    consentId: null,
   };
   it("stores a subscription that ended before it was seen, which then gives Free", () => {
     expect(

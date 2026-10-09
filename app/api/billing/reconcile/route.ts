@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { reconcileRefusal } from "@/lib/billing/reconcile-access";
 import { billingGateway } from "@/lib/billing/gateway";
 import { deliverQueuedNotices } from "@/lib/billing/notice-delivery";
-import { prismaBillingStore } from "@/lib/billing/prisma-store";
+import { prismaBillingStore, pruneUnlinkedConsents } from "@/lib/billing/prisma-store";
 import { reconcile } from "@/lib/billing/sync";
 import { billingPolicy } from "@/lib/settings/server";
 
@@ -24,5 +24,7 @@ export async function POST(req: Request): Promise<Response> {
   if (report.failed.length > 0) console.error("[billing] reconciliation could not read:", report.failed);
   // Also sends what an earlier delivery could not: the queue is retried hourly, as this pass runs (D377).
   const notices = await deliverQueuedNotices(now);
-  return NextResponse.json({ ...report, notices });
+  // A consent whose Checkout was never completed is personal data with no purpose left (D384).
+  const prunedConsents = await pruneUnlinkedConsents(now);
+  return NextResponse.json({ ...report, notices, prunedConsents });
 }

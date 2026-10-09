@@ -164,6 +164,7 @@ describe("deleting a tier (D382)", () => {
       userId: "user_1",
       email: "a@example.com",
       customerId: null,
+      consentId: "consent_1",
       successUrl: "x",
       cancelUrl: "y",
     });

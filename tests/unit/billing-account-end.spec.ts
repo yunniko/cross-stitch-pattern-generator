@@ -15,6 +15,7 @@ async function subscribed() {
       userId: "user_1",
       email: "a@example.com",
       customerId,
+      consentId: "consent_1",
       successUrl: "x",
       cancelUrl: "y",
     });

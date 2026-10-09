@@ -3,7 +3,6 @@ import { FakeBilling } from "../../lib/billing/fake";
 import {
   CHECKOUT_REFUSED,
   checkoutRefusal,
-  formatPrice,
   offeredTiers,
   paymentNotice,
   planStatusLine,
@@ -11,6 +10,7 @@ import {
   type PriceRow,
   type StoredForStatus,
 } from "../../lib/billing/purchase";
+import { formatPrice } from "../../lib/billing/notices";
 
 const NOW = new Date("2026-10-08T12:00:00Z");
 const DAY = 24 * 3_600_000;
@@ -134,6 +134,7 @@ describe("the fake on a local server (G-106 M3)", () => {
       userId: "u1",
       email: "a@example.com",
       customerId: null,
+      consentId: "consent_1",
       successUrl: `${site}/ok`,
       cancelUrl: `${site}/no`,
     };
@@ -157,6 +158,7 @@ describe("the fake on a local server (G-106 M3)", () => {
       userId: "u1",
       email: "a@example.com",
       customerId: null,
+      consentId: "consent_1",
       successUrl: "",
       cancelUrl: "",
     });

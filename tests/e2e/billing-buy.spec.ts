@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { openSmallChart } from "./helpers/app";
 import { logIn, READER_PASSWORD, registerReader, uniqueEmail } from "./helpers/auth";
-import { putTierOnSale, subscriptionHistory, takeTierOffSale } from "./helpers/billing";
+import { agreeAndChoose, consentsOf, ensureLegalDocuments, putTierOnSale, subscriptionHistory, takeTierOffSale } from "./helpers/billing";
 import { clearSiteFeatures, setSiteFeatures } from "./helpers/features";
 
 /**
@@ -27,6 +27,7 @@ test.describe("buying a plan", () => {
   const tier = `E2E Personal ${email.split("@")[0]}`;
   test.beforeAll(async () => {
     await putTierOnSale(tier, { "tool.text": "ON" });
+    await ensureLegalDocuments();
   });
   test.afterAll(async () => {
     await setSiteFeatures({ "billing.buy": "hidden" });
@@ -47,7 +48,16 @@ test.describe("buying a plan", () => {
     const offer = page.getByTestId("plan-offer").filter({ hasText: tier });
     await expect(offer).toContainText("€10.00 a month");
     await expect(offer).toContainText("€100.00 a year");
-    await offer.getByRole("button", { name: `Choose ${tier}, €10.00 a month` }).click();
+    // Nothing is chosen until the terms are agreed to and the withdrawal acknowledged (D384).
+    const choose = offer.getByRole("button", { name: `Choose ${tier}, €10.00 a month` });
+    await expect(choose).toBeDisabled();
+    await expect(page.getByTestId("plan-withdrawal-text")).toContainText("lose the right to withdraw");
+    await page
+      .getByTestId("plan-consent")
+      .getByRole("checkbox", { name: /^I agree to the terms of service/ })
+      .check();
+    await expect(choose).toBeDisabled();
+    await agreeAndChoose(page, `Choose ${tier}, €10.00 a month`);
     await expect(page.getByRole("heading", { name: "Test checkout" })).toBeVisible();
     await expect(page.getByTestId("fake-checkout-price")).toContainText(`${tier}: €10.00 a month`);
     await page.getByRole("link", { name: "Cancel" }).click();
@@ -63,7 +73,7 @@ test.describe("buying a plan", () => {
 
     // Checkout: paid on the fake's page, the events delivered to the webhook before the person is sent back.
     await page.goto("/account/plan");
-    await page.getByRole("button", { name: `Choose ${tier}, €10.00 a month` }).click();
+    await agreeAndChoose(page, `Choose ${tier}, €10.00 a month`);
     await page.getByRole("button", { name: "Pay" }).click();
     await expect(page).toHaveURL(/\/account\/plan\?checkout=done$/);
     await expect(page.getByTestId("plan-current")).toContainText(tier);
@@ -94,5 +104,10 @@ test.describe("buying a plan", () => {
     const history = await subscriptionHistory(email);
     expect(history.map((entry) => entry.kind)).toEqual(expect.arrayContaining(["created", "cancel", "status"]));
     expect(new Set(history.map((entry) => entry.source))).toEqual(new Set(["webhook"]));
+    // Each Checkout recorded its consent; the paid one is tied to the subscription, the cancelled one is not.
+    expect(await consentsOf(email)).toEqual([
+      { termsKind: "terms", withdrawalKind: "withdrawal", linked: true },
+      { termsKind: "terms", withdrawalKind: "withdrawal", linked: false },
+    ]);
   });
 });

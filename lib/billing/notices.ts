@@ -1,3 +1,4 @@
+import type { BillingInterval } from "./contract";
 import { entitlement, type BillingPolicy, type EntitlementInput } from "./entitlement";
 
 /**
@@ -10,15 +11,30 @@ import { entitlement, type BillingPolicy, type EntitlementInput } from "./entitl
  * cannot send a message twice.
  */
 
-export type NoticeMessage = "payment-failed" | "action-needed" | "last-notice" | "moved-to-free" | "payment-recovered";
-/** What is sent once per failure: the first notice is one slot whichever of its two messages it is. */
-export type NoticeSlot = "failed" | "last" | "free" | "recovered";
+export type NoticeMessage =
+  | "payment-failed"
+  | "action-needed"
+  | "last-notice"
+  | "moved-to-free"
+  | "payment-recovered"
+  /** A purchase has started (G-128 M2, D384); queued by `planConfirmation` in `consent.ts`. */
+  | "purchase-confirmed";
+/**
+ * What is sent once per failure: the first notice is one slot whichever of its two messages it is. "confirmed" is a
+ * purchase's, keyed by its consent's time rather than a failure's.
+ */
+export type NoticeSlot = "failed" | "last" | "free" | "recovered" | "confirmed";
 
 /** What a message is built from at delivery; dates as ISO text, as the queue's JSON keeps them. */
 export interface NoticeValues {
   until?: string;
   nextAttemptAt?: string | null;
   payUrl?: string | null;
+  /** A purchase's confirmation: the plan bought, the terms version agreed to, and the acknowledgment given, word for word. */
+  plan?: string;
+  termsVersion?: number;
+  termsLine?: string;
+  acknowledgment?: string;
 }
 
 export interface PlannedNotice {
@@ -101,6 +117,12 @@ const DAY_FORMAT = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "lo
 /** "8 October 2026", as every billing text writes a day. */
 export const formatDay = (date: Date): string => DAY_FORMAT.format(date);
 
+/** "€10.00 a month": the amount is in the currency's minor unit, as Stripe keeps it. */
+export function formatPrice(price: { amount: number; currency: string; interval: BillingInterval }): string {
+  const amount = new Intl.NumberFormat("en-GB", { style: "currency", currency: price.currency.toUpperCase() }).format(price.amount / 100);
+  return `${amount} a ${price.interval === "MONTH" ? "month" : "year"}`;
+}
+
 /** A queued notice as delivery reads it. */
 export interface PendingNotice {
   id: string;
@@ -142,6 +164,15 @@ export function messageValues(notice: PendingNotice, planLink: string): Record<s
     case "moved-to-free":
     case "payment-recovered":
       return { link: planLink };
+    case "purchase-confirmed":
+      return {
+        plan: notice.values.plan ?? "",
+        termsLine: notice.values.termsLine ?? "",
+        // The version agreed to, on the same site as the Plan page.
+        termsLink: new URL(`/terms?version=${notice.values.termsVersion}`, planLink).toString(),
+        acknowledgment: notice.values.acknowledgment ?? "",
+        link: planLink,
+      };
   }
 }
 

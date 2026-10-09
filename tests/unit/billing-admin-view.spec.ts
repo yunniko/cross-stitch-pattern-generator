@@ -108,6 +108,7 @@ function setUp() {
       userId,
       email: "a@example.com",
       customerId: null,
+      consentId: "consent_1",
       successUrl: "x",
       cancelUrl: "y",
     });

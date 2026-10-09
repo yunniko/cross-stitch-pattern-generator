@@ -1,3 +1,4 @@
+import type { Page } from "@playwright/test";
 import { featuresDb } from "./features";
 
 /**
@@ -47,6 +48,51 @@ export async function takeTierOffSale(name: string, email: string): Promise<void
   await db.query(`DELETE FROM "Price" WHERE "tierId" IN (SELECT "id" FROM "Tier" WHERE "name" = $1)`, [name]);
   await db.query(`DELETE FROM "Tier" WHERE "name" = $1`, [name]);
   await db.query(`DELETE FROM "FeatureSet" WHERE "name" = $1`, [name]);
+}
+
+const LEGAL_TEXT: Record<"terms" | "privacy" | "withdrawal", string> = {
+  terms: "# Terms of service\n\nThe e2e suite's terms.",
+  privacy: "# Privacy policy\n\nThe e2e suite's privacy policy.",
+  withdrawal: "The plan starts at once, and I lose the right to withdraw from it.",
+};
+
+/**
+ * The three documents a buyer is shown (D384), published unless some version of each already is: `admin-legal.spec`
+ * publishes its own, and whichever is in force is the one agreed to.
+ */
+export async function ensureLegalDocuments(): Promise<void> {
+  const db = featuresDb();
+  for (const [kind, body] of Object.entries(LEGAL_TEXT)) {
+    await db.query(
+      `INSERT INTO "LegalVersion" ("id", "kind", "version", "body", "publishedAt", "publishedBy")
+       SELECT $1, $2, 1, $3, now(), 'e2e@example.com'
+       WHERE NOT EXISTS (SELECT 1 FROM "LegalVersion" WHERE "kind" = $2)
+       ON CONFLICT DO NOTHING`,
+      [id(), kind, body]
+    );
+  }
+}
+
+/** Agrees to the terms and the withdrawal acknowledgment on the Plan page, then chooses the price named. */
+export async function agreeAndChoose(page: Page, label: string): Promise<void> {
+  const consent = page.getByTestId("plan-consent");
+  await consent.getByRole("checkbox", { name: /^I agree to the terms of service/ }).check();
+  await consent.getByRole("checkbox", { name: "I agree to the following:" }).check();
+  await page.getByRole("button", { name: label }).click();
+}
+
+/** The person's consents, newest first, with the versions agreed to and whether a subscription is tied to each. */
+export async function consentsOf(email: string): Promise<Array<{ termsKind: string; withdrawalKind: string; linked: boolean }>> {
+  const { rows } = await featuresDb().query<{ termsKind: string; withdrawalKind: string; linked: boolean }>(
+    `SELECT t."kind" AS "termsKind", w."kind" AS "withdrawalKind", c."subscriptionId" IS NOT NULL AS "linked"
+       FROM "PurchaseConsent" c
+       JOIN "User" u ON u."id" = c."userId"
+       JOIN "LegalVersion" t ON t."id" = c."termsVersionId"
+       JOIN "LegalVersion" w ON w."id" = c."withdrawalVersionId"
+     WHERE u."email" = $1 ORDER BY c."createdAt" DESC`,
+    [email]
+  );
+  return rows;
 }
 
 /** The person's subscription history, oldest first: what the webhook wrote. */

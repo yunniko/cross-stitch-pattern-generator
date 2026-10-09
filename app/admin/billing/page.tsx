@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { currentBillingSettings } from "@/lib/billing/gateway";
-import { formatPrice } from "@/lib/billing/purchase";
+import { formatPrice } from "@/lib/billing/notices";
 import { PageHead } from "@/app/components/panel/panel-parts";
 import { BillingAdmin, type BillingTierRow } from "./billing-admin";
 import { SubscriptionsOverview } from "./subscriptions-overview";

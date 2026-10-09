@@ -17,7 +17,7 @@ import { BillingUnavailableError, type BillingGateway } from "@/lib/billing/cont
 import { billingGateway } from "@/lib/billing/gateway";
 import { endedGrantRow, grantRefusal, grantRow, parseGrantEnd, GRANT_REFUSED } from "@/lib/billing/grants";
 import { STORED_SELECT } from "@/lib/billing/prisma-store";
-import { formatPrice } from "@/lib/billing/purchase";
+import { formatPrice } from "@/lib/billing/notices";
 import type { HistoryEntry, SubscriptionFields } from "@/lib/billing/sync";
 import { prisma } from "@/lib/prisma";
 import type { ActionResult } from "./feature-actions";

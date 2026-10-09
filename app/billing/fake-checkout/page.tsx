@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { fakeBillingGateway } from "@/lib/billing/gateway";
-import { formatPrice } from "@/lib/billing/purchase";
+import { formatPrice } from "@/lib/billing/notices";
 import { PillButton } from "@/app/components/ui";
 import { payFakeCheckoutAction } from "../fake-actions";
 

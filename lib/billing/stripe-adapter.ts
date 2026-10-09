@@ -64,7 +64,7 @@ export function createStripeGateway(settings: { secretKey: string; webhookSecret
   return {
     id: "stripe",
 
-    startCheckout: ({ priceId, userId, email, customerId, successUrl, cancelUrl }) =>
+    startCheckout: ({ priceId, userId, email, customerId, consentId, successUrl, cancelUrl }) =>
       call("start a checkout", async () => {
         const session = await stripe.checkout.sessions.create({
           mode: "subscription",
@@ -72,7 +72,7 @@ export function createStripeGateway(settings: { secretKey: string; webhookSecret
           client_reference_id: userId,
           ...(customerId ? { customer: customerId } : { customer_email: email }),
           // The webhook finds the person from the subscription itself, whichever event arrives first.
-          subscription_data: { metadata: { userId } },
+          subscription_data: { metadata: { userId, consentId } },
           success_url: successUrl,
           cancel_url: cancelUrl,
         });

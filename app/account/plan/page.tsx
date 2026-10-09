@@ -4,26 +4,31 @@ import { prisma } from "@/lib/prisma";
 import { FREE_PLAN, planName } from "@/lib/account/plan";
 import { ENTITLEMENT_SELECT, isGrant } from "@/lib/billing/entitlement";
 import { currentBillingSettings } from "@/lib/billing/gateway";
+import { formatPrice } from "@/lib/billing/notices";
 import {
   BUYING_FEATURE,
   CHECKOUT_REFUSED,
-  formatPrice,
   hasPlanInPlace,
   offeredTiers,
   paymentNotice,
   planStatusLine,
   type PriceRow,
 } from "@/lib/billing/purchase";
+import { CONSENT_REFUSED } from "@/lib/billing/consent";
 import { featureUsable } from "@/lib/features/features";
+import { versionLine } from "@/lib/legal/documents";
+import { currentLegalVersions } from "@/lib/legal/server";
 import { featureStatesFor } from "@/lib/features/server";
 import { billingPolicy } from "@/lib/settings/server";
-import { ChoosePriceButton, ManageBillingButton } from "@/app/components/account/billing-buttons";
+import { ChoosePriceButton, ManageBillingButton, PlanConsent } from "@/app/components/account/billing-buttons";
+import { ContentProse } from "@/app/components/content-prose";
 import { PageHead, SectionTitle } from "@/app/components/panel/panel-parts";
 
 /**
  * Plan (G-107 M2, G-106 M3): the plan the entitlement rule gives this person now, where their subscription stands, the
  * plans on sale with their current prices, and the way to the provider's Portal. Plans are offered only while billing
- * is on and the buying feature is usable for this person; it starts hidden in production (D372).
+ * is on and the buying feature is usable for this person; it starts hidden in production (D372). A price is chosen only
+ * once the terms are agreed to and the withdrawal acknowledged (G-128 M2, D384).
  */
 
 const RETURN_NOTICES: Record<string, string> = {
@@ -35,7 +40,7 @@ export default async function AccountPlanPage({ searchParams }: { searchParams: 
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
   const userId = session.user.id;
-  const [user, states, prices, { checkout }, policy] = await Promise.all([
+  const [user, states, prices, { checkout }, policy, documents] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -62,6 +67,7 @@ export default async function AccountPlanPage({ searchParams }: { searchParams: 
     }),
     searchParams,
     billingPolicy(),
+    currentLegalVersions(),
   ]);
   if (!user) redirect("/login");
 
@@ -75,6 +81,56 @@ export default async function AccountPlanPage({ searchParams }: { searchParams: 
   const offered = billingOn && featureUsable(states, BUYING_FEATURE) ? offeredTiers(prices.map(toPriceRow)) : [];
   const live = hasPlanInPlace(stored, now);
   const notice = checkout ? RETURN_NOTICES[checkout] : undefined;
+  // A plan is chosen only with the terms, privacy policy and withdrawal acknowledgment published, and agreed to (D384).
+  const documentsReady = Boolean(documents.terms && documents.privacy && documents.withdrawal);
+  const canChoose = offered.length > 0 && !live && documentsReady;
+
+  const offers = (
+    <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-4">
+      <div className="flex flex-col gap-3 rounded-lg border border-accent bg-surface p-4" data-testid="plan-current">
+        <div className="flex items-center justify-between">
+          <span className="text-base font-semibold text-ink">{plan}</span>
+          <span className="text-[11px] font-medium tracking-[0.08em] text-accent uppercase">Current</span>
+        </div>
+        <p className="m-0 text-[13px] text-muted">
+          {plan === FREE_PLAN ? "The features the site gives every account." : `The features the ${plan} tier gives.`}
+        </p>
+        {status && (
+          <p className="m-0 text-[13px] text-ink" data-testid="plan-status">
+            {status}
+          </p>
+        )}
+      </div>
+      {offered.map((tier) => (
+        <div key={tier.tierId} className="flex flex-col gap-3 rounded-lg border border-line p-4" data-testid="plan-offer">
+          <span className="text-base font-semibold text-ink">{tier.tierName}</span>
+          {[tier.month, tier.year].map((price) =>
+            price ? (
+              <div key={price.id} className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-[13px] text-ink">{formatPrice(price)}</span>
+                {canChoose && (
+                  <ChoosePriceButton priceId={price.id} label={`Choose ${tier.tierName}, ${formatPrice(price)}`}>
+                    Choose
+                  </ChoosePriceButton>
+                )}
+              </div>
+            ) : null
+          )}
+          {live && (
+            <p className="m-0 text-[13px] text-muted">
+              {isGrant(stored) ? CHECKOUT_REFUSED.given : "You have a plan. Change or cancel it under Manage billing."}
+            </p>
+          )}
+        </div>
+      ))}
+      {offered.length === 0 && plan === FREE_PLAN && (
+        <div className="flex flex-col justify-center gap-2.5 rounded-lg border border-dashed border-control-line p-4">
+          <span className="font-mono text-[11px] font-medium tracking-[0.06em] text-faint uppercase">Paid plans · not on sale</span>
+          <span className="text-[13px] text-muted">Paid plans are not on sale yet.</span>
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -112,50 +168,25 @@ export default async function AccountPlanPage({ searchParams }: { searchParams: 
           )}
         </div>
       )}
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-4">
-        <div className="flex flex-col gap-3 rounded-lg border border-accent bg-surface p-4" data-testid="plan-current">
-          <div className="flex items-center justify-between">
-            <span className="text-base font-semibold text-ink">{plan}</span>
-            <span className="text-[11px] font-medium tracking-[0.08em] text-accent uppercase">Current</span>
-          </div>
-          <p className="m-0 text-[13px] text-muted">
-            {plan === FREE_PLAN ? "The features the site gives every account." : `The features the ${plan} tier gives.`}
-          </p>
-          {status && (
-            <p className="m-0 text-[13px] text-ink" data-testid="plan-status">
-              {status}
-            </p>
-          )}
-        </div>
-        {offered.map((tier) => (
-          <div key={tier.tierId} className="flex flex-col gap-3 rounded-lg border border-line p-4" data-testid="plan-offer">
-            <span className="text-base font-semibold text-ink">{tier.tierName}</span>
-            {[tier.month, tier.year].map((price) =>
-              price ? (
-                <div key={price.id} className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-[13px] text-ink">{formatPrice(price)}</span>
-                  {!live && (
-                    <ChoosePriceButton priceId={price.id} label={`Choose ${tier.tierName}, ${formatPrice(price)}`}>
-                      Choose
-                    </ChoosePriceButton>
-                  )}
-                </div>
-              ) : null
-            )}
-            {live && (
-              <p className="m-0 text-[13px] text-muted">
-                {isGrant(stored) ? CHECKOUT_REFUSED.given : "You have a plan. Change or cancel it under Manage billing."}
-              </p>
-            )}
-          </div>
-        ))}
-        {offered.length === 0 && plan === FREE_PLAN && (
-          <div className="flex flex-col justify-center gap-2.5 rounded-lg border border-dashed border-control-line p-4">
-            <span className="font-mono text-[11px] font-medium tracking-[0.06em] text-faint uppercase">Paid plans · not on sale</span>
-            <span className="text-[13px] text-muted">Paid plans are not on sale yet.</span>
-          </div>
-        )}
-      </div>
+      {offered.length > 0 && !live && !documentsReady && (
+        // Prices stay visible, with no way to choose one, until every document a buyer is shown is published.
+        <p className="m-0 rounded-md border border-line px-3 py-2 text-[13px] text-muted" data-testid="plan-unpublished">
+          {CONSENT_REFUSED.unpublished}
+        </p>
+      )}
+      {canChoose && documents.terms && documents.withdrawal ? (
+        <PlanConsent
+          termsVersionId={documents.terms.id}
+          termsHref={`/terms?version=${documents.terms.version}`}
+          termsLine={versionLine(documents.terms.version, documents.terms.publishedAt)}
+          withdrawalVersionId={documents.withdrawal.id}
+          withdrawal={<ContentProse markdown={documents.withdrawal.body} authored />}
+        >
+          {offers}
+        </PlanConsent>
+      ) : (
+        offers
+      )}
       <section className="flex flex-col gap-3" aria-labelledby="plan-billing">
         <SectionTitle id="plan-billing">Billing</SectionTitle>
         {billingOn && stored?.stripeCustomerId ? (

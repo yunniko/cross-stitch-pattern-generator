@@ -90,6 +90,17 @@ export const MESSAGES = {
       `Your Plan page:\n${link}` +
       SIGN_OFF,
   }),
+  // A purchase's confirmation (G-128 M2, D384): what was bought, the terms agreed to, and the acknowledgment repeated.
+  "purchase-confirmed": declare({
+    needs: ["plan", "termsLine", "termsLink", "acknowledgment", "link"],
+    subject: `${SITE_NAME}: your plan has started`,
+    text: ({ plan, termsLine, termsLink, acknowledgment, link }) =>
+      `Thank you. Your plan has started: ${plan}.\n\n` +
+      `You agreed to the terms of service, ${termsLine}. That version stays readable here:\n${termsLink}\n\n` +
+      `Before paying, you also agreed to this:\n\n${acknowledgment}\n\n` +
+      `Your card, invoices and cancellation are under Manage billing on your Plan page:\n${link}` +
+      SIGN_OFF,
+  }),
 } as const;
 
 export type MessageId = keyof typeof MESSAGES;

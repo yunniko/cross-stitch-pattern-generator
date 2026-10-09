@@ -324,6 +324,7 @@ export class FakeBilling implements BillingGateway {
       actionNeeded: false,
       canceledFor: null,
       userId: input.userId,
+      consentId: input.consentId,
       interval: price.interval,
       invoiceId: this.nextId("in"),
     };

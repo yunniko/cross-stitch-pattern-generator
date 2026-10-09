@@ -17,6 +17,7 @@ import {
   type NoticeSlot,
   type NoticeValues,
 } from "./notices";
+import { UNLINKED_CONSENT_MS, type ConsentRecord } from "./consent";
 
 /**
  * The billing write path's store in Postgres (G-106 M2). One transaction per sync, holding an advisory lock on the
@@ -93,7 +94,46 @@ function transactionStore(tx: Prisma.TransactionClient): BillingTx {
         skipDuplicates: true,
       });
     },
+    consentFor: async (id, userId): Promise<ConsentRecord | null> => {
+      const row = await tx.purchaseConsent.findFirst({
+        where: { id, userId },
+        select: {
+          id: true,
+          createdAt: true,
+          subscriptionId: true,
+          priceId: true,
+          termsVersion: { select: { version: true, publishedAt: true } },
+          withdrawalVersion: { select: { body: true } },
+        },
+      });
+      if (!row) return null;
+      const price = await tx.price.findUnique({
+        where: { id: row.priceId },
+        select: { amount: true, currency: true, interval: true, tier: { select: { name: true } } },
+      });
+      return {
+        id: row.id,
+        createdAt: row.createdAt,
+        subscriptionId: row.subscriptionId,
+        tierName: price?.tier.name ?? "Your plan",
+        price: price ? { amount: price.amount, currency: price.currency, interval: price.interval } : null,
+        termsVersion: row.termsVersion.version,
+        termsPublishedAt: row.termsVersion.publishedAt,
+        acknowledgment: row.withdrawalVersion.body,
+      };
+    },
+    linkConsent: async (id, subscriptionId) => {
+      await tx.purchaseConsent.update({ where: { id }, data: { subscriptionId } });
+    },
   };
+}
+
+/** Consents whose Checkout was never completed, once a late webhook could no longer tie them (D384). */
+export async function pruneUnlinkedConsents(now: Date): Promise<number> {
+  const { count } = await prisma.purchaseConsent.deleteMany({
+    where: { subscriptionId: null, createdAt: { lt: new Date(now.getTime() - UNLINKED_CONSENT_MS) } },
+  });
+  return count;
 }
 
 export const prismaBillingStore: BillingStore = {
