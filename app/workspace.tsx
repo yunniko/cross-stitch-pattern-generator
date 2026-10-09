@@ -209,7 +209,7 @@ export default function Workspace({ account }: WorkspaceProps) {
   // The layer the tools work on, as the tools see it (G-130): its name, kind and visibility.
   const activeLayerHeader = history.document?.layers.find((layer) => layer.id === history.activeLayerId);
   const activeLayer = activeLayerHeader
-    ? { name: activeLayerHeader.name, kind: activeLayerHeader.kind, visible: activeLayerHeader.visible }
+    ? { id: activeLayerHeader.id, name: activeLayerHeader.name, kind: activeLayerHeader.kind, visible: activeLayerHeader.visible }
     : null;
   const tools = useTools({
     frameRef,
@@ -217,12 +217,17 @@ export default function Workspace({ account }: WorkspaceProps) {
     pattern,
     shown: history.composite,
     activeLayer,
+    layerCount: history.document?.layers.length ?? 0,
     cellSize,
     workspace,
     viewOnly: lookingOnly,
     startingNew,
     commit: history.set,
-    transformChart: (transform) => history.apply((document) => transformDocument(document, transform)),
+    // A crop to a piece puts the piece down on the active layer first, in the same undo step (`EditorApi.transformChart`).
+    transformChart: (transform, edited) =>
+      history.apply((document) =>
+        transformDocument(edited && history.activeLayerId ? withLayerView(document, history.activeLayerId, edited) : document, transform)
+      ),
     history,
     colorForPointer: colours.colorForPointer,
     takeColor: colours.takeColor,

@@ -18,7 +18,8 @@ import {
   fillSelection,
   rotateSelectionClockwise,
   rotateSelectionAnticlockwise,
-  cropToSelection,
+  cutSelection,
+  selectionCropDelta,
 } from "@/lib/editor/floating-selection";
 import {
   areaFromBox,
@@ -61,6 +62,29 @@ type SelectDrag =
       lastDy: number;
     };
 
+/** What Copy or Cut took: the piece, the layer it was taken from, and whether it was taken away (Cut) or left there. */
+interface Copied {
+  piece: FloatingSelection;
+  layerId: string | null;
+  cut: boolean;
+}
+
+/** The layer the selection works on, and how the whole chart is cropped to a piece (G-130). */
+export interface SelectChart {
+  layerId: string | null;
+  transformChart: EditorApi["transformChart"];
+}
+
+/**
+ * What Paste puts in hand: a copy of what was taken, lifted from nowhere. Pasted back onto the layer it was copied from, where
+ * the original still lies, it is set beside it so it is seen to be a new piece; cut, or pasted onto another layer, it is put
+ * where it was taken from, so stitches carried to another layer stay in their place.
+ */
+function pastedPiece(copied: Copied, layerId: string | null): FloatingSelection {
+  const besideOriginal = !copied.cut && copied.layerId === layerId;
+  return besideOriginal ? duplicateSelection(copied.piece) : duplicateSelection(copied.piece, 0);
+}
+
 /**
  * What a finished drag leaves in hand: the piece that was being moved, or the area drawn (a rectangle or a lassoed shape)
  * combined with the selection by the mode, lifted (D330).
@@ -98,15 +122,16 @@ function pointInSelection(x: number, y: number, point: { x: number; y: number },
 export function useSelectTool(
   { frameRef, rendererRef, pattern, cellSize, commit, lockTransparency: locked = false, stitchKind = STITCH_WHOLE }: CanvasToolInputs,
   tool: "select" | "lasso" | "wand",
-  selectionMode: SelectionMode = "replace",
-  wandRule: RegionRule = { connectivity: 8, sameKind: true },
-  emptyCovers = false
+  selectionMode: SelectionMode,
+  wandRule: RegionRule,
+  emptyCovers: boolean,
+  chart: SelectChart
 ) {
   const [held, setSelection] = useState<FloatingSelection | null>(null);
   // The piece in hand always carries the switch as it stands now, so a preview, a merge, a crop and the quick mirrors all
   // stamp by it, and turning the switch changes the piece already in hand (G-119, D359).
   const selection = useMemo(() => (held && held.emptyCovers !== emptyCovers ? { ...held, emptyCovers } : held), [held, emptyCovers]);
-  const [clipboard, setClipboard] = useState<FloatingSelection | null>(null);
+  const [clipboard, setClipboard] = useState<Copied | null>(null);
   const dragRef = useRef<SelectDrag | null>(null);
   const isDragging = useCallback(() => dragRef.current !== null, []);
 
@@ -253,7 +278,14 @@ export function useSelectTool(
     /** Forgets copied cells after the palette is renumbered (a merge), since their indices now name other colors. */
     invalidateClipboard: () => setClipboard(null),
     invert,
-    copy: () => selection && setClipboard(selection),
+    copy: () => selection && setClipboard({ piece: selection, layerId: chart.layerId, cut: false }),
+    /** Copy, and the piece taken off the chart: where it was lifted from is emptied, as one undo step. */
+    cut: () => {
+      if (!selection || !pattern) return;
+      setClipboard({ piece: selection, layerId: chart.layerId, cut: true });
+      commit(cutSelection(pattern, selection));
+      setSelection(null);
+    },
     /**
      * Puts a ready-made piece in hand, as Paste does (G-081): whatever is floating is applied first, never discarded.
      * Lettering from the Text tab arrives this way, and a stamp (G-119) with `chart`, its palette grown by the threads the
@@ -270,8 +302,7 @@ export function useSelectTool(
     paste: () => {
       if (!clipboard || !pattern) return;
       merge(); // never silently discard what's floating
-      // Offset from the copy's origin so the paste is visibly a new piece.
-      setSelection(duplicateSelection(clipboard));
+      setSelection(pastedPiece(clipboard, chart.layerId));
     },
     /**
      * Paints the selected area in one colour, leaving it floating so it can still be moved or cancelled (G-063). With the
@@ -284,7 +315,7 @@ export function useSelectTool(
      */
     duplicate: () => {
       if (!selection || !pattern) return;
-      setClipboard(selection);
+      setClipboard({ piece: selection, layerId: chart.layerId, cut: false });
       commit(mergeSelection(pattern, selection)); // the original stays where it is
       setSelection(duplicateSelection(selection));
     },
@@ -292,10 +323,11 @@ export function useSelectTool(
     flipVertical: () => selection && setSelection(flipSelectionVertical(selection)),
     rotateClockwise: () => selection && setSelection(rotateSelectionClockwise(selection)),
     rotateAnticlockwise: () => selection && setSelection(rotateSelectionAnticlockwise(selection)),
-    /** Merges the piece where it sits, then reduces the chart to its rectangle (G-042). */
+    /** Merges the piece where it sits, then reduces the chart, every layer of it, to its rectangle (G-042, G-130): one step. */
     crop: () => {
       if (!selection || !pattern) return;
-      commit(cropToSelection(pattern, selection));
+      const merged = mergeSelection(pattern, selection);
+      chart.transformChart({ type: "resize", delta: selectionCropDelta(merged, selection) }, merged);
       setSelection(null);
     },
     /**
@@ -368,6 +400,7 @@ export const selectModule = {
   commands: [
     { id: "selection.invert", name: "Invert the selection", group: "Selection", when: "Select, Lasso or Magic wand in hand" },
     { id: "selection.copy", name: "Copy the piece", group: "Selection", when: "A piece in hand", keys: ["Mod+C"], onHeld: true },
+    { id: "selection.cut", name: "Cut the piece", group: "Selection", when: "A piece in hand", keys: ["Mod+X"], onHeld: true },
     {
       id: "selection.paste",
       name: "Paste the copied piece",
@@ -404,7 +437,8 @@ export const selectModule = {
         connectivity: region.connectivity,
         sameKind: !region.colorOnly,
       },
-      api.option(EMPTY_AS_COLOUR) === "on"
+      api.option(EMPTY_AS_COLOUR) === "on",
+      { layerId: api.activeLayer?.id ?? null, transformChart: api.transformChart }
     );
     // The keys act on the active layer as a press does, so they are refused where a press is: a hidden layer (G-130).
     const onLayer = layerRefusal({ label: "Select", layerKinds: STITCH_KINDS, drawsOnLayer: true }, api.activeLayer) === null;
@@ -417,8 +451,10 @@ export const selectModule = {
     const actions: SelectionActionsProps = {
       hasSelection: select.selection !== null,
       hasClipboard: select.clipboard !== null,
+      layerName: api.layerCount > 1 && api.activeLayer ? api.activeLayer.name : null,
       onInvert: select.invert,
       onCopy: select.copy,
+      onCut: select.cut,
       onPaste: select.paste,
       onDuplicate: select.duplicate,
       onFill: () => colour !== null && select.fill(colour),
@@ -444,6 +480,7 @@ export const selectModule = {
       commands: {
         "selection.invert": act(inHand && api.pattern !== null, select.invert),
         "selection.copy": act(held, select.copy),
+        "selection.cut": act(held, select.cut),
         "selection.paste": act(inHand && select.clipboard !== null, select.paste),
         // Ctrl+D is the browser's bookmark key: with a selection tool in hand it is kept from the browser even with no piece.
         "selection.duplicate": { ...act(held, select.duplicate), claimsKey: inHand },

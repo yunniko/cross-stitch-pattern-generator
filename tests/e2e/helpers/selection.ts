@@ -8,6 +8,7 @@ import type { Page } from "@playwright/test";
 
 export type SelectionActionName =
   | "Invert selection"
+  | "Cut"
   | "Copy"
   | "Paste"
   | "Duplicate"

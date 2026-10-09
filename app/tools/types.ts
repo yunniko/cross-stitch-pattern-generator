@@ -103,12 +103,17 @@ export interface EditorApi {
   viewOnly: boolean;
   /** The layer the tools work on: its name, kind and visibility (G-130); null while there is no chart. */
   activeLayer: ActiveLayerInfo | null;
+  /** How many layers the chart has; 0 while there is no chart. */
+  layerCount: number;
   /** The start screen covers the chart. */
   startingNew: boolean;
   /** Pushes one undoable step: `next` is the active layer's view (`pattern`), edited. */
   commit: (next: StitchPattern) => void;
-  /** Crops, expands or moves the whole chart, every layer of it, as one undoable step (G-130). */
-  transformChart: (transform: ChartTransform) => void;
+  /**
+   * Crops, expands or moves the whole chart, every layer of it, as one undoable step (G-130). `edited`, the active layer's
+   * view as an edit left it, is written in first, in the same step: a crop to a piece puts the piece down, then crops.
+   */
+  transformChart: (transform: ChartTransform, edited?: StitchPattern) => void;
   history: { canUndo: boolean; canRedo: boolean; undo: () => void; redo: () => void };
   /** The colour a press paints with: the foreground for the main button, the background for the other. */
   colorForPointer: (button: number) => number | null;

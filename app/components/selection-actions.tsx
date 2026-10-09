@@ -15,9 +15,13 @@ import { STAMPS_FEATURE } from "@/lib/stamps/stamp";
 export interface SelectionActionsProps {
   hasSelection: boolean;
   hasClipboard: boolean;
+  /** The layer a selection takes from and a paste goes onto, named while the chart has more than one; otherwise null. */
+  layerName: string | null;
   /** Selects everything the selection leaves out; with nothing selected, the whole chart (G-116). */
   onInvert: () => void;
   onCopy: () => void;
+  /** Copies the piece and takes it off the chart (the active layer), as one undo step. */
+  onCut: () => void;
   onPaste: () => void;
   onDuplicate: () => void;
   /** Paints the selected area in the brush's colour (G-063). */
@@ -51,6 +55,8 @@ function groups(p: SelectionActionsProps): ReadonlyArray<{ name: string; note?: 
   return [
     {
       name: "Select",
+      // With layers, a selection takes only the active layer's stitches: what is seen may be on another (G-130).
+      note: p.layerName !== null ? <LayerNote name={p.layerName} /> : undefined,
       actions: [
         {
           label: "Invert selection",
@@ -62,12 +68,19 @@ function groups(p: SelectionActionsProps): ReadonlyArray<{ name: string; note?: 
       ],
     },
     {
-      name: "Copy and paste",
+      name: "Cut, copy and paste",
       actions: [
+        {
+          label: "Cut",
+          title: "Take the selected piece off the chart and keep it to paste",
+          icon: "cut",
+          onClick: p.onCut,
+          disabled: none,
+        },
         { label: "Copy", title: "Copy the selected piece", icon: "copy", onClick: p.onCopy, disabled: none },
         {
           label: "Paste",
-          title: "Paste the copied piece as a new floating selection",
+          title: "Paste the piece onto the layer you are working on, as a new floating selection",
           icon: "paste",
           onClick: p.onPaste,
           disabled: !p.hasClipboard,
@@ -232,6 +245,14 @@ export function SelectionPanel(props: SelectionActionsProps) {
         </section>
       ))}
     </div>
+  );
+}
+
+function LayerNote({ name }: { name: string }) {
+  return (
+    <p className="m-0 text-[12px] leading-[17px] text-muted" data-testid="selection-layer-note">
+      Selects from {name}, the layer you are working on; choose another layer to select its stitches.
+    </p>
   );
 }
 

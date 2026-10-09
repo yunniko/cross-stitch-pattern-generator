@@ -72,6 +72,7 @@ describe("the command table", () => {
       "photo.invert",
       "selection.invert",
       "selection.copy [Ctrl+C]",
+      "selection.cut [Ctrl+X]",
       "selection.paste [Ctrl+V]",
       "selection.duplicate [Ctrl+D]",
       "selection.fill",

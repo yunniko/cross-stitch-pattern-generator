@@ -268,6 +268,16 @@ export const INTERFACE_ICONS = {
       <path d="M15 5.5A1.5 1.5 0 0 0 13.5 4H5.5A1.5 1.5 0 0 0 4 5.5v8A1.5 1.5 0 0 0 5.5 15" />
     </>
   ),
+  cut: outline(
+    "h-4 w-4",
+    1.6,
+    <>
+      <circle cx="6.5" cy="17.5" r="2.5" />
+      <circle cx="17.5" cy="17.5" r="2.5" />
+      <path d="M8.3 15.7L18 4" />
+      <path d="M15.7 15.7L6 4" />
+    </>
+  ),
   paste: outline(
     "h-4 w-4",
     1.6,

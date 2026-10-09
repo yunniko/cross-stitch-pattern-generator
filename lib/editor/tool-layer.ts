@@ -21,6 +21,7 @@ export interface ToolLayerUse {
 
 /** What the gate needs to know of the active layer. */
 export interface ActiveLayerInfo {
+  id: string;
   name: string;
   kind: string;
   visible: boolean;

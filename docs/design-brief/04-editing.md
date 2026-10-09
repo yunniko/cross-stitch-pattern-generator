@@ -102,19 +102,22 @@ Under Select + and Select − a press always starts a new area. A piece that has
 | Action | Available when | Effect |
 |---|---|---|
 | **Move** (drag the piece) | A piece is in hand | Repositions it; stitches under it are not lost until it is applied |
+| **Cut** (Ctrl/Cmd + X) | A piece | Takes the piece off the chart, emptying where it was lifted from, as one undo step, and keeps it to paste |
 | **Copy** | A piece | Keeps a copy to paste |
-| **Paste** | A copy exists | A new piece in hand |
+| **Paste** | A copy exists | A new piece in hand on the layer being worked on: a cut piece, or a copy pasted on another layer, in the place it was taken from; a copy pasted on its own layer beside the original |
 | **Duplicate** | A piece | Leaves the piece where it is and takes a copy in hand |
 | **Fill selection** | A piece, and a colour in hand | Paints the whole selected area in the colour in hand (with the transparency lock, only the stitches that are not empty) |
 | **Flip horizontal / Flip vertical** | A piece | Mirrors it; half stitches swap diagonal where a mirror needs it |
 | **Rotate right / left** | A piece | A quarter turn clockwise / anticlockwise; half stitches swap diagonal |
-| **Crop to selection** | A piece | Cuts the chart down to the piece's rectangle, discarding everything outside it (the piece is applied first); the photo behind keeps its alignment |
+| **Crop to selection** | A piece | Cuts the chart down to the piece's rectangle, discarding everything outside it on every layer (the piece is applied first), as one undo step; the photo behind keeps its alignment |
 | **Save as stamp** | A piece, signed in | Asks for a name (**Save stamp**, or **Cancel**; an empty name is kept as "Untitled stamp"), then keeps the piece with the account as a stamp: its stitches, stitch types, shape and backstitch, and only the threads it uses. The piece stays in hand. "Saved “Rose” to your stamps." or the refusal (the count limit, `09`). Signed out it is greyed, with "Sign in to keep pieces as stamps and place them in other charts." below; switched off for someone, greyed with the feature's note |
 | **Add stamp** | Signed in, with stamps, a chart open in Edit | A gallery of the account's stamps, pinned first then the newest, with the count and a search by name; each card shows its preview, name, size and threads. The stamp chosen arrives as a piece in hand three stitches in from the corner of the part of the chart in view, as lettering does: each of its threads is matched in the chart (by brand and code; a custom colour by its colour), and those the chart lacks are added to the palette, in the same undo step. Refused in the gallery, with the reason, when the chart is smaller than the stamp, the palette has no room for the threads it lacks (`09`), or a chart of one brand would take another brand's thread or a custom colour. Greyed, with the reason, when signed out, with no stamps, or with no chart in Edit; switched off for someone, greyed with the feature's note, or absent |
 | **Apply here** (Enter) | A piece | Merges the piece into the chart where it sits |
 | **Cancel** (Escape) | A piece | Puts the chart back as it was when this selection started, discarding the piece and its changes |
 | **Invert selection** | Select, Lasso or Magic wand | Selects every cell and backstitch line the selection leaves out (the piece is applied first); with nothing selected, the whole chart. Inverting twice gives the same selection |
 
+
+On a chart of more than one layer a selection takes only the active layer's stitches, and a paste goes onto it; the Selection group says so, naming the layer: "Selects from Layer 2, the layer you are working on; choose another layer to select its stitches."
 
 A lasso piece is a **shape**: stitches outside the shape inside its box are not in the piece, are never stamped, vacated or filled; copy, move, flip and rotate carry the shape. A backstitch line is taken by a rectangle or lasso only when **both** its ends are inside.
 
@@ -176,6 +179,7 @@ Keys act when no text entry has the focus, and not while the command list is ope
 | Escape | Cancels the piece, the shape, the lasso fill or the backstitch run in hand; puts down the backstitch in hand; or puts the crop frame back over the whole chart. Only one of these can be in hand at a time |
 | Enter | Applies the piece in hand (Select, Lasso and Magic wand), or the crop frame (Crop); otherwise the pen of the keyboard cell cursor (above) |
 | Delete, Backspace | Deletes the backstitch in hand (Backstitch edit only) |
+| Ctrl/Cmd + X | Cuts the piece in hand |
 | Ctrl/Cmd + C | Copies the piece in hand, or the backstitch in hand |
 | Ctrl/Cmd + V | Pastes the copied piece (Select, Lasso or Magic wand in hand), or the copied backstitch (Backstitch edit in hand) |
 | Ctrl/Cmd + D | Duplicates the piece in hand, or the backstitch in hand |

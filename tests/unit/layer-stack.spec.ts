@@ -106,9 +106,9 @@ describe("the layers around the active one", () => {
 });
 
 describe("the tools on the active layer", () => {
-  const visible = { name: "Layer 2", kind: "stitches", visible: true };
+  const visible = { id: "l2", name: "Layer 2", kind: "stitches", visible: true };
   const hidden = { ...visible, visible: false };
-  const dots = { name: "Dots", kind: "test-dots", visible: true };
+  const dots = { id: "l3", name: "Dots", kind: "test-dots", visible: true };
 
   it("refuses a drawing tool on a hidden layer, and says so", () => {
     expect(layerRefusal(toolDefinition("brush"), visible)).toBeNull();

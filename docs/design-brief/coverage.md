@@ -533,3 +533,4 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | D391 | 04-editing | the Layers list's drag and buttons |
 | D392 | 04-editing | the tools on the active layer |
 | D393 | 04-editing 08-exports-and-files | counts and exports from the visible layers |
+| D394 | 04-editing | cut, and paste onto the active layer |

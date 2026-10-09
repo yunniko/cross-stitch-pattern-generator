@@ -1,5 +1,6 @@
 import { clipLines, dedupeLines, flipLinesInBox, lineKey, lineWithinRect, rotateLinesInBox, shiftLines } from "./backstitch";
 import { resizeCanvas, withCounts } from "./pattern-edit";
+import type { CanvasResizeDelta } from "../document/plane-geometry";
 import { kindBuffer, STITCH_WHOLE, swapKind, tidyKinds } from "./stitch-kind";
 import { EMPTY_CELL, type BackstitchLine, type CellRect, type FloatingSelection, type StitchPattern } from "../types";
 
@@ -121,13 +122,9 @@ export function fillSelection(
  */
 export const DUPLICATE_OFFSET = 3;
 
-export function duplicateSelection(selection: FloatingSelection): FloatingSelection {
+export function duplicateSelection(selection: FloatingSelection, offset = DUPLICATE_OFFSET): FloatingSelection {
   // `originMask` and `originLines` go with `originRect`: a duplicate was lifted from nowhere, so it vacates nothing.
-  return moveSelection(
-    { ...selection, originRect: undefined, originMask: undefined, originLines: undefined },
-    DUPLICATE_OFFSET,
-    DUPLICATE_OFFSET
-  );
+  return moveSelection({ ...selection, originRect: undefined, originMask: undefined, originLines: undefined }, offset, offset);
 }
 
 function flipCells(cells: Uint8Array, width: number, height: number, axis: "horizontal" | "vertical"): Uint8Array {
@@ -235,18 +232,17 @@ export function rotateSelectionAnticlockwise(selection: FloatingSelection): Floa
  */
 export function cropToSelection(pattern: StitchPattern, selection: FloatingSelection): StitchPattern {
   const merged = mergeSelection(pattern, selection);
-  const rect = clampRectToBounds(
-    { x: selection.x, y: selection.y, width: selection.width, height: selection.height },
-    merged.width,
-    merged.height
-  );
+  return resizeCanvas(merged, selectionCropDelta(merged, selection));
+}
+
+/**
+ * The resize that keeps only the piece's rectangle of a chart `width` × `height`: how the whole chart, every layer, is
+ * cropped to a piece (G-130), as `cropToSelection` crops one grid.
+ */
+export function selectionCropDelta({ width, height }: { width: number; height: number }, selection: FloatingSelection): CanvasResizeDelta {
+  const rect = clampRectToBounds({ x: selection.x, y: selection.y, width: selection.width, height: selection.height }, width, height);
   if (rect.width < 1 || rect.height < 1) throw new Error("Can't crop away the entire pattern.");
-  return resizeCanvas(merged, {
-    left: -rect.x,
-    top: -rect.y,
-    right: -(merged.width - rect.x - rect.width),
-    bottom: -(merged.height - rect.y - rect.height),
-  });
+  return { left: -rect.x, top: -rect.y, right: -(width - rect.x - rect.width), bottom: -(height - rect.y - rect.height) };
 }
 
 /**
@@ -334,6 +330,21 @@ export function mergeSelection(pattern: StitchPattern, selection: FloatingSelect
   }
   stampSelection(cellPalette, cellKind, pattern.width, pattern.height, selection);
   return { ...withCounts(pattern, cellPalette, pattern.palette, cellKind), backstitch: mergedLines(pattern, selection) };
+}
+
+/**
+ * The chart with the piece taken out (Cut): where it was lifted from is emptied, stitches and lines, as a merge empties it,
+ * and nothing is put down. A piece lifted from nowhere (a paste, a stamp) leaves the chart as it is.
+ */
+export function cutSelection(pattern: StitchPattern, selection: FloatingSelection): StitchPattern {
+  const nothing: FloatingSelection = {
+    ...selection,
+    cells: new Uint8Array(selection.cells.length).fill(EMPTY_CELL),
+    kinds: undefined,
+    backstitch: undefined,
+    emptyCovers: false,
+  };
+  return mergeSelection(pattern, nothing);
 }
 
 /**
