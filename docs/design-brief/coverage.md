@@ -532,3 +532,4 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | D390 | 04-editing 08-exports-and-files | the layered document; the Layers tab in G-130 M2 |
 | D391 | 04-editing | the Layers list's drag and buttons |
 | D392 | 04-editing | the tools on the active layer |
+| D393 | 04-editing 08-exports-and-files | counts and exports from the visible layers |

@@ -169,7 +169,10 @@ function sameAppearance(
 }
 
 export interface ColorsDockProps {
+  /** The active layer's view (G-130): what the editors change. */
   pattern: StitchPattern | null;
+  /** The chart as shown, every visible layer's top stitch: what the list counts. The palette is shared, so the rows are the same. */
+  counted?: StitchPattern | null;
   /** Dimmed while a floating selection is in hand, as 1b draws its select state. */
   dimmed?: boolean;
   activeColorIndex: number | null;
@@ -199,6 +202,7 @@ export interface ColorsDockProps {
  */
 export function ColorsDock({
   pattern,
+  counted,
   dimmed = false,
   activeColorIndex,
   onActiveColorChange,
@@ -423,7 +427,7 @@ export function ColorsDock({
   return (
     <div className="flex flex-col">
       <div className="flex items-center justify-between px-4 pt-3.5 pb-2">
-        <span className="font-mono text-xs text-muted">{pattern ? threadsSummary(pattern, aidaCount) : "No threads yet"}</span>
+        <span className="font-mono text-xs text-muted">{pattern ? threadsSummary(counted ?? pattern, aidaCount) : "No threads yet"}</span>
         <PillButton
           size="xs"
           onClick={() => {
@@ -447,7 +451,7 @@ export function ColorsDock({
 
       {pattern && (
         <ThreadRows
-          pattern={pattern}
+          pattern={counted ?? pattern}
           aidaCount={aidaCount}
           activeColorIndex={activeColorIndex}
           // Selecting a colour to paint with and lighting it for Isolate are different intentions, so the row does

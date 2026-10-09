@@ -6,6 +6,7 @@ import { downloadBlob } from "@/lib/export/a4-export";
 import { calculateA4Layout } from "@/lib/export/a4-layout";
 import type { ChartDocument } from "@/lib/document/types";
 import { serializeChart } from "@/lib/editor/pattern-serialize";
+import { withEditableEntry } from "@/lib/export/bundle-editable";
 import type { ExportChoice, ExportKind } from "@/lib/export/export-jobs";
 import { paletteFileText, setFromPattern } from "@/lib/editor/palette-set";
 import { pixelArtPngBlob } from "@/lib/export/pixel-art-png";
@@ -36,8 +37,9 @@ function messageForExport(error: unknown, fallback: string): string {
  * with every request but only reach the editable JSON (G-037).
  */
 export function useExports(
+  /** The chart as shown: every visible layer's top stitch (G-130). Every export but the editable file is made from it. */
   pattern: StitchPattern | null,
-  /** The whole chart, every layer: what the editable file keeps (G-130). The other exports are made from `pattern`. */
+  /** The whole chart, every layer: what the editable file keeps, alone and inside Export all (G-130, D393). */
   chart: ChartDocument | null,
   options: WorkspaceOptions,
   symmetry: SymmetryAxes = NO_SYMMETRY
@@ -84,7 +86,7 @@ export function useExports(
       // Pixel art is written here for the same reason (G-049): one pass over the cells, no server needed.
       if (kind === "palette" && pattern.palette.length === 0)
         throw new Error("This chart has no colours yet, so there is no palette to export.");
-      const { blob, filename } =
+      const made =
         kind === "editable"
           ? {
               blob: new Blob([serializeChart(chart ?? pattern, symmetry)], { type: "application/json" }),
@@ -113,7 +115,12 @@ export function useExports(
                   },
                   setProgress
                 );
-      downloadBlob(blob, filename);
+      // The bundle is drawn from the chart as shown; its editable entry keeps the layers, as the editable export does.
+      const blob =
+        kind === "all" && chart && chart.layers.length > 1
+          ? await withEditableEntry(made.blob, baseName, serializeChart(chart, symmetry))
+          : made.blob;
+      downloadBlob(blob, made.filename);
       return true;
     } catch (err) {
       setExportError(messageForExport(err, fallbackMessage));

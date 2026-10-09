@@ -32,7 +32,10 @@ import { PillButton } from "./ui";
 export interface WorkspacePanelProps {
   /** Null when no workspace can be shown (G-103): no chart shown and Photo off, so only the start choices are offered. */
   workspace: Workspace | null;
+  /** The active layer's view (G-130): what the chart settings and the thread editors change. */
   pattern: StitchPattern | null;
+  /** The chart as shown, every visible layer's top stitch: what the thread counts are of. */
+  shown: StitchPattern | null;
   /** A chart is open and the start screen is not over it. */
   chartShown: boolean;
   startingNew: boolean;
@@ -76,6 +79,7 @@ export interface WorkspacePanelProps {
 export function WorkspacePanel({
   workspace,
   pattern,
+  shown,
   chartShown,
   startingNew,
   photoFree,
@@ -135,6 +139,7 @@ export function WorkspacePanel({
           ) : (
             <ColorsDock
               pattern={pattern}
+              counted={shown}
               dimmed={piece.selection !== null}
               activeColorIndex={colours.activeColorIndex}
               onActiveColorChange={colours.setActiveColorIndex}

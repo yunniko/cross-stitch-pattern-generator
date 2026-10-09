@@ -333,7 +333,8 @@ export default function Workspace({ account }: WorkspaceProps) {
     });
   });
 
-  const exports = useExports(pattern, history.document, options, liveSymmetry);
+  // Every export but the editable file is of the chart as shown, every visible layer's top stitch (G-130 M4).
+  const exports = useExports(history.composite, history.document, options, liveSymmetry);
   // Saving to the account (G-108): which saved chart this is, kept by the replace table and autosaved with the chart.
   const accountSave = useAccountSave(history.document, liveSymmetry);
   // Every way a chart arrives or leaves (`use-chart-lifecycle.ts`). What it is handed here is the state other owners keep
@@ -889,6 +890,7 @@ export default function Workspace({ account }: WorkspaceProps) {
               <WorkspacePanel
                 workspace={workspace}
                 pattern={pattern}
+                shown={composite}
                 chartShown={chartShown}
                 startingNew={startingNew}
                 photoFree={photoFree}
