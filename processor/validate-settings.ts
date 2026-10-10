@@ -2,7 +2,7 @@ import { DITHER_MODES } from "@/lib/pipeline/dither";
 import { isValidDitherTexture } from "@/lib/pipeline/dither-hand-drawn";
 import { generationSettingsRefusal } from "@/lib/pipeline/generation-settings";
 import { isValidPhotoAdjust } from "@/lib/pipeline/photo-adjust";
-import { THREAD_BRAND_IDS } from "@/lib/threads/thread-brands";
+import { requestSystemKeys, threadSystemsRefusal } from "@/lib/thread-systems/thread-system";
 import { MAX_COLORS, MAX_STITCHES, MIN_STITCHES } from "@/lib/types";
 
 /**
@@ -16,7 +16,12 @@ export function predictionError(body: unknown): string | null {
   if (!Number.isInteger(stitches) || (stitches as number) < MIN_STITCHES || (stitches as number) > MAX_STITCHES) {
     return `longerSideStitches must be a whole number between ${MIN_STITCHES} and ${MAX_STITCHES}.`;
   }
-  const modes = ["full", ...THREAD_BRAND_IDS];
+  // The systems first: the palette mode may be any of them (G-132, D400).
+  if (b.threadSystems !== undefined) {
+    const refusal = threadSystemsRefusal(b.threadSystems);
+    if (refusal) return refusal;
+  }
+  const modes = ["full", ...requestSystemKeys(b)];
   if (b.paletteMode !== undefined && (typeof b.paletteMode !== "string" || !modes.includes(b.paletteMode))) {
     return `paletteMode must be one of: ${modes.join(", ")}.`;
   }

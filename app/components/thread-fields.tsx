@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { THREAD_BRANDS, THREAD_BRAND_IDS, THREAD_CODE_MAX, systemLabel, threadIdentity } from "@/lib/threads/thread-brands";
+import { THREAD_CODE_MAX, systemLabel, threadIdentity } from "@/lib/threads/thread-brands";
 import type { ThreadSwatchRef } from "@/lib/types";
 import { useGatedOptions } from "../features/features-context";
 import { brandFeature } from "../features/registry";
+import { useThreadSystems } from "../thread-systems/thread-systems-context";
 
 const FIELD = "rounded-md border border-line bg-sunken px-2 py-1 text-xs text-ink disabled:opacity-50";
 
@@ -25,8 +26,9 @@ export function ThreadFields({ source, onCommit }: ThreadFieldsProps) {
 function ThreadFieldsDraft({ source, onCommit }: ThreadFieldsProps) {
   const [system, setSystem] = useState<string>(source?.brand ?? "");
   const [number, setNumber] = useState(source?.code ?? "");
+  const loaded = useThreadSystems();
   const systems = useGatedOptions(
-    THREAD_BRAND_IDS.map((brand) => ({ value: brand, label: THREAD_BRANDS[brand].label })),
+    loaded.map((system) => ({ value: system.id, label: system.label })),
     brandFeature
   );
 

@@ -1,5 +1,7 @@
 # `lib/cosmo-colors.ts` — data provenance and license
 
+**Where this data lives now (G-132, D400):** in the ThreadSystem table, as the site's `cosmo` system, seeded by `prisma/migrations/20261010100000_thread_systems/migration.sql` together with its source and licence; the tests read the same list from `tests/fixtures/thread-systems/cosmo.json`. The file names below are those of the time this was written.
+
 `COSMO_COLORS` (500 entries: Cosmo (Lecien) floss code and an RGB
 approximation of the physical thread color) was built for G-029 M2
 (Cosmo palette mode). Recorded here per STANDARDS.md's "record the

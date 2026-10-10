@@ -4,6 +4,7 @@ import { serializeOxs } from "@/lib/editor/oxs";
 import { NO_SYMMETRY } from "@/lib/editor/symmetry-axes";
 import { exportWithRust } from "@/processor/rust-jobs";
 import type { StitchPattern } from "@/lib/types";
+import { requestLabels } from "./helpers/thread-systems";
 
 /**
  * G-131 M2 (D396): the OXS the server writes (Rust) is the one the editor writes, colour for colour: each colour's own
@@ -46,6 +47,8 @@ describe("the OXS the server writes", () => {
         authorName: "Jo",
         overlapCells: 0,
         stitchTexture: "classic",
+        // The server puts in the systems' names from its table (G-132).
+        systemLabels: requestLabels(),
       } as Parameters<typeof exportWithRust>[0],
       NO_SYMMETRY,
       () => {}

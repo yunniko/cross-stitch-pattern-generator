@@ -1,5 +1,6 @@
 import type { FeatureDeclaration } from "../features/features";
-import { THREAD_BRAND_IDS, threadIdentity } from "../threads/thread-brands";
+import { requestSystemKeys, threadSystemsRefusal } from "../thread-systems/thread-system";
+import { threadIdentity } from "../threads/thread-brands";
 import { MAX_COLORS, MAX_STITCHES, MIN_COLORS, MIN_STITCHES } from "../types";
 import { DITHER_MODES, isDithered, type DitherMode } from "./dither";
 import { isValidDitherTexture } from "./dither-hand-drawn";
@@ -58,7 +59,14 @@ export type GenerationSetting = Check & {
 /** The values of the settings that are drawn from their declarations, by id. */
 export type ExtraSettings = Record<string, boolean | number | string>;
 
-const PALETTE_MODES = ["full", ...THREAD_BRAND_IDS];
+/**
+ * A palette mode is "full" or a system the request carries (G-132, D400): the server puts in the systems a request names,
+ * so a mode it did not put in is one this person cannot use, or one that does not exist.
+ */
+function paletteModeRefusal(what: string, mode: unknown, body: Record<string, unknown>): string | null {
+  const modes = ["full", ...requestSystemKeys(body)];
+  return typeof mode === "string" && modes.includes(mode) ? null : `${what} must be one of: ${modes.join(", ")}.`;
+}
 const isByteTriple = (v: unknown) => Array.isArray(v) && v.length === 3 && v.every((c) => Number.isInteger(c) && c >= 0 && c <= 255);
 
 /**
@@ -68,7 +76,8 @@ const isByteTriple = (v: unknown) => Array.isArray(v) && v.length === 3 && v.eve
 function paletteSetRefusal(set: unknown, body: Record<string, unknown>): string | null {
   if (typeof set !== "object" || set === null) return "paletteSet must be an object.";
   const s = set as Record<string, unknown>;
-  if (typeof s.mode !== "string" || !PALETTE_MODES.includes(s.mode)) return `paletteSet.mode must be one of: ${PALETTE_MODES.join(", ")}.`;
+  const modeRefusal = paletteModeRefusal("paletteSet.mode", s.mode, body);
+  if (modeRefusal) return modeRefusal;
   if (body.paletteMode !== undefined && body.paletteMode !== s.mode) return "paletteSet.mode must be the paletteMode.";
   const colors = s.colors;
   if (!Array.isArray(colors) || colors.length < 1 || colors.length > MAX_COLORS) {
@@ -96,6 +105,9 @@ function paletteSetRefusal(set: unknown, body: Record<string, unknown>): string 
  * order is part of what the processor's tests pin.
  */
 const DECLARED = [
+  // The thread systems the request names, put in by the web server from its table and never the browser's (G-132, D400).
+  // Checked before the size: a malformed list is the server's fault, not the reader's photo.
+  { id: "threadSystems", kind: "shape", refusal: threadSystemsRefusal, feature: null },
   { id: "longerSideStitches", kind: "integer", min: MIN_STITCHES, max: MAX_STITCHES, required: true, feature: null },
   { id: "colorCount", kind: "integer", min: MIN_COLORS, max: MAX_COLORS, required: true, feature: null },
   // Called the quantizer inside the pipeline: "original" is the algorithm the project shipped with, "latest" its fix (D20).
@@ -106,8 +118,13 @@ const DECLARED = [
     rustName: "quantizer",
     feature: { label: "Choice of algorithm" },
   },
-  // The brands are features of their own (`brand.<id>`), so the mode itself is core.
-  { id: "paletteMode", kind: "choice", values: PALETTE_MODES, feature: null },
+  // The systems are features of their own (`brand.<id>`), so the mode itself is core.
+  {
+    id: "paletteMode",
+    kind: "shape",
+    refusal: (value, body) => paletteModeRefusal("paletteMode", value, body),
+    feature: null,
+  },
   { id: "edgeMode", kind: "choice", values: ["standard", "crisp", "crisp-plus"], feature: { label: "Crisp edges" } },
   {
     id: "ditherMode",

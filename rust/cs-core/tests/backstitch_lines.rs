@@ -3,6 +3,8 @@
 //! The properties that matter to a person: nothing changes when the setting is off, a drawn line becomes backstitch in a
 //! thread of its colour while the stitches under it take the colour beside it, and a photograph gets none.
 
+mod common;
+
 use cs_core::json::{parse_options, pattern_json};
 use cs_core::pattern::{build_pattern, StageTimes, StitchPattern};
 use cs_core::{Image, EMPTY_CELL};
@@ -51,7 +53,7 @@ fn texture() -> Image {
 }
 
 fn build(image: &Image, options: &str) -> StitchPattern {
-    let (options, _) = parse_options(options).expect("options");
+    let (options, _) = parse_options(&common::with_systems(options)).expect("options");
     let mut times: StageTimes = Vec::new();
     build_pattern(image, &options, &mut times, &|| 0.0)
 }
@@ -139,7 +141,7 @@ fn a_thread_brand_gives_the_lines_a_thread_of_that_brand() {
         r#"{"longerSideStitches":40,"colorCount":6,"backstitchLines":true,"paletteMode":"dmc"}"#,
     );
     assert!(!pattern.backstitch.is_empty());
-    assert_eq!(pattern.thread_brand, Some("dmc"));
+    assert_eq!(pattern.thread_brand.as_deref(), Some("dmc"));
     let thread = &pattern.palette[pattern.backstitch[0].palette_index];
     assert_eq!(
         thread.source.as_ref().map(|s| s.brand.as_str()),

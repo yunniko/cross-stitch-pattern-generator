@@ -1,3 +1,4 @@
+import type { RequestSystem } from "../thread-systems/thread-system";
 /**
  * What the processor says of a picture before it is generated (G-087): how many colours it reasonably needs, which, and how
  * well a set of colours covers it. The numbers come from `rust/cs-core/src/predict.rs`.
@@ -42,4 +43,6 @@ export interface PredictionRequest {
   paletteMode?: string;
   photoAdjust?: unknown;
   paletteSet?: ReadonlyArray<RGB>;
+  /** The systems it names, put in by the web server from its table (G-132, D400). */
+  threadSystems?: RequestSystem[];
 }

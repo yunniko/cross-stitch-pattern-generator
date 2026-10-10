@@ -1,5 +1,7 @@
 //! G-087: a chart made from a set of colours the user chose.
 
+mod common;
+
 use cs_core::json::{parse_options, pattern_json};
 use cs_core::pattern::{build_pattern, StageTimes, StitchPattern};
 use cs_core::{Image, EMPTY_CELL};
@@ -27,7 +29,7 @@ fn banded() -> Image {
 }
 
 fn build(image: &Image, options: &str) -> StitchPattern {
-    let (options, _) = parse_options(options).expect("options");
+    let (options, _) = parse_options(&common::with_systems(options)).expect("options");
     let mut times: StageTimes = Vec::new();
     build_pattern(image, &options, &mut times, &|| 0.0)
 }
@@ -82,10 +84,13 @@ fn a_set_of_eight_gives_a_chart_of_at_most_eight_colours_however_many_were_asked
 #[test]
 fn a_brand_set_gives_threads_of_that_brand_with_their_codes() {
     let set = r#"{"longerSideStitches":40,"colorCount":5,"paletteSet":{"mode":"dmc","colors":[{"code":"321"},{"code":"797"},{"code":"typo"}]}}"#;
-    assert!(parse_options(set).is_err(), "an unknown code is refused");
+    assert!(
+        parse_options(&common::with_systems(set)).is_err(),
+        "an unknown code is refused"
+    );
     let good = r#"{"longerSideStitches":40,"colorCount":5,"paletteSet":{"mode":"dmc","colors":[{"code":"321"},{"code":"797"},{"code":"3801"},{"code":"B5200"}]}}"#;
     let p = build(&banded(), good);
-    assert_eq!(p.thread_brand, Some("dmc"));
+    assert_eq!(p.thread_brand.as_deref(), Some("dmc"));
     for c in &p.palette {
         let source = c.source.as_ref().expect("a thread has its source");
         assert_eq!(source.brand, "dmc");
@@ -145,7 +150,7 @@ fn a_set_of_mixed_and_typed_threads_keeps_each_colours_thread_name_and_colour() 
         {"rgb":[30,40,200],"name":"Sky"},
         {"rgb":[245,245,240],"system":"cosmo","number":"100"}]}}"#;
     let p = build(&banded(), set);
-    assert_eq!(p.thread_brand, Some("dmc"));
+    assert_eq!(p.thread_brand.as_deref(), Some("dmc"));
     let find = |rgb: [u8; 3]| {
         p.palette
             .iter()

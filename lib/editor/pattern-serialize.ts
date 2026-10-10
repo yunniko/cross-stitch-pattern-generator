@@ -5,7 +5,7 @@ import { DITHER_MODES, type DitherMode } from "../pipeline/dither";
 import { isValidDitherTexture, type DitherTexture } from "../pipeline/dither-hand-drawn";
 import { isEnhancementModeId, type EnhancementModeId } from "./legacy-enhancement";
 import { readSavedAdjust, type PhotoAdjust } from "../pipeline/photo-adjust";
-import { THREAD_BRAND_IDS, threadIdentity, type ThreadBrand } from "../threads/thread-brands";
+import { storedSystem, threadIdentity, type ThreadBrand } from "../threads/thread-brands";
 import { FLAT_FORMAT_VERSION, FORMAT_VERSION, migrateToCurrent } from "../document/migrate";
 import { asDocument, flatten, isFlatDocument, newRevision, type ChartInput } from "../document/convert";
 import { isLayerKind, layerKind } from "../document/layer-kinds";
@@ -445,14 +445,12 @@ function validatePaletteEntry(entry: unknown): { rgb: RGB; symbol: string; name:
 
 /**
  * Prefers the current `threadBrand` field, falling back to the legacy
- * `dmcMode: true` written before G-029 M1 (HANDOVER.md D92). An
- * unrecognized value falls back to "unmatched" rather than being stored
- * as an invalid `ThreadBrand` that would crash a later registry lookup.
+ * `dmcMode: true` written before G-029 M1 (HANDOVER.md D92). Any
+ * system string is kept, loaded here or not (G-132): it is what the picker opens on, and a system this page lacks opens
+ * the common colour picker. A value no system could be is dropped.
  */
 function resolveThreadBrand(d: Record<string, unknown>): ThreadBrand | undefined {
-  return typeof d.threadBrand === "string" && (THREAD_BRAND_IDS as string[]).includes(d.threadBrand)
-    ? (d.threadBrand as ThreadBrand)
-    : undefined;
+  return storedSystem(d.threadBrand);
 }
 
 // Loose validation rather than throwing: an absent/malformed sourceImage

@@ -21,6 +21,8 @@ export default defineConfig({
     // whichever pdfjs-dependent file's worker warms up last), even though
     // each file passes in well under a second when run alone. G-026 M2,
     // HANDOVER.md D74.
+    // The seeded thread systems, loaded as the page loads them (G-132).
+    setupFiles: ["tests/unit/setup/thread-systems.ts"],
     testTimeout: 15000,
   },
   resolve: {

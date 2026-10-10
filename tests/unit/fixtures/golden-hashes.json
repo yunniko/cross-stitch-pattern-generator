@@ -23,7 +23,6 @@
   "photo/crisp/original/24": "aa6b56ddccb2376b200b5b2c36e2e55edbcbadce50c4a89bc61ded13cb98ff21",
   "photo/standard/latest/100": "b6f962407e0a5a1981b2ef2bf0aed7617d2a25f419770595d2a95f0482a14360",
   "photo/standard/latest/24": "864f5141082146ae5220ca5e98ac62d25552e817196fa61d86f503337e87cf85",
-  "photo/standard/latest/24/anchor": "482c8a3e0029f8b9fde1c0967fe48edbe4a2de80c266d14dc94cf55ad7e33886",
   "photo/standard/latest/24/cosmo": "c6062fc14070cf5acdc94308f3ecc44e09d1048b5bd0bc21760a19331989c6cf",
   "photo/standard/latest/24/dmc": "5844a7e5dee61b563226f3ac7dbefe22bd32905f8336f40824be6bd5aeffdc55",
   "photo/standard/latest/24/vivid-sampling": "48bcc788329c665f77b679aa514db0244b1a5832b7b1e6d480e95727b7649695",
@@ -37,5 +36,6 @@
   "photo/standard/latest/24/adjust-contrast": "9975a895c783b805508c8d942693427ff00acdc9e7f66906ded0279329b184dd",
   "photo/standard/latest/24/adjust-saturation": "68b338d4eb895a2a9d1a267526b990a51fe8b6b7e29050e79699cda19e8701ee",
   "photo/standard/latest/24/adjust-warmth": "c4dcedec6cc01a376f87803370acd5ef7cf89b9ae8d5a74eeb952bc102610684",
-  "photo/standard/latest/24/adjust-all-four": "e39cb0e0a113b1cdefde04de7a3a45bfe00b305c724dc68d648e63c1296cf278"
+  "photo/standard/latest/24/adjust-all-four": "e39cb0e0a113b1cdefde04de7a3a45bfe00b305c724dc68d648e63c1296cf278",
+  "photo/standard/latest/24/anchor": "f57c16706a4778f1500633b76ff919951ba7a98e7f6eea86c385d8996aece3cd"
 }

@@ -1,8 +1,12 @@
 //! The processor's Rust sidecar (G-048 M6): one generation or one export per process, spoken to over pipes.
 //!
-//!   cs-job generate <width> <height> '<options json>'   # RGBA pixels on stdin, pattern JSON on stdout
-//!   cs-job export '<request json>'                      # an editable save on stdin, the file's bytes on stdout
-//!   cs-job predict <width> <height> '<options json>'    # RGBA pixels on stdin, the predicted colours (and the coverage of a set) on stdout
+//!   cs-job generate <width> <height>    # options JSON, a newline, then RGBA pixels on stdin; pattern JSON on stdout
+//!   cs-job export '<request json>'      # an editable save on stdin, the file's bytes on stdout
+//!   cs-job predict <width> <height>     # options JSON, a newline, then RGBA pixels on stdin; the predicted colours
+//!                                       # (and the coverage of a set) on stdout
+//!
+//! The options of a generation or a prediction come on stdin, not the command line: they carry the thread systems the
+//! request may use (G-132, D400), up to thousands of threads, more than a command line may hold.
 //!   cs-job dither-preview '<request json>'              # a dither pattern's preview as a PNG on stdout (G-100)
 //!
 //! stderr carries one JSON object per line, never the payload: `{"progress":0.4}` as `buildPattern`'s `onProgress`
@@ -40,6 +44,25 @@ fn read_stdin() -> Vec<u8> {
     buffer
 }
 
+/// A generation's or a prediction's stdin: the options as one line of JSON, then exactly `width * height * 4` bytes of RGBA.
+fn read_options_and_pixels(width: usize, height: usize) -> (String, Vec<u8>) {
+    let input = read_stdin();
+    let Some(newline) = input.iter().position(|&b| b == b'\n') else {
+        fail("stdin must start with the options and a newline");
+    };
+    let options = String::from_utf8(input[..newline].to_vec())
+        .unwrap_or_else(|e| fail(&format!("the options are not UTF-8: {e}")));
+    let data = input[newline + 1..].to_vec();
+    if data.len() != width * height * 4 {
+        fail(&format!(
+            "expected {} bytes of RGBA, got {}",
+            width * height * 4,
+            data.len()
+        ));
+    }
+    (options, data)
+}
+
 fn write_stdout(bytes: &[u8]) {
     let mut out = std::io::stdout().lock();
     if let Err(e) = out.write_all(bytes).and_then(|()| out.flush()) {
@@ -62,15 +85,8 @@ fn generate(args: &[String]) {
     let height: usize = args[3]
         .parse()
         .unwrap_or_else(|_| fail("height must be a number"));
-    let (options, _) = parse_options(&args[4]).unwrap_or_else(|e| fail(&e));
-    let data = read_stdin();
-    if data.len() != width * height * 4 {
-        fail(&format!(
-            "expected {} bytes of RGBA, got {}",
-            width * height * 4,
-            data.len()
-        ));
-    }
+    let (options, data) = read_options_and_pixels(width, height);
+    let (options, _) = parse_options(&options).unwrap_or_else(|e| fail(&e));
     let image = Image {
         width,
         height,
@@ -103,16 +119,9 @@ fn predict(args: &[String]) {
     let height: usize = args[3]
         .parse()
         .unwrap_or_else(|_| fail("height must be a number"));
+    let (options, data) = read_options_and_pixels(width, height);
     let (options, set) =
-        cs_core::json::parse_predict_options(&args[4]).unwrap_or_else(|e| fail(&e));
-    let data = read_stdin();
-    if data.len() != width * height * 4 {
-        fail(&format!(
-            "expected {} bytes of RGBA, got {}",
-            width * height * 4,
-            data.len()
-        ));
-    }
+        cs_core::json::parse_predict_options(&options).unwrap_or_else(|e| fail(&e));
     let image = Image {
         width,
         height,
@@ -165,12 +174,12 @@ fn dither_preview(args: &[String]) {
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     match args.get(1).map(String::as_str) {
-        Some("generate") if args.len() == 5 => generate(&args),
-        Some("predict") if args.len() == 5 => predict(&args),
+        Some("generate") if args.len() == 4 => generate(&args),
+        Some("predict") if args.len() == 4 => predict(&args),
         Some("export") if args.len() == 3 => export(&args),
         Some("dither-preview") if args.len() == 3 => dither_preview(&args),
         _ => {
-            eprintln!("usage: cs-job generate <width> <height> '<options json>' | cs-job export '<request json>'");
+            eprintln!("usage: cs-job generate|predict <width> <height> | cs-job export '<request json>' | cs-job dither-preview '<request json>'");
             std::process::exit(2);
         }
     }

@@ -1,5 +1,5 @@
 # D094 · Anchor matches the nearest real DMC thread, relabels it, and discloses the derivation
-Date: 2026-09-12 · Goal: G-029 M3 · Status: active (superseded by: —)
+Date: 2026-09-12 · Goal: G-029 M3 · Status: matching superseded (superseded by: D400); the data and its disclosure stand
 Context: No measured Anchor color data exists. The only DMC-to-Anchor table found has no license, so the choice went to the Owner.
 Decision: Use the table's code pairs only, as factual data (Owner's documented judgment call). Match the nearest DMC thread with its real RGB, then relabel via the equivalence. The picker list keeps one entry per Anchor code, using the first DMC code's RGB. A derivationNote is shown wherever Anchor is offered.
 Rejected: nearest match against the deduplicated Anchor list (fewer, collapsed candidates give worse matches); the source's description column as names (those are DMC names, ambiguous for 99 collisions); dropping Anchor or searching longer (Owner's choice).

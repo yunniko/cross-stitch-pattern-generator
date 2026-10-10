@@ -9,7 +9,7 @@ use crate::overlay::Overlay;
 use crate::photo_adjust::PhotoAdjust;
 use crate::quantize::Quantizer;
 use crate::settings::Settings;
-use crate::threads::Brand;
+use crate::threads::System;
 use crate::Image;
 use std::sync::Arc;
 
@@ -48,7 +48,7 @@ pub struct BuildOptions {
     pub optimize: bool,
     pub edge_mode: EdgeMode,
     /// `None` is the full palette.
-    pub brand: Option<Brand>,
+    pub brand: Option<System>,
     /// The dither pattern with its own settings (G-052, G-100); `None` is the pipeline as it was. Refused with Crisp,
     /// whose purpose is the opposite (D199).
     pub dither: Option<Arc<dyn Pattern>>,
@@ -78,7 +78,7 @@ pub struct SetColor {
 /// the colour count is their number. In a thread brand each has a code; in the full colour mode they are custom colours.
 #[derive(Clone, Debug)]
 pub struct PaletteSet {
-    pub brand: Option<Brand>,
+    pub brand: Option<System>,
     pub colors: Vec<SetColor>,
 }
 
@@ -108,7 +108,7 @@ pub struct StitchPattern {
     pub cell_palette: Vec<u8>,
     pub palette: Vec<PaletteColor>,
     pub is_landscape: bool,
-    pub thread_brand: Option<&'static str>,
+    pub thread_brand: Option<String>,
     pub edge_mode: Option<&'static str>,
     /// The dither pattern the chart was generated with (G-052); `None` means none.
     pub dither_mode: Option<&'static str>,

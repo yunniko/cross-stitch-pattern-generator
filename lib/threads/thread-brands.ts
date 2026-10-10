@@ -1,55 +1,62 @@
-import { ANCHOR_COLORS, DMC_TO_ANCHOR } from "./anchor-colors";
-import { COSMO_COLORS } from "./cosmo-colors";
-import { DMC_COLORS } from "./dmc-colors";
 import type { ThreadColor } from "./thread-color";
 
 export type { ThreadColor };
 
-export type ThreadBrand = "dmc" | "cosmo" | "anchor";
+/** A system as a chart stores it ("dmc"): any string (G-132), loaded here or not. */
+export type ThreadBrand = string;
 
-export interface ThreadBrandInfo {
-  id: ThreadBrand;
+/**
+ * A thread system loaded in this page (G-132, D400): a maker's numbered threads as data, given by the server
+ * (`lib/thread-systems/server.ts`) rather than compiled in, so the site's systems and a person's own are alike here.
+ */
+export interface ThreadSystemInfo {
+  /** What a chart stores as a colour's system. */
+  id: string;
   label: string;
-  /** The browsable list for the color pickers. Anchor's is a documented approximation that matching never reads (docs/anchor-colors-provenance.md). */
+  /** What a person should know about the colours, such as how they were found; shown beside the system's list. */
+  note?: string;
+  /** The threads in the list's order, which is the order a picker shows them. */
   colors: readonly ThreadColor[];
-  /** "direct": nearest match against `colors` (DMC, Cosmo). "dmc-equivalence": nearest real DMC thread, relabeled via `dmcEquivalence` (no measured Anchor RGB exists). */
-  matching: "direct" | "dmc-equivalence";
-  /** DMC code to this brand's documented equivalent code; only for "dmc-equivalence". */
-  dmcEquivalence?: Readonly<Record<string, string>>;
-  /** User-facing disclosure that the colors are derived, shown in the palette tooltip and the pickers (G-029 AC4). */
-  derivationNote?: string;
 }
 
-export const THREAD_BRANDS: Record<ThreadBrand, ThreadBrandInfo> = {
-  dmc: { id: "dmc", label: "DMC", colors: DMC_COLORS, matching: "direct" },
-  cosmo: { id: "cosmo", label: "Cosmo", colors: COSMO_COLORS, matching: "direct" },
-  anchor: {
-    id: "anchor",
-    label: "Anchor",
-    colors: ANCHOR_COLORS,
-    matching: "dmc-equivalence",
-    dmcEquivalence: DMC_TO_ANCHOR,
-    derivationNote:
-      "matched via each color's nearest real DMC thread, then its documented Anchor equivalent -- not independently measured (no independent Anchor color data exists)",
-  },
-};
+let loaded: readonly ThreadSystemInfo[] = [];
+let byId = new Map<string, ThreadSystemInfo>();
 
-export const THREAD_BRAND_IDS = Object.keys(THREAD_BRANDS) as ThreadBrand[];
+/**
+ * Makes these the systems this page knows (G-132). Called by `ThreadSystemsProvider` in the browser with what the server
+ * gave, and by the unit tests' setup with the seeded lists; never on the server, where requests of different people share
+ * the module, so server code reads the table instead.
+ */
+export function loadThreadSystems(systems: readonly ThreadSystemInfo[]): void {
+  if (systems === loaded) return;
+  loaded = systems;
+  byId = new Map(systems.map((system) => [system.id, system]));
+}
+
+/** The systems loaded, in the order offered. */
+export function loadedSystems(): readonly ThreadSystemInfo[] {
+  return loaded;
+}
+
+/** A loaded system by its id. */
+export function loadedSystem(id: string): ThreadSystemInfo | undefined {
+  return byId.get(id);
+}
 
 /** Whether a stored system is one loaded here (G-132): a colour of any other keeps its system, but has no list to pick from. */
-export function isLoadedSystem(system: string): system is ThreadBrand {
-  return Object.prototype.hasOwnProperty.call(THREAD_BRANDS, system);
+export function isLoadedSystem(system: string): boolean {
+  return byId.has(system);
 }
 
 /** The name a system is shown and printed by: the loaded system's, else the string as stored (G-132). */
 export function systemLabel(system: string): string {
-  return isLoadedSystem(system) ? THREAD_BRANDS[system].label : system;
+  return byId.get(system)?.label ?? system;
 }
 
-/** A brand's thread by code: an exact match, else a case-insensitive one. Always returns the table's own entry, so callers store its canonical code. */
+/** A system's thread by code: an exact match, else a case-insensitive one. Always returns the list's own entry, so callers store its canonical code. */
 export function findThread(brand: string, code: string): ThreadColor | undefined {
-  if (!isLoadedSystem(brand)) return undefined;
-  const colors = THREAD_BRANDS[brand].colors;
+  const colors = byId.get(brand)?.colors;
+  if (!colors) return undefined;
   const wanted = code.toLowerCase();
   return colors.find((c) => c.code === code) ?? colors.find((c) => c.code.toLowerCase() === wanted);
 }
@@ -59,6 +66,13 @@ export const THREAD_CODE_MAX = 20;
 
 /** The longest system string kept (G-132): a maker's name fits, a paragraph does not. */
 export const THREAD_SYSTEM_MAX = 40;
+
+/** A system string as stored, checked without the loaded systems (G-132): 1 to 40 characters, no control characters, never "full". */
+export function storedSystem(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  if (value === "" || value.trim() !== value || value.length > THREAD_SYSTEM_MAX || /[\u0000-\u001f\u007f]/.test(value)) return undefined;
+  return value.toLowerCase() === "full" ? undefined : value;
+}
 
 /**
  * A system as stored (G-132): a loaded one by its id, matched by id or name in any case ("DMC" is "dmc"); any other kept
@@ -70,15 +84,16 @@ export function threadSystem(written: string): string | null {
   if (typed === "" || typed.length > THREAD_SYSTEM_MAX || /[\u0000-\u001f\u007f]/.test(typed)) return null;
   const wanted = typed.toLowerCase();
   if (wanted === "full") return null;
-  const loaded = THREAD_BRAND_IDS.find((id) => id === wanted || THREAD_BRANDS[id].label.toLowerCase() === wanted);
-  return loaded ?? typed;
+  const match =
+    loaded.find((s) => s.id === wanted || s.label.toLowerCase() === wanted) ?? loaded.find((s) => s.id.toLowerCase() === wanted);
+  return match?.id ?? typed;
 }
 
 /**
- * A colour's thread as someone typed or chose it (G-131): its system and number. A number the catalogue knows is stored as
- * the catalogue writes it (so "b5200" is "B5200"); any other is kept as typed, trimmed, since people own threads no
- * catalogue here lists. The system may be one not loaded here (G-132), kept as `threadSystem` writes it. Null when the
- * number or the system is blank or too long.
+ * A colour's thread as someone typed or chose it (G-131): its system and number. A number the loaded list knows is stored as
+ * the list writes it (so "b5200" is "B5200"); any other is kept as typed, trimmed, since people own threads no list here
+ * has. The system may be one not loaded here (G-132), kept as `threadSystem` writes it. Null when the number or the system
+ * is blank or too long.
  */
 export function threadIdentity(brand: string, code: string): { brand: string; code: string } | null {
   const system = threadSystem(brand);
@@ -87,7 +102,7 @@ export function threadIdentity(brand: string, code: string): { brand: string; co
   return { brand: system, code: findThread(system, typed)?.code ?? typed };
 }
 
-/** "CODE - Name", or just the code for a brand with no names (never "352 - "). */
+/** "CODE - Name", or just the code for a system with no names (never "352 - "). */
 export function formatThreadName(thread: ThreadColor): string {
   return thread.name ? `${thread.code} - ${thread.name}` : thread.code;
 }

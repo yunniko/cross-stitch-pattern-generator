@@ -1,3 +1,4 @@
+import type { RequestSystem } from "@/lib/thread-systems/thread-system";
 import { A4_PAGE_GUTTER_MM, A4_PAGE_MARGIN_MM } from "@/lib/export/export-cell-size";
 import type { SerializedSymmetry } from "@/lib/editor/pattern-serialize";
 import { calculateA4Layout, type OverlapCells } from "@/lib/export/a4-layout";
@@ -38,6 +39,8 @@ export interface JobSettings {
   textureStrokes?: boolean;
   textureDensity?: number;
   paletteSet?: { mode: string; colors: Array<{ code?: string; rgb?: [number, number, number] }> };
+  /** The systems it names, put in by the web server from its table (G-132, D400). */
+  threadSystems?: RequestSystem[];
 }
 
 /**
@@ -57,6 +60,8 @@ export interface ExportJobPayload {
   stitchTexture?: StitchTextureId;
   canvas?: ExportCanvas;
   symmetry?: SerializedSymmetry;
+  /** Each thread system's key and printed name, put in by the web server from its table (G-132, D400). */
+  systemLabels?: [string, string][];
 }
 
 /**

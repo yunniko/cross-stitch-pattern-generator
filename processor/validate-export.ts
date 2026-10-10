@@ -1,3 +1,4 @@
+import { storedSystem } from "@/lib/threads/thread-brands";
 import { DEFAULT_EXPORT_CELL_MM, MAX_EXPORT_CELL_MM, MIN_EXPORT_CELL_MM, normalCellMm } from "@/lib/export/export-cell-size";
 import { deserializePatternData } from "@/lib/editor/pattern-serialize";
 import { VALID_OVERLAP_CELLS } from "@/lib/editor/workspace-storage";
@@ -38,6 +39,25 @@ const OVERLAP_CELLS: readonly OverlapCells[] = VALID_OVERLAP_CELLS;
 /** The refusal reason, or the payload the pool takes, from a single parse of the chart (G-047 M1). */
 export type ParsedExportRequest = { error: string; payload?: undefined } | { error: null; payload: ExportJobPayload };
 
+/** At most this many: the site's systems and one person's own, with room to spare. */
+const MAX_SYSTEM_LABELS = 256;
+
+function systemLabelsValid(value: unknown): boolean {
+  return (
+    Array.isArray(value) &&
+    value.length <= MAX_SYSTEM_LABELS &&
+    value.every(
+      (pair) =>
+        Array.isArray(pair) &&
+        pair.length === 2 &&
+        storedSystem(pair[0]) !== undefined &&
+        typeof pair[1] === "string" &&
+        pair[1].trim() !== "" &&
+        pair[1].length <= 60
+    )
+  );
+}
+
 export function parseExportRequest(body: unknown): ParsedExportRequest {
   if (typeof body !== "object" || body === null) return { error: "Expected a JSON object." };
   const b = body as Record<string, unknown>;
@@ -71,6 +91,10 @@ export function parseExportRequest(body: unknown): ParsedExportRequest {
     }
     if (!isCanvasTextureChoice(canvas.texture)) return { error: "canvas.texture is not a known canvas texture." };
   }
+  // The names systems are printed by (G-132): pairs of a stored system and a name, from the web server's table.
+  if (b.systemLabels !== undefined && !systemLabelsValid(b.systemLabels)) {
+    return { error: "systemLabels must be a list of [system, name] pairs." };
+  }
   let pattern: ExportJobPayload["pattern"];
   try {
     // The same validation a saved file gets: dimensions, palette size, and every cell indexing its own palette (D099).
@@ -93,6 +117,7 @@ export function parseExportRequest(body: unknown): ParsedExportRequest {
       canvas: (b.canvas ?? undefined) as ExportCanvas | undefined,
       stitchTexture: isStitchTextureId(b.stitchTexture) ? b.stitchTexture : DEFAULT_STITCH_TEXTURE,
       symmetry: (b.symmetry ?? undefined) as ExportJobPayload["symmetry"],
+      ...(b.systemLabels !== undefined ? { systemLabels: b.systemLabels as [string, string][] } : {}),
     },
   };
 }

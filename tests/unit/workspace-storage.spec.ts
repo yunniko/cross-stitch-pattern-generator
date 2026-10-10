@@ -428,7 +428,7 @@ describe("workspace-storage", () => {
       expect(options.paletteMode).toBe("full");
     });
 
-    it("accepts 'cosmo' as a valid paletteMode (G-029 M2 -- validated against the live THREAD_BRAND_IDS registry, not a hardcoded 'dmc' check)", () => {
+    it("accepts 'cosmo' as a valid paletteMode (G-029 M2 -- validated against the loaded thread systems, not a hardcoded 'dmc' check)", () => {
       window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ ...DEFAULTS, paletteMode: "cosmo" }));
       expect(loadWorkspaceOptions().paletteMode).toBe("cosmo");
     });

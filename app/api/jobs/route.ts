@@ -5,6 +5,7 @@ import { quotaForRoute } from "@/lib/limits/quota-server";
 import { generationRefusal, workspaceRefusal } from "@/lib/features/request-check";
 import { featureStatesFor } from "@/lib/features/server";
 import { parseBody } from "@/lib/server/parse-body";
+import { requestSystemsFor, withThreadSystems } from "@/lib/thread-systems/server";
 
 /**
  * Starts a generation (G-034 M2). The settings are forwarded as they arrive and validated by the processor, which is
@@ -37,6 +38,9 @@ export async function POST(req: Request): Promise<Response> {
   const refusal = workspaceRefusal("/api/jobs", states) ?? generationRefusal(parseBody(body), states);
   if (refusal) return NextResponse.json({ error: refusal }, { status: 403 });
 
+  // The thread systems it names, from the table and never from the browser (G-132, D400).
+  const forwarded = await withThreadSystems(body, async (b) => ({ threadSystems: await requestSystemsFor(b, states) }));
+
   // The counted limits (G-109, D364): checked and counted before the processor is asked, given back if it refuses.
   const quota = await quotaForRoute("GENERATE", userId, null);
   if ("response" in quota) return quota.response;
@@ -45,7 +49,7 @@ export async function POST(req: Request): Promise<Response> {
     const upstream = await fetch(processorUrl("/jobs"), {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body,
+      body: forwarded,
     });
     quota.ticket.settle(upstream.ok);
     const headers: Record<string, string> = { "content-type": "application/json" };

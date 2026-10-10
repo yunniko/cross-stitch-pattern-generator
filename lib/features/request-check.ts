@@ -6,7 +6,7 @@ import { STITCH_TEXTURES } from "../export/stitch-texture-catalog";
 import { DITHER_MODES, ditherFeature, ditherLabel, type DitherMode } from "../pipeline/dither";
 import { GENERATION_SETTINGS } from "../pipeline/generation-settings";
 import { isNeutralAdjust } from "../pipeline/photo-adjust";
-import { THREAD_BRAND_IDS, THREAD_BRANDS } from "../threads/thread-brands";
+import { SEEDED_SYSTEM_NAMES } from "../thread-systems/thread-system";
 import { generationSettingFeature } from "./declare";
 import { featureUsable, lockedNote, type FeatureStates } from "./features";
 
@@ -28,7 +28,7 @@ const LABELS: Record<string, string> = Object.fromEntries([
   ...DITHER_MODES.flatMap((mode) => (ditherFeature(mode) === null ? [] : [[ditherFeature(mode)!, ditherLabel(mode)]])),
   ...STITCH_TEXTURES.map((texture) => [`texture.stitch.${texture.id}`, `${texture.label} stitch texture`]),
   ...CANVAS_TEXTURES.map((texture) => [`texture.canvas.${texture.id}`, `${texture.label} cloth`]),
-  ...THREAD_BRAND_IDS.map((brand) => [`brand.${brand}`, THREAD_BRANDS[brand].label]),
+  ...SEEDED_SYSTEM_NAMES.map(({ key, label }) => [`brand.${key}`, label]),
 ]);
 
 const note = (feature: string) => lockedNote(LABELS[feature] ?? feature);

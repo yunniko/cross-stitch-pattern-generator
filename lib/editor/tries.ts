@@ -1,5 +1,5 @@
 import { pickGenerationSettings } from "../pipeline/generation-settings";
-import { THREAD_BRANDS } from "../threads/thread-brands";
+import { systemLabel } from "../threads/thread-brands";
 import type { StitchPattern } from "../types";
 import { DEFAULT_OPTIONS, type WorkspaceOptions } from "./workspace-storage";
 
@@ -129,7 +129,7 @@ export function trySummary(entry: Pick<Try, "pattern" | "settings">): string {
   const mode = settings.paletteSetup
     ? "your palette"
     : settings.paletteMode && settings.paletteMode !== "full"
-      ? THREAD_BRANDS[settings.paletteMode].label
+      ? systemLabel(settings.paletteMode)
       : null;
   return [`${pattern.width} × ${pattern.height}`, colours, mode].filter(Boolean).join(" · ");
 }

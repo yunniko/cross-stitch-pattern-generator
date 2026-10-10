@@ -17,6 +17,8 @@ export default defineConfig({
       "tests/unit/processor-pool-limits.spec.ts",
       "tests/unit/processor-pool-parity.spec.ts",
     ],
+    // The seeded thread systems, loaded as the page loads them (G-132).
+    setupFiles: ["tests/unit/setup/thread-systems.ts"],
     testTimeout: 0,
     hookTimeout: 0,
     fileParallelism: false,

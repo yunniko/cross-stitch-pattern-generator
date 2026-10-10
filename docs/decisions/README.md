@@ -103,7 +103,7 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D071 — Brand snapping rebuilds Crisp mode mappings against thread colors and repairs, even without re-optimization — active
 - D092 — Thread brands live in one registry with a matching strategy; patterns store threadBrand — active
 - D093 — Cosmo colors come from the MIT CosmoToRGB dataset and show codes only — active
-- D094 — Anchor matches the nearest real DMC thread, relabels it, and discloses the derivation — active
+- D094 — Anchor matches the nearest real DMC thread, relabels it, and discloses the derivation — matching superseded by D400
 - D122 — Palette colours remember their thread swatch by brand and code; a brand lock means every colour is that brand's thread — active
 - D123 — The swatch comparison reports Okhsl lightness and saturation differences in percentage points — active
 - D158 — Isolate is a way of looking, not a tool — active
@@ -436,3 +436,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D397 — A palette colour carries its own colour, name and thread; a set's mode only chooses what is offered — active
 - D398 — Saved palettes live in the account, one per name, limited by count; signed out, a file only — active
 - D399 — A thread's system is any name; one not loaded here is kept as written and edited in the common picker — active
+- D400 — Thread systems are table rows the server hands the pipeline; Anchor is a plain list — active

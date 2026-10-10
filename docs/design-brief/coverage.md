@@ -541,3 +541,4 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | D398 | 01-overview 02-photo-and-generation 05-colours-and-threads 09-limits-and-messages | palettes kept with the account; save as file; the move from the browser |
 | G-132 | 05-colours-and-threads 08-exports-and-files | thread systems as data; a system not loaded here kept as written |
 | D399 | 05-colours-and-threads 08-exports-and-files | any system name kept; a colour of one not loaded opens in the common colour picker |
+| D400 | 02-photo-and-generation 05-colours-and-threads | the systems are data with a note each; Anchor matched as a plain list |

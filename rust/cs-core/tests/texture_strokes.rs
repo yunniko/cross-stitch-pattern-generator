@@ -3,6 +3,8 @@
 //! What matters to a person: nothing changes when the setting is off, strokes lie on a textured area and along the way
 //! its texture runs, a smooth picture gets none, there is a ceiling, and they are ordinary backstitch.
 
+mod common;
+
 use cs_core::json::{parse_options, pattern_json};
 use cs_core::pattern::{build_pattern, StageTimes, StitchPattern};
 use cs_core::Image;
@@ -69,7 +71,7 @@ fn smooth() -> Image {
 }
 
 fn build(image: &Image, options: &str) -> StitchPattern {
-    let (options, _) = parse_options(options).expect("options");
+    let (options, _) = parse_options(&common::with_systems(options)).expect("options");
     let mut times: StageTimes = Vec::new();
     build_pattern(image, &options, &mut times, &|| 0.0)
 }
@@ -191,7 +193,7 @@ fn a_thread_brand_gives_the_strokes_threads_of_that_brand() {
         r#"{"longerSideStitches":40,"colorCount":6,"textureStrokes":true,"paletteMode":"dmc"}"#,
     );
     assert!(!pattern.backstitch.is_empty());
-    assert_eq!(pattern.thread_brand, Some("dmc"));
+    assert_eq!(pattern.thread_brand.as_deref(), Some("dmc"));
     for l in &pattern.backstitch {
         assert_eq!(
             pattern.palette[l.palette_index]

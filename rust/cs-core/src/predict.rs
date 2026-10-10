@@ -12,7 +12,7 @@ use crate::color::{oklab_to_rgb, Rgb};
 use crate::downsample::{downsample_to_grid_vivid, empty_cell_mask, grid_dimensions_for};
 use crate::photo_adjust::{adjust_image, PhotoAdjust};
 use crate::quantize::{quantize, Quantizer};
-use crate::threads::{thread_for, Brand};
+use crate::threads::{thread_for, System};
 use crate::Image;
 
 /// Colours the picture is first clustered into, before merging them down.
@@ -23,7 +23,7 @@ pub const MAX_PREDICTED: usize = 48;
 pub struct PredictOptions {
     pub longer_side_stitches: f64,
     /// The thread brand the chart will be made in, if any: the colours are then given as the nearest threads.
-    pub brand: Option<Brand>,
+    pub brand: Option<System>,
     pub photo_adjust: PhotoAdjust,
 }
 
@@ -213,7 +213,7 @@ pub fn predict(image: &Image, options: &PredictOptions) -> Prediction {
             Guess {
                 rgb,
                 cells: c.n as usize,
-                thread: options.brand.map(|b| {
+                thread: options.brand.as_ref().map(|b| {
                     let (code, name, _) = thread_for(b, rgb);
                     (code, name)
                 }),

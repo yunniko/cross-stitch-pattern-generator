@@ -1,4 +1,4 @@
-import { formatThreadName, THREAD_BRANDS, THREAD_BRAND_IDS, type ThreadBrand } from "../threads/thread-brands";
+import { formatThreadName, loadedSystem, storedSystem } from "../threads/thread-brands";
 import { BASE_LAYER_ID, BASE_LAYER_NAME } from "./convert";
 
 /**
@@ -30,7 +30,8 @@ interface Migration {
   apply: (data: FileData) => FileData;
 }
 
-const isBrand = (value: unknown): value is ThreadBrand => typeof value === "string" && (THREAD_BRAND_IDS as string[]).includes(value);
+/** A brand as a file before version 7 could store one: any system string (G-132). */
+const isBrand = (value: unknown): value is string => storedSystem(value) !== undefined;
 
 /**
  * The steps, oldest first. Versions 2, 3, 4 and 6 each added a field an older file simply lacks, which the reader takes as
@@ -48,8 +49,9 @@ const MIGRATIONS: readonly Migration[] = [
     apply: (data) => {
       if (!isBrand(data.threadBrand) || !Array.isArray(data.palette)) return data;
       const brand = data.threadBrand;
-      const byName = new Map(THREAD_BRANDS[brand].colors.map((thread) => [formatThreadName(thread), thread]));
-      // Best effort, never proof: a colour whose name is not one of the brand's keeps whatever it had.
+      // Best effort, never proof: a colour whose name is not one of the brand's keeps whatever it had, and so does every
+      // colour of a brand whose list is not loaded here, which includes every file read on the server (G-132).
+      const byName = new Map((loadedSystem(brand)?.colors ?? []).map((thread) => [formatThreadName(thread), thread]));
       const palette = data.palette.map((entry: unknown) => {
         if (typeof entry !== "object" || entry === null) return entry;
         const thread = byName.get((entry as { name?: unknown }).name as string);

@@ -2,7 +2,6 @@
 
 use crate::jsfmt::number;
 use crate::model::{Pattern, EMPTY_CELL};
-use crate::threads::{brand_label, find_thread};
 
 const SOFTWARE_NAME: &str = "Cross-Stitch Pattern Generator";
 const DEFAULT_STITCHES_PER_INCH: f64 = 14.0;
@@ -90,29 +89,14 @@ pub fn serialize(p: &Pattern, author_name: &str, aida_count: f64) -> Vec<u8> {
         attribute("strands", "2")
     ));
     for (i, color) in p.palette.iter().enumerate() {
-        // A colour's own thread, listed or typed (G-131, D396): a number no catalogue lists is written as it was typed.
-        let listed = color
-            .source
-            .as_ref()
-            .and_then(|s| find_thread(&s.brand, &s.code));
+        // A colour's own thread as the chart holds it (G-131, D396; G-132, D400): its system's label, its number, and the
+        // name the printed key gives it, else its number. No list is looked up: the chart is the record.
         let h = hex(color.rgb);
-        let number_text = match &color.source {
-            Some(s) => format!(
-                "{} {}",
-                brand_label(&s.brand),
-                listed.map_or(s.code.as_str(), |t| t.code.as_str())
-            ),
-            None => String::new(),
-        };
-        let name_text = match &listed {
-            Some(t) => {
-                if t.name.is_empty() {
-                    t.code.clone()
-                } else {
-                    t.name.clone()
-                }
-            }
-            None => color.name.clone(),
+        let (system, number, name) = color.printed_thread();
+        let (number_text, name_text) = match &color.source {
+            Some(_) if name.is_empty() => (format!("{system} {number}"), number),
+            Some(_) => (format!("{system} {number}"), name),
+            None => (String::new(), name),
         };
         lines.push(
             "<palette_item".to_string()

@@ -17,7 +17,6 @@ pub mod png;
 pub mod preview;
 pub mod render;
 pub mod text;
-pub mod threads;
 
 use model::{Pattern, Request};
 
@@ -49,7 +48,8 @@ pub fn export_reporting(
             bytes: editable::serialize(pattern).into_bytes(),
         });
     }
-    let compacted = pattern.compact_unused_colors();
+    let mut compacted = pattern.compact_unused_colors();
+    compacted.label_systems(&request.system_labels);
     match request.kind.as_str() {
         "oxs" => Ok(ExportFile {
             filename: format!("{base}.oxs"),

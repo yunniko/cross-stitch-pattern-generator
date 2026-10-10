@@ -7,7 +7,8 @@ import { planInfoPages } from "@/lib/export/a4-render";
 import { buildPatternKeeperPdf } from "@/lib/export/pattern-keeper-pdf";
 import { SYMBOL_SET } from "@/lib/color/symbols";
 import type { PaletteColor, RGB, StitchPattern } from "@/lib/types";
-import { formatThreadName, THREAD_BRANDS } from "@/lib/threads/thread-brands";
+import { formatThreadName } from "@/lib/threads/thread-brands";
+import { seededColors } from "./helpers/thread-systems";
 import { buildPatternKeeperPdfPreG047 } from "./reference/pattern-keeper-pdf-pre-g047";
 
 /**
@@ -64,7 +65,7 @@ describe("the PDF written as text", () => {
     // A generated chart's shape, without generating one: this case is about the PDF's bytes, and every cell
     // and colour below is replaced anyway. 90x60 is what a 150x100 photo gave at 90 stitches (G-068 M3).
     const base: StitchPattern = { width: 90, height: 60, cellPalette: new Uint8Array(90 * 60), palette: [], isLandscape: true };
-    const threads = THREAD_BRANDS.dmc.colors.slice(0, 40);
+    const threads = seededColors("dmc").slice(0, 40);
     const cellPalette = Uint8Array.from(base.cellPalette, (_, i) => (i * 13 + (i >> 4)) % threads.length);
     const counts = new Array(threads.length).fill(0);
     for (const i of cellPalette) counts[i]++;

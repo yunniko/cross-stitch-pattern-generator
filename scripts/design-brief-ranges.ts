@@ -12,7 +12,6 @@ import { STANDARD_AIDA_COUNTS, DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT } from "../
 import { CANVAS_TEXTURES } from "../lib/export/canvas-texture-catalog";
 import { STITCH_TEXTURES } from "../lib/export/stitch-texture-catalog";
 import { DEFAULT_DITHER_TEXTURE, DITHER_TEXTURE_RANGES } from "../lib/pipeline/dither-hand-drawn";
-import { THREAD_BRANDS } from "../lib/threads/thread-brands";
 import { LIMITS } from "../processor/job-protocol";
 import { MAX_COLORS, MAX_STITCHES, MIN_COLORS, MIN_STITCHES, SIZE_PRESETS } from "../lib/types";
 import { ZOOM_STEP } from "../app/hooks/use-pan-zoom";
@@ -126,8 +125,11 @@ for (const tool of TOOL_DEFINITIONS) if (tool.id !== "backstitch-edit") must(F4,
 
 // 05 · colours
 const F5 = "05-colours-and-threads";
-for (const [, brand] of Object.entries(THREAD_BRANDS))
-  must(F5, `| **${brand.label}** | ${brand.colors.length} |`, `${brand.label} thread count`);
+// The seeded systems, from the lists their migration was written from (G-132): the site's systems are rows now.
+for (const key of ["dmc", "cosmo", "anchor"]) {
+  const system = JSON.parse(read(`tests/fixtures/thread-systems/${key}.json`)) as { label: string; threads: unknown[] };
+  must(F5, `| **${system.label}** | ${system.threads.length} |`, `${system.label} thread count`);
+}
 
 // 07 · text
 const F7 = "07-text";

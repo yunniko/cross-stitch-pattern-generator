@@ -12,11 +12,15 @@ A palette entry has: a **colour** (RGB), a **name** (unique within the chart), a
 
 ## Thread brands
 
-| Brand | Threads | Names | Notes |
+The thread systems are data the site holds, not part of the app (G-132): each is a list of threads (number, name, colour) with a name of its own and an optional note, shown wherever the system is chosen. The site starts with three:
+
+| Brand | Threads | Names | Note shown |
 |---|---|---|---|
 | **DMC** | 454 | Code and name | |
-| **Cosmo** | 500 | Code only | From an open dataset |
-| **Anchor** | 355 | Code only | Derived: each is the documented Anchor equivalent of the nearest DMC thread; the colour shown is the DMC colour; the derivation is disclosed wherever Anchor is chosen |
+| **Cosmo** | 500 | Code only | Cosmo publishes no colour names |
+| **Anchor** | 355 | Code only | Its colours are those of each thread's documented DMC equivalent, not measured from Anchor threads |
+
+A thread system is matched like any other: a colour snaps to the nearest thread of the list chosen.
 
 Any colour of any chart may be a thread of any system, or no thread at all: a chart is never locked to one system. A chart generated in a thread system remembers that system, which only decides where "+ Add" and the colour editor first open. A colour's thread is remembered by system and number, so it survives later changes to the thread tables. A number may also be typed by hand (below), and one that no table lists is kept as typed; a typed number never changes the colour. A system this site does not have (a file from another app, or a system since removed) is kept as the file names it ("Madeira"), up to 40 characters: the colour, its name, its system and its number all stay, and every export prints that name.
 
@@ -43,7 +47,7 @@ Shown for a chart; "No threads yet" with none.
 | | |
 |---|---|
 | **Control** | "+ Add" above the list; unavailable with no chart |
-| **Mode** | A choice among **Full range**, **DMC**, **Cosmo**, **Anchor** (the brands under their feature switches), opening on the chart's generation system, or Full range for a chart made in none; the Anchor derivation note shows with Anchor |
+| **Mode** | A choice among **Full range**, **DMC**, **Cosmo**, **Anchor** (the brands under their feature switches), opening on the chart's generation system, or Full range for a chart made in none; a system's note shows with it |
 | **Full range** | A colour choice (default `#808080`) with Add and Cancel; adds the colour with a generated name and the first unused symbol |
 | **A brand** | The brand's threads as swatches, with search by code or name; choosing one adds that thread; Cancel |
 | **Refusals** | "Cannot add another color -- already at the maximum of 100." and "No unused symbol available." |
@@ -65,7 +69,7 @@ Opens from a colour's swatch; picks apply at once and it stays open until **Done
 
 | Control | Kind and values | Available when | Effects |
 |---|---|---|---|
-| **Mode** | Choice among **Full range**, **DMC**, **Cosmo**, **Anchor** | Always; with Anchor, the Anchor derivation note | Opens on the colour's own system: a colour that is a thread opens on its brand with its swatch marked and centred in view; a thread of a system this site does not have opens on Full range; any other colour on the chart's generation system, or Full range |
+| **Mode** | Choice among **Full range**, **DMC**, **Cosmo**, **Anchor** | Always; with a system that has one, its note | Opens on the colour's own system: a colour that is a thread opens on its brand with its swatch marked and centred in view; a thread of a system this site does not have opens on Full range; any other colour on the chart's generation system, or Full range |
 | **Colour area** (Full range) | A colour choice, applied live while dragging | Full range | Changes the RGB only; the name and the thread number are left alone |
 | **Thread grid** (brands) | Every thread of the brand as a swatch, ten across, with a search box (matches code or name, ignoring case; "No colors match that search.") | Brand mode | Choosing a thread changes the colour to it and renames it "*code* – *name*"; choosing the thread it already is changes nothing |
 | **Comparison text** | Text | Brand mode | Pointing at or focusing a swatch shows its name and how much lighter or darker, and more or less saturated, it is than the current colour, in percentage points ("*n*% lighter", "*n*% less saturated"); with none the line reads "Hover or focus a swatch to compare it with the current color on screen." |

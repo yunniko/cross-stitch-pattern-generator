@@ -12,6 +12,7 @@ import {
 import type { RunServerPatternJobOptions } from "@/lib/pipeline/pattern-server";
 import type { JobSettings } from "@/processor/job-protocol";
 import { openCsBench } from "./helpers/cs-bench";
+import { requestSystems } from "./helpers/thread-systems";
 
 /** G-099: the one declaration of the generation settings, and the three places that read it. */
 
@@ -20,7 +21,11 @@ type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : never) : never;
 // The settings drawn from their declarations travel by id and are not named in the request types.
 type Named = Exclude<GenerationSettingId, DrawnSettingId>;
 const jobSettingsAreDeclared: Same<Exclude<keyof JobSettings, "photoHash">, Named> = true;
-const requestSettingsAreDeclared: Same<Exclude<keyof RunServerPatternJobOptions, "photoDataUrl" | "onProgress" | "onQueued">, Named> = true;
+// The browser never names the thread systems: the server puts them in from its table (G-132, D400).
+const requestSettingsAreDeclared: Same<
+  Exclude<keyof RunServerPatternJobOptions, "photoDataUrl" | "onProgress" | "onQueued">,
+  Exclude<Named, "threadSystems">
+> = true;
 
 const VALID = { longerSideStitches: 100, colorCount: 20 };
 
@@ -33,10 +38,11 @@ describe("the declaration", () => {
 
   it("is pinned: the settings, in the order they are checked", () => {
     expect(GENERATION_SETTINGS.map((s) => `${s.id}:${s.kind}`)).toEqual([
+      "threadSystems:shape",
       "longerSideStitches:integer",
       "colorCount:integer",
       "generationMode:choice",
-      "paletteMode:choice",
+      "paletteMode:shape",
       "edgeMode:choice",
       "ditherMode:choice",
       "vivid:flag",
@@ -70,13 +76,24 @@ describe("checking a request", () => {
     expect(refusal({ photoAdjust: { brightness: 500 } })).toMatch(/^photoAdjust must be an object/);
     expect(refusal({ ditherTexture: 7 })).toBe("ditherTexture must be an object whose values are all inside their ranges.");
     expect(refusal({ paletteSet: [] })).toMatch(/^paletteSet\.mode must be one of/);
-    expect(refusal({ paletteMode: "dmc", paletteSet: { mode: "full", colors: [{ rgb: [1, 2, 3] }] } })).toBe(
+    const dmc = { paletteMode: "dmc", threadSystems: requestSystems(["dmc"]) };
+    expect(refusal({ ...dmc, paletteSet: { mode: "full", colors: [{ rgb: [1, 2, 3] }] } })).toBe(
       "paletteSet.mode must be the paletteMode."
     );
+    // A system the server did not put in is one this person cannot use (G-132).
+    expect(refusal({ paletteMode: "dmc" })).toBe("paletteMode must be one of: full.");
+    expect(refusal({ ...dmc, paletteMode: "cosmo" })).toBe("paletteMode must be one of: full, dmc.");
+    expect(refusal({ threadSystems: [{ key: "dmc", threads: [] }] })).toMatch(/^threadSystems dmc: A thread system lists between 1/);
   });
 
   it("takes a set's colours with a name and any system's thread, typed numbers too, whatever the set's mode (G-131)", () => {
-    const set = (colors: unknown[]) => generationSettingsRefusal({ ...VALID, paletteMode: "dmc", paletteSet: { mode: "dmc", colors } });
+    const set = (colors: unknown[]) =>
+      generationSettingsRefusal({
+        ...VALID,
+        paletteMode: "dmc",
+        threadSystems: requestSystems(["dmc"]),
+        paletteSet: { mode: "dmc", colors },
+      });
     expect(set([{ rgb: [1, 2, 3], name: "Moss", system: "anchor", number: "X-9" }, { code: "310" }, { rgb: [4, 5, 6] }])).toBeNull();
     // A system not loaded here is a thread too (G-132).
     expect(set([{ rgb: [1, 2, 3], system: "Madeira", number: "0210" }])).toBeNull();
@@ -156,6 +173,7 @@ describe("the Rust pipeline", () => {
     colorCount: 6,
     generationMode: "latest",
     paletteMode: "dmc",
+    threadSystems: requestSystems(["dmc"]),
     edgeMode: "crisp",
     ditherMode: "off",
     vivid: true,

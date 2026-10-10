@@ -3,10 +3,12 @@
 use cs_core::color::Rgb;
 use cs_core::photo_adjust::NEUTRAL_ADJUST;
 use cs_core::predict::{coverage, predict, PredictOptions};
-use cs_core::threads::Brand;
+use cs_core::threads::System;
 use cs_core::Image;
 
-fn options(brand: Option<Brand>) -> PredictOptions {
+mod common;
+
+fn options(brand: Option<System>) -> PredictOptions {
     PredictOptions {
         longer_side_stitches: 40.0,
         brand,
@@ -130,7 +132,7 @@ fn in_a_brand_the_colours_are_the_nearest_threads() {
             [30, 30, 200]
         }
     });
-    let p = predict(&two, &options(Some(Brand::Dmc)));
+    let p = predict(&two, &options(Some(common::system("dmc"))));
     assert!(p.colors.iter().all(|c| c.thread.is_some()));
 }
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { deserializePattern, serializePattern } from "@/lib/editor/pattern-serialize";
-import { formatThreadName, THREAD_BRANDS, type ThreadBrand } from "@/lib/threads/thread-brands";
+import { formatThreadName, loadedSystem, type ThreadBrand } from "@/lib/threads/thread-brands";
 import { EMPTY_CELL, MAX_COLORS, MAX_STITCHES, type PaletteColor, type StitchPattern } from "@/lib/types";
 
 function makePattern(): StitchPattern {
@@ -20,7 +20,7 @@ function makePattern(): StitchPattern {
 /** The sample pattern locked to `brand`: a lock means every color is that brand's thread, with its source (D122). */
 function lockedTo(brand: ThreadBrand): StitchPattern {
   const base = makePattern();
-  const threads = THREAD_BRANDS[brand].colors.slice(0, base.palette.length);
+  const threads = loadedSystem(brand)!.colors.slice(0, base.palette.length);
   return {
     ...base,
     threadBrand: brand,
@@ -180,9 +180,11 @@ describe("pattern-serialize", () => {
     expect(deserializePattern(legacyFile).threadBrand).toBe("dmc");
   });
 
-  it("rejects an unrecognized threadBrand value rather than storing an invalid brand that would later crash a lookup", () => {
-    const tampered = JSON.stringify({ ...JSON.parse(serializePattern(makePattern())), threadBrand: "rainbow" });
-    expect(deserializePattern(tampered).threadBrand).toBeUndefined();
+  it("keeps a system that is not loaded, as written, and drops what is not a system name (G-132)", () => {
+    const withBrand = (threadBrand: unknown) =>
+      deserializePattern(JSON.stringify({ ...JSON.parse(serializePattern(makePattern())), threadBrand })).threadBrand;
+    expect(withBrand("Madeira")).toBe("Madeira");
+    for (const bad of ["full", "", " dmc", "x".repeat(41), 7]) expect(withBrand(bad), JSON.stringify(bad)).toBeUndefined();
   });
 
   it("prefers a present threadBrand over a stale/contradictory legacy dmcMode on the same file", () => {

@@ -3,6 +3,7 @@ import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import type { PixelBuffer, StitchPattern } from "@/lib/types";
+import { requestSystems } from "./thread-systems";
 
 /**
  * Driving the release binary from a test (G-068 M4).
@@ -37,7 +38,10 @@ interface RustPattern {
 }
 
 export interface CsBench {
-  /** Generates one chart. `options` takes `BuildPatternOptions`' names; `threads` is filled in. */
+  /**
+   * Generates one chart. `options` takes `BuildPatternOptions`' names; `threads` is filled in, and so are the seeded
+   * thread systems (G-132) unless `options` names its own.
+   */
   generate(source: PixelBuffer, options: Record<string, unknown>): StitchPattern;
   dispose(): void;
 }
@@ -59,7 +63,10 @@ export function openCsBench(label: string): CsBench {
     generate(source, options) {
       const file = path.join(dir, `source-${next++}.rgba`);
       writeFileSync(file, source.data);
-      const argv = ["generate", file, String(source.width), String(source.height), JSON.stringify({ threads: THREADS, ...options }), "1"];
+      // The options go in a file: with the thread lists they outgrow a command line.
+      const optionsFile = path.join(dir, `options-${next}.json`);
+      writeFileSync(optionsFile, JSON.stringify({ threads: THREADS, threadSystems: requestSystems(), ...options }));
+      const argv = ["generate", file, String(source.width), String(source.height), `@${optionsFile}`, "1"];
       const stdout = execFileSync(BINARY, argv, { maxBuffer: 1 << 30, encoding: "utf8" });
       const { pattern } = JSON.parse(stdout) as { pattern: RustPattern };
       return {

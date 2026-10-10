@@ -104,7 +104,9 @@ export async function generateWithRust(
   // The declared settings under the names the pipeline reads them by; an absent one is left to the pipeline's default.
   const options = JSON.stringify(rustGenerationOptions(settings));
   const pixels = Buffer.from(imageData.data.buffer, imageData.data.byteOffset, imageData.data.byteLength);
-  const result = await run(["generate", String(imageData.width), String(imageData.height), options], pixels, { progress: onProgress });
+  // The options on stdin before the pixels (G-132): with the thread systems' lists in them they outgrow an argument.
+  const input = Buffer.concat([Buffer.from(options + "\n", "utf8"), pixels]);
+  const result = await run(["generate", String(imageData.width), String(imageData.height)], input, { progress: onProgress });
   if (!result.stdout) failed("generation", result.error);
   try {
     // Through the same parser a saved file goes through, so a malformed pattern is caught here rather than downstream.
@@ -122,9 +124,13 @@ export async function predictWithRust(pixels: PixelBuffer, request: Omit<Predict
     paletteMode: request.paletteMode ?? undefined,
     photoAdjust: request.photoAdjust ?? undefined,
     paletteSet: request.paletteSet ?? undefined,
+    threadSystems: request.threadSystems ?? undefined,
   });
   const data = Buffer.from(pixels.data.buffer, pixels.data.byteOffset, pixels.data.byteLength);
-  const result = await run(["predict", String(pixels.width), String(pixels.height), options], data);
+  const result = await run(
+    ["predict", String(pixels.width), String(pixels.height)],
+    Buffer.concat([Buffer.from(options + "\n", "utf8"), data])
+  );
   if (!result.stdout) failed("prediction", result.error);
   try {
     return JSON.parse(result.stdout.toString("utf8")) as ColorPrediction;
@@ -178,6 +184,7 @@ export async function exportWithRust(
     cellMm: payload.cellMm,
     stitchTexture: payload.stitchTexture,
     canvas: payload.canvas,
+    systemLabels: payload.systemLabels,
   });
   const result = await run(["export", request], serializePattern(payload.pattern, symmetry), { exportProgress: onProgress });
   if (!result.stdout || !result.filename) failed(`export ${payload.kind}`, result.error ?? "no filename");

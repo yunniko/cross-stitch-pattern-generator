@@ -68,10 +68,16 @@ async function handlePhotoUpload(req: IncomingMessage, res: ServerResponse): Pro
   });
 }
 
+/**
+ * A generation's or a prediction's body: its settings and the thread systems the web server put in (G-132, D400), up to
+ * 2,000 threads each. The web server holds the browser's own part of it to 64 KB.
+ */
+const SETTINGS_BYTES = 2 * 1024 * 1024;
+
 async function handleJobCreate(req: IncomingMessage, res: ServerResponse): Promise<void> {
   let body: unknown;
   try {
-    body = JSON.parse((await readCapped(req, 64 * 1024)).toString("utf8"));
+    body = JSON.parse((await readCapped(req, SETTINGS_BYTES)).toString("utf8"));
   } catch {
     send(res, 400, { error: "That request body is not valid JSON." });
     return;
@@ -102,7 +108,7 @@ let predicting = 0;
 async function handlePrediction(req: IncomingMessage, res: ServerResponse): Promise<void> {
   let body: unknown;
   try {
-    body = JSON.parse((await readCapped(req, 64 * 1024)).toString("utf8"));
+    body = JSON.parse((await readCapped(req, SETTINGS_BYTES)).toString("utf8"));
   } catch {
     send(res, 400, { error: "That request body is not valid JSON." });
     return;
@@ -208,7 +214,8 @@ async function handleJobEvents(res: ServerResponse, jobId: string): Promise<void
 async function handleExportCreate(req: IncomingMessage, res: ServerResponse): Promise<void> {
   let body: unknown;
   try {
-    body = JSON.parse((await readCapped(req, LIMITS.exportRequestBytes)).toString("utf8"));
+    // With room for the names of the thread systems the web server puts in (G-132).
+    body = JSON.parse((await readCapped(req, LIMITS.exportRequestBytes + 64 * 1024)).toString("utf8"));
   } catch {
     send(res, 400, { error: "That request body is not valid JSON." });
     return;

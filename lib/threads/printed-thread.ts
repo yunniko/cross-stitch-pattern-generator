@@ -1,5 +1,5 @@
 import type { PaletteColor } from "../types";
-import { THREAD_BRAND_IDS, THREAD_BRANDS, systemLabel } from "./thread-brands";
+import { loadedSystems, systemLabel } from "./thread-brands";
 
 /**
  * What the exports print for a colour's thread (G-131, D396): the same System, Number and Color name columns in every
@@ -48,7 +48,7 @@ export function printedThreadLabel(color: Pick<PaletteColor, "name" | "source">)
 /** The systems a palette's threads are of, the loaded ones in catalogue order and then any other as first met: what the details' Thread row says. */
 export function threadSystems(palette: ReadonlyArray<Pick<PaletteColor, "source">>): string[] {
   const used = new Set(palette.flatMap((color) => (color.source ? [color.source.brand] : [])));
-  const loaded = THREAD_BRAND_IDS.filter((brand) => used.has(brand));
-  const other = [...used].filter((brand) => !(THREAD_BRAND_IDS as string[]).includes(brand));
-  return [...loaded.map((brand) => THREAD_BRANDS[brand].label), ...other];
+  const loaded = loadedSystems().filter((system) => used.has(system.id));
+  const other = [...used].filter((brand) => !loaded.some((system) => system.id === brand));
+  return [...loaded.map((system) => system.label), ...other];
 }

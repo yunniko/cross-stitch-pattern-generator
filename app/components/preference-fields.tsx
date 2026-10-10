@@ -3,9 +3,9 @@
 import { useState } from "react";
 import { VALID_OVERLAP_CELLS, type WorkspaceOptions } from "@/lib/editor/workspace-storage";
 import { STANDARD_AIDA_COUNTS } from "@/lib/export/finished-size";
-import { THREAD_BRANDS, THREAD_BRAND_IDS } from "@/lib/threads/thread-brands";
 import { MAX_STITCHES, MIN_STITCHES, type StitchPattern } from "@/lib/types";
 import type { UpdateWorkspaceOption } from "../hooks/use-workspace-options";
+import { useThreadSystems } from "../thread-systems/thread-systems-context";
 import { CanvasColorField } from "./canvas-color-field";
 import { CanvasPicker } from "./canvas-picker";
 import { CellSizeField } from "./cell-size-field";
@@ -56,12 +56,10 @@ export interface PreferenceFieldsProps {
 }
 
 export function PreferenceFields({ options, pattern, onChange }: PreferenceFieldsProps) {
-  // Under the feature switches (G-102): each brand is a feature.
+  // Under the feature switches (G-102): each system is a feature. The systems are the table's (G-132).
+  const systems = useThreadSystems();
   const paletteOptions = useGatedOptions(
-    [
-      { value: "full" as const, label: "Full range" },
-      ...THREAD_BRAND_IDS.map((brand) => ({ value: brand, label: THREAD_BRANDS[brand].label })),
-    ],
+    [{ value: "full" as const, label: "Full range" }, ...systems.map((system) => ({ value: system.id, label: system.label }))],
     brandFeature
   );
 

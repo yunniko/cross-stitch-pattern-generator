@@ -6,6 +6,7 @@ import { LIMITS } from "@/processor/job-protocol";
 import { exportRefusal, workspaceRefusal } from "@/lib/features/request-check";
 import { featureStatesFor } from "@/lib/features/server";
 import { parseBody } from "@/lib/server/parse-body";
+import { systemLabelsFor, withThreadSystems } from "@/lib/thread-systems/server";
 
 /**
  * Starts an export on the processor (G-034 M4).
@@ -45,6 +46,9 @@ export async function POST(req: Request): Promise<Response> {
   const refusal = workspaceRefusal("/api/exports", states) ?? exportRefusal(parsed, states);
   if (refusal) return NextResponse.json({ error: refusal }, { status: 403 });
 
+  // The names the systems are printed by, from the table (G-132, D400).
+  const forwarded = await withThreadSystems(body, async () => ({ systemLabels: await systemLabelsFor() }));
+
   // The counted limits (G-109, D364): checked and counted before the processor is asked, given back if it refuses.
   const quota = await quotaForRoute("EXPORT", userId, typeof parsed.kind === "string" ? parsed.kind : null);
   if ("response" in quota) return quota.response;
@@ -53,7 +57,7 @@ export async function POST(req: Request): Promise<Response> {
     const upstream = await fetch(processorUrl("/exports"), {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body,
+      body: forwarded,
     });
     // The processor accepts only kinds it knows, so an accepted request names one (G-107 M2).
     quota.ticket.settle(upstream.ok);

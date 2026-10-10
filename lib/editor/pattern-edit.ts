@@ -4,7 +4,7 @@ import { resizePlane, wrapShift, type CanvasResizeDelta } from "../document/plan
 import { floodFillDiagonal, labelRegions } from "../pipeline/regions";
 import { SYMBOL_SET } from "../color/symbols";
 import { kindBuffer, kindsAfterWholePainting, STITCH_WHOLE, tidyKinds } from "./stitch-kind";
-import { formatThreadName, THREAD_BRANDS, type ThreadBrand } from "../threads/thread-brands";
+import { formatThreadName, loadedSystem, systemLabel, type ThreadBrand } from "../threads/thread-brands";
 import {
   type ChartFabric,
   EMPTY_CELL,
@@ -260,8 +260,8 @@ export function restoreColor(
  * should follow it. Any brand's thread may go in any chart (G-131).
  */
 export function editColorToBrandColor(pattern: StitchPattern, paletteIndex: number, code: string, brand: ThreadBrand): StitchPattern {
-  const thread = THREAD_BRANDS[brand].colors.find((c) => c.code === code);
-  if (!thread) throw new Error(`"${code}" isn't a recognized ${THREAD_BRANDS[brand].label} color code.`);
+  const thread = loadedSystem(brand)?.colors.find((c) => c.code === code);
+  if (!thread) throw new Error(`"${code}" isn't a recognized ${systemLabel(brand)} color code.`);
   const palette = pattern.palette.map((color, i) =>
     i === paletteIndex ? { ...color, rgb: thread.rgb, name: formatThreadName(thread), source: { brand, code: thread.code } } : color
   );
@@ -313,8 +313,8 @@ export function addBrandColor(pattern: StitchPattern, code: string, brand: Threa
     throw new Error(`Cannot add another color -- already at the maximum of ${MAX_COLORS}.`);
   }
 
-  const thread = THREAD_BRANDS[brand].colors.find((c) => c.code === code);
-  if (!thread) throw new Error(`"${code}" isn't a recognized ${THREAD_BRANDS[brand].label} color code.`);
+  const thread = loadedSystem(brand)?.colors.find((c) => c.code === code);
+  if (!thread) throw new Error(`"${code}" isn't a recognized ${systemLabel(brand)} color code.`);
 
   const usedSymbols = new Set(pattern.palette.map((c) => c.symbol));
   const symbol = SYMBOL_SET.find((s) => !usedSymbols.has(s));

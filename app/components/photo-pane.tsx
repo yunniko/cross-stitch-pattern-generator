@@ -8,7 +8,7 @@ import { formatFinishedDimension } from "@/lib/export/finished-size";
 import { ditherOwnSettings, ditherVariants, isDithered, type DitherMode, type DitherPatternDeclaration } from "@/lib/pipeline/dither";
 import { isNeutralAdjust, type PhotoAdjust } from "@/lib/pipeline/photo-adjust";
 import type { ColorPrediction } from "@/lib/pipeline/prediction";
-import { THREAD_BRANDS, THREAD_BRAND_IDS } from "@/lib/threads/thread-brands";
+import type { ThreadSystemInfo } from "@/lib/threads/thread-brands";
 import { MAX_COLORS, MAX_STITCHES, MIN_COLORS, MIN_STITCHES, SIZE_PRESETS, SIZE_PRESET_LABELS } from "@/lib/types";
 import { gridDimensionsFor } from "@/lib/pipeline/downsample";
 import { longerSideFor } from "../hooks/use-generation";
@@ -20,6 +20,7 @@ import { TextureEditor } from "./texture-editor";
 import { GROUP_LABEL, InlineError, PillButton, SegmentedControl, Slider, type SegmentOption } from "./ui";
 import { useGatedOptions } from "../features/features-context";
 import { brandFeature } from "../features/registry";
+import { useThreadSystems } from "../thread-systems/thread-systems-context";
 import { FeatureGate } from "./feature-gate";
 
 /**
@@ -49,21 +50,21 @@ const ALGORITHM_OPTIONS: SegmentOption<WorkspaceOptions["generationMode"]>[] = [
   },
 ];
 
-const PALETTE_OPTIONS: SegmentOption<WorkspaceOptions["paletteMode"]>[] = [
-  { value: "full", label: "Full range", title: "Whatever colors the chosen algorithm finds" },
-  ...THREAD_BRAND_IDS.map((brand) => {
-    const { label, derivationNote } = THREAD_BRANDS[brand];
-    const naming =
-      'colors are named "code - name" (or just the code, for a brand with no published names) and similar shades may merge into one';
-    return {
-      value: brand,
+/** "Full range" and each thread system the person may use (G-132), with what a system's note says of its colours. */
+function paletteChoices(systems: readonly ThreadSystemInfo[]): SegmentOption<WorkspaceOptions["paletteMode"]>[] {
+  const naming =
+    'colors are named "code - name" (or just the code, for a brand with no published names) and similar shades may merge into one';
+  return [
+    { value: "full", label: "Full range", title: "Whatever colors the chosen algorithm finds" },
+    ...systems.map(({ id, label, note }) => ({
+      value: id,
       label,
-      title: derivationNote
-        ? `Snaps the palette to ${label} thread colors -- ${derivationNote}; ${naming}`
+      title: note
+        ? `Snaps the palette to ${label} thread colors -- ${naming}. ${note}`
         : `Snaps the palette to real, buyable ${label} thread colors -- ${naming}`,
-    };
-  }),
-];
+    })),
+  ];
+}
 
 // A switch of its own rather than a third Algorithm value: Algorithm chooses how colours are picked from the
 // stitches, and this chooses what a stitch is made of, before any colour is chosen (D040's lesson, D211).
@@ -241,7 +242,8 @@ export function PhotoPane({
   // The palette mode asked for while colours are chosen in another, until the reader confirms that they go.
   // Under the feature switches (G-102): the set-up palette and each brand are features.
   const setupOptions = useGatedOptions(SETUP_OPTIONS, (choice) => (choice === "setup" ? "generation.paletteSet" : null));
-  const paletteOptions = useGatedOptions(PALETTE_OPTIONS, brandFeature);
+  const systems = useThreadSystems();
+  const paletteOptions = useGatedOptions(paletteChoices(systems), brandFeature);
   if (isProcessing) return <GeneratingCard progress={progress} queueMessage={queueMessage} hasPattern={hasPattern} onCancel={onCancel} />;
   // First run: nothing to size or colour yet, so 1b shows what the three steps will be instead of dead controls.
   if (!hasPhoto && !hasPattern && !isLoadingImage)

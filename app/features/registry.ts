@@ -6,7 +6,7 @@ import { featureShown, featureUsable, type Feature, type FeatureStates } from "@
 import { toolOffered, WORKSPACE_FEATURE_GROUP, WORKSPACES, type Workspace } from "@/lib/editor/workspaces";
 import { DITHER_MODES, ditherFeature, ditherLabel } from "@/lib/pipeline/dither";
 import { GENERATION_SETTINGS } from "@/lib/pipeline/generation-settings";
-import { THREAD_BRAND_IDS, THREAD_BRANDS } from "@/lib/threads/thread-brands";
+import { SEEDED_SYSTEM_NAMES } from "@/lib/thread-systems/thread-system";
 import { COMMAND_DEFINITIONS } from "../commands/registry";
 import { TOOL_DEFINITIONS, toolDefinition, type Tool } from "../tools/registry";
 
@@ -99,7 +99,7 @@ function build(): Feature[] {
     add({ id: `texture.stitch.${texture.id}`, group: "Textures", label: `${texture.label} stitch texture` });
   for (const texture of CANVAS_TEXTURES) add({ id: `texture.canvas.${texture.id}`, group: "Textures", label: `${texture.label} cloth` });
 
-  for (const brand of THREAD_BRAND_IDS) add({ id: `brand.${brand}`, group: "Thread brands", label: THREAD_BRANDS[brand].label });
+  for (const { key, label } of SEEDED_SYSTEM_NAMES) add({ id: `brand.${key}`, group: "Thread brands", label });
 
   return features;
 }

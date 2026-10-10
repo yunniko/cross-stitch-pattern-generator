@@ -10,6 +10,8 @@
 //! So these assert properties over a spread of inputs rather than bytes for particular ones, and they are Rust's
 //! own: `cargo test --release` runs them with no Node, no fixtures and no recorded values to keep in step.
 
+mod common;
+
 use cs_core::json::parse_options;
 use cs_core::pattern::{build_pattern, StageTimes, StitchPattern};
 use cs_core::{Image, EMPTY_CELL};
@@ -51,7 +53,7 @@ fn flat(width: usize, height: usize, rgb: [u8; 3], alpha: u8) -> Image {
 }
 
 fn build(image: &Image, options_json: &str) -> StitchPattern {
-    let (options, _threads) = parse_options(options_json).expect("options");
+    let (options, _threads) = parse_options(&common::with_systems(options_json)).expect("options");
     let mut times: StageTimes = Vec::new();
     build_pattern(image, &options, &mut times, &|| 0.0)
 }
@@ -353,7 +355,7 @@ fn a_brand_chart_uses_only_that_brands_threads() {
         );
         let pattern = build(&image, &json);
         assert_eq!(
-            pattern.thread_brand,
+            pattern.thread_brand.as_deref(),
             Some(expected),
             "{brand}: chart does not record its brand"
         );

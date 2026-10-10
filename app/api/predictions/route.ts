@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { workspaceRefusal } from "@/lib/features/request-check";
 import { featureStatesFor } from "@/lib/features/server";
 import { guardMutation, processorUnreachable, processorUrl } from "@/lib/server/request-guard";
+import { requestSystemsFor, withThreadSystems } from "@/lib/thread-systems/server";
 
 /**
  * The colour count and colours a picture reasonably needs, and how well a set covers it (G-087). Forwarded to the processor, which
@@ -20,7 +21,8 @@ export async function POST(req: Request): Promise<Response> {
   if (refused) return refused;
 
   // Photo's work (G-103, D314): refused by the workspace's name when Photo is off for this person.
-  const refusal = workspaceRefusal("/api/predictions", await featureStatesFor((await auth())?.user?.id ?? null));
+  const states = await featureStatesFor((await auth())?.user?.id ?? null);
+  const refusal = workspaceRefusal("/api/predictions", states);
   if (refusal) return NextResponse.json({ error: refusal }, { status: 403 });
 
   const body = await req.text();
@@ -28,11 +30,14 @@ export async function POST(req: Request): Promise<Response> {
     return NextResponse.json({ error: "That request is too large." }, { status: 413 });
   }
 
+  // The thread systems it names, from the table and never from the browser (G-132, D400).
+  const forwarded = await withThreadSystems(body, async (b) => ({ threadSystems: await requestSystemsFor(b, states) }));
+
   try {
     const upstream = await fetch(processorUrl("/predictions"), {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body,
+      body: forwarded,
     });
     const headers: Record<string, string> = { "content-type": "application/json" };
     const retryAfter = upstream.headers.get("retry-after");

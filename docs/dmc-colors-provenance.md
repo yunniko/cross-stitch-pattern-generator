@@ -1,5 +1,7 @@
 # `lib/dmc-colors.ts` — data provenance and license
 
+**Where this data lives now (G-132, D400):** in the ThreadSystem table, as the site's `dmc` system, seeded by `prisma/migrations/20261010100000_thread_systems/migration.sql` together with its source and licence; the tests read the same list from `tests/fixtures/thread-systems/dmc.json`. The file names below are those of the time this was written.
+
 `DMC_COLORS` (454 entries: DMC code, name, and an RGB approximation of the
 physical thread color) was built for G-013 (DMC palette mode). Recorded here
 per STANDARDS.md's "record the attribution where the asset is used."

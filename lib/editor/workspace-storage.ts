@@ -14,7 +14,7 @@ import type { ShapeFill } from "./shape-raster";
 import { DEFAULT_DITHER_TEXTURE, isValidDitherTexture, type DitherTexture } from "../pipeline/dither-hand-drawn";
 import { NEUTRAL_ADJUST, readAdjust, type PhotoAdjust } from "../pipeline/photo-adjust";
 import type { EdgeMode, GenerationMode, PaletteMode } from "../pipeline/generation-modes";
-import { THREAD_BRAND_IDS } from "../threads/thread-brands";
+import { isLoadedSystem } from "../threads/thread-brands";
 import { MAX_COLORS, MAX_STITCHES, MIN_COLORS, MIN_STITCHES, type SizePresetId } from "../types";
 import { DEFAULT_VIEW, readView, type ChartView } from "./view";
 
@@ -209,9 +209,9 @@ export function loadWorkspaceOptions(): WorkspaceOptions {
           ? parsed.colorCount
           : DEFAULT_OPTIONS.colorCount,
       generationMode: parsed.generationMode === "original" ? "original" : DEFAULT_OPTIONS.generationMode,
-      // Validated against the live brand registry, not a hardcoded "dmc", so a new brand needs no change here.
+      // Validated against the systems loaded in this page (G-132), so a system taken away reads as the default.
       paletteMode:
-        parsed.paletteMode === "full" || (THREAD_BRAND_IDS as string[]).includes(parsed.paletteMode as string)
+        parsed.paletteMode === "full" || (typeof parsed.paletteMode === "string" && isLoadedSystem(parsed.paletteMode))
           ? (parsed.paletteMode as PaletteMode)
           : DEFAULT_OPTIONS.paletteMode,
       // Absent before G-074, and every field of it is clamped, so a hand-edited or corrupt value reads as neutral
@@ -253,7 +253,7 @@ export function loadWorkspaceOptions(): WorkspaceOptions {
       blankWidth: blankSide(parsed.blankWidth, DEFAULT_OPTIONS.blankWidth),
       blankHeight: blankSide(parsed.blankHeight, DEFAULT_OPTIONS.blankHeight),
       defaultPaletteMode:
-        parsed.defaultPaletteMode === "full" || (THREAD_BRAND_IDS as string[]).includes(parsed.defaultPaletteMode as string)
+        parsed.defaultPaletteMode === "full" || (typeof parsed.defaultPaletteMode === "string" && isLoadedSystem(parsed.defaultPaletteMode))
           ? (parsed.defaultPaletteMode as PaletteMode)
           : DEFAULT_OPTIONS.defaultPaletteMode,
       lockTransparency: typeof parsed.lockTransparency === "boolean" ? parsed.lockTransparency : DEFAULT_OPTIONS.lockTransparency,

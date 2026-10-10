@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { looksLikeOxs, oxsImportNotice, parseOxs, parseThreadNumber, serializeOxs, summarizeOxsImport } from "@/lib/editor/oxs";
 import { readXmlTags, type XmlTag } from "@/lib/editor/oxs-xml";
-import { formatThreadName, THREAD_BRANDS } from "@/lib/threads/thread-brands";
+import { formatThreadName } from "@/lib/threads/thread-brands";
+import { seededColors } from "./helpers/thread-systems";
 import { EMPTY_CELL, MAX_STITCHES, type PaletteColor, type RGB, type StitchPattern, type ThreadSwatchRef } from "@/lib/types";
 
 /**
@@ -30,7 +31,7 @@ function tagsOf(text: string): XmlTag[] {
   return tags;
 }
 
-const dmc = (code: string) => THREAD_BRANDS.dmc.colors.find((t) => t.code === code)!;
+const dmc = (code: string) => seededColors("dmc").find((t) => t.code === code)!;
 
 /** A chart in the shape real writers produce, with sections given as raw XML. */
 function chart({

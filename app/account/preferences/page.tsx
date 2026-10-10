@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { featureStatesFor } from "@/lib/features/server";
 import { FeaturesProvider } from "@/app/features/features-context";
+import { ThreadSystemsProvider } from "@/app/thread-systems/thread-systems-context";
+import { threadSystemsFor } from "@/lib/thread-systems/server";
 import { PageHead } from "@/app/components/panel/panel-parts";
 import { AccountPreferences } from "./account-preferences";
 
@@ -12,7 +14,7 @@ import { AccountPreferences } from "./account-preferences";
 export default async function AccountPreferencesPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
-  const features = await featureStatesFor(session.user.id);
+  const [features, systems] = await Promise.all([featureStatesFor(session.user.id), threadSystemsFor()]);
 
   return (
     <div className="flex max-w-[640px] flex-col gap-5">
@@ -21,7 +23,9 @@ export default async function AccountPreferencesPage() {
         lead="What a new chart starts from and what the exports read, kept in this browser. A preference never changes a chart that exists."
       />
       <FeaturesProvider states={features}>
-        <AccountPreferences />
+        <ThreadSystemsProvider systems={systems}>
+          <AccountPreferences />
+        </ThreadSystemsProvider>
       </FeaturesProvider>
     </div>
   );

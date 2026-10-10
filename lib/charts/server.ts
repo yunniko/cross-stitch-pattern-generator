@@ -5,7 +5,7 @@ import { featureUsable } from "@/lib/features/features";
 import { limitsFor } from "@/lib/limits/server";
 import { limitValue, type LimitValue } from "@/lib/limits/limits";
 import { prisma } from "@/lib/prisma";
-import { THREAD_BRANDS, type ThreadBrand } from "@/lib/threads/thread-brands";
+import { systemLabelsFor } from "@/lib/thread-systems/server";
 import { chartAllowed, type ChartAction } from "./access";
 import { chartPreviewPng } from "./preview";
 import { FULL_RANGE, type SavedChartCard } from "./chart-cards";
@@ -226,9 +226,9 @@ export async function deleteChart(userId: string, id: string): Promise<void> {
   });
 }
 
-/** The thread brand's name for the list, or "Full range" for none (or one this version does not know). */
-function paletteName(brand: string | null): string {
-  return (brand && THREAD_BRANDS[brand as ThreadBrand]?.label) || FULL_RANGE;
+/** The thread system's name for the list, or "Full range" for none; a system no longer here is named as stored (G-132). */
+function paletteName(brand: string | null, labels: ReadonlyMap<string, string>): string {
+  return brand ? (labels.get(brand) ?? brand) : FULL_RANGE;
 }
 
 /** How many charts the person has saved, for the count beside Charts in the account's sidebar. */
@@ -238,7 +238,7 @@ export function countCharts(userId: string): Promise<number> {
 
 /** The person's saved charts, pinned first, then newest, without their files; with the space they use and are allowed. */
 export async function listCharts(userId: string): Promise<{ charts: SavedChartCard[]; used: number; allowed: LimitValue }> {
-  const [charts, limits] = await Promise.all([
+  const [charts, limits, labels] = await Promise.all([
     prisma.savedChart.findMany({
       where: { userId },
       orderBy: [{ pinned: "desc" }, { updatedAt: "desc" }],
@@ -256,9 +256,15 @@ export async function listCharts(userId: string): Promise<{ charts: SavedChartCa
       },
     }),
     limitsFor(userId),
+    systemLabelsFor(),
   ]);
+  const names = new Map(labels);
   return {
-    charts: charts.map(({ updatedAt, brand, ...chart }) => ({ ...chart, palette: paletteName(brand), savedAt: updatedAt.toISOString() })),
+    charts: charts.map(({ updatedAt, brand, ...chart }) => ({
+      ...chart,
+      palette: paletteName(brand, names),
+      savedAt: updatedAt.toISOString(),
+    })),
     used: charts.reduce((sum, chart) => sum + chart.bytes, 0),
     allowed: limitValue(limits, CHART_STORAGE_LIMIT),
   };

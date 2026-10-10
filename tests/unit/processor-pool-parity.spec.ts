@@ -7,6 +7,7 @@ import type { JobSettings } from "@/processor/job-protocol";
 import type { PixelBuffer, StitchPattern } from "@/lib/types";
 import { makeBuffer, makePhotoLikeBuffer, pseudoNoise } from "./helpers/fixtures";
 import { hashPattern } from "./helpers/pattern-hash";
+import { requestSystems } from "./helpers/thread-systems";
 
 /**
  * The server produces exactly the pattern the browser does (G-034 M2, acceptance criterion 1).
@@ -52,7 +53,11 @@ const CASES: Array<{ name: string; source: PixelBuffer; settings: Omit<JobSettin
   { name: "photo/standard/latest/24", source: photo, settings: { longerSideStitches: 150, colorCount: 24 } },
   // The one case whose result depends on the worker choosing `plainKMeansQuantizer` for "original".
   { name: "photo/standard/original/24", source: photo, settings: { longerSideStitches: 150, colorCount: 24, generationMode: "original" } },
-  { name: "photo/standard/latest/24/dmc", source: photo, settings: { longerSideStitches: 150, colorCount: 24, paletteMode: "dmc" } },
+  {
+    name: "photo/standard/latest/24/dmc",
+    source: photo,
+    settings: { longerSideStitches: 150, colorCount: 24, paletteMode: "dmc", threadSystems: requestSystems(["dmc"]) },
+  },
 ];
 
 const pool = new GenerationPool(WORKER, 2);

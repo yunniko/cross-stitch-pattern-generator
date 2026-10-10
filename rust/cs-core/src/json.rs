@@ -5,9 +5,10 @@ use crate::pattern::{BuildOptions, EdgeMode, PaletteSet, SetColor, StageTimes, S
 use crate::photo_adjust::{PhotoAdjust, NEUTRAL_ADJUST};
 use crate::quantize::Quantizer;
 use crate::settings::{Setting, Settings};
-use crate::threads::Brand;
+use crate::threads::{System, ThreadSystem};
 use serde::Deserialize;
 use serde_json::{json, Map, Value};
+use std::collections::HashMap;
 
 /// A set of colours the chart is made from (G-087): the palette mode, and a colour each, by its RGB with its name and its
 /// thread of any system, typed or listed (G-131, D397), or by a listed thread's code in the set's brand.
@@ -32,9 +33,53 @@ struct SetColorOptions {
     number: Option<String>,
 }
 
+/// A thread system as the request carries it (G-132, D400): its key and its threads, `[code, name, "rrggbb"]` each.
+#[derive(Deserialize)]
+struct SystemOptions {
+    key: String,
+    threads: Vec<(String, String, String)>,
+}
+
+/// The systems a request was given, by key. The app reads them from its table and puts them in; Rust lists none itself.
+type Systems = HashMap<String, System>;
+
+fn systems_from(list: Option<Vec<SystemOptions>>) -> Result<Systems, String> {
+    let mut systems = Systems::new();
+    for s in list.unwrap_or_default() {
+        let threads = s
+            .threads
+            .into_iter()
+            .map(|(code, name, hex)| {
+                let n = (hex.len() == 6)
+                    .then(|| u32::from_str_radix(&hex, 16).ok())
+                    .flatten()
+                    .ok_or_else(|| {
+                        format!("thread {code} of {}: {hex:?} is not a colour", s.key)
+                    })?;
+                Ok((code, name, [(n >> 16) as u8, (n >> 8) as u8, n as u8]))
+            })
+            .collect::<Result<Vec<_>, String>>()?;
+        let system = ThreadSystem::new(&s.key, threads)?;
+        systems.insert(s.key, System::new(system));
+    }
+    Ok(systems)
+}
+
+/// The system a palette mode names: `None` for the full range of colours. `what` names the setting in a refusal.
+fn system_of(systems: &Systems, mode: Option<&str>, what: &str) -> Result<Option<System>, String> {
+    match mode {
+        None | Some("full") => Ok(None),
+        Some(key) => systems
+            .get(key)
+            .cloned()
+            .map(Some)
+            .ok_or_else(|| format!("unknown {what} {key}")),
+    }
+}
+
 impl PaletteSetOptions {
-    fn resolve(&self) -> Result<PaletteSet, String> {
-        let brand = Brand::from_mode(Some(self.mode.as_str()), "paletteSet mode")?;
+    fn resolve(&self, systems: &Systems) -> Result<PaletteSet, String> {
+        let brand = system_of(systems, Some(self.mode.as_str()), "paletteSet mode")?;
         if self.colors.is_empty() || self.colors.len() > crate::names::symbol_set().len() {
             return Err("a palette set holds between 1 and the number of symbols colours".into());
         }
@@ -57,17 +102,15 @@ impl PaletteSetOptions {
                     if number.is_empty() {
                         return Err("a thread needs its number".into());
                     }
-                    let listed = Brand::from_mode(Some(system), "thread system")
-                        .ok()
-                        .flatten()
-                        .and_then(|brand| crate::threads::thread_by_code(brand, number));
+                    let listed = systems
+                        .get(system)
+                        .and_then(|s| s.by_code(number))
+                        .map(|t| t.name.clone());
                     SetColor {
                         rgb,
                         source: Some((system.to_string(), number.to_string())),
                         label: name.unwrap_or_else(|| match listed {
-                            Some((listed_name, _)) => {
-                                crate::threads::thread_name(number, &listed_name)
-                            }
+                            Some(listed_name) => crate::threads::thread_name(number, &listed_name),
                             None => number.to_string(),
                         }),
                     }
@@ -75,15 +118,16 @@ impl PaletteSetOptions {
                 (Some(_), _, _) | (_, Some(_), _) => {
                     return Err("a thread needs its system, its number and its rgb".into())
                 }
-                (None, None, rgb) => match (brand, &c.code, rgb) {
+                (None, None, rgb) => match (&brand, &c.code, rgb) {
                     (Some(brand), Some(code), _) => {
-                        let (listed_name, rgb) = crate::threads::thread_by_code(brand, code)
+                        let thread = brand
+                            .by_code(code)
                             .ok_or_else(|| format!("unknown {} thread {code}", self.mode))?;
                         SetColor {
-                            rgb,
-                            source: Some((brand.id().to_string(), code.clone())),
+                            rgb: thread.rgb,
+                            source: Some((brand.key.clone(), code.clone())),
                             label: name
-                                .unwrap_or_else(|| crate::threads::thread_name(code, &listed_name)),
+                                .unwrap_or_else(|| crate::threads::thread_name(code, &thread.name)),
                         }
                     }
                     (_, _, Some(rgb)) => SetColor {
@@ -178,13 +222,21 @@ pub fn parse_options(text: &str) -> Result<(BuildOptions, usize), String> {
         .count("colorCount")?
         .ok_or("colorCount is missing")?;
     let threads = settings.count("threads")?.unwrap_or(1).max(1);
+    let systems = systems_from(shaped::<Vec<SystemOptions>>(
+        &mut settings,
+        "threadSystems",
+    )?)?;
     let options = BuildOptions {
         longer_side_stitches,
         color_count,
         quantizer: Quantizer::from_settings(&mut settings)?,
         optimize: settings.flag("optimize")?.unwrap_or(true),
         edge_mode: EdgeMode::from_settings(&mut settings)?,
-        brand: Brand::from_mode(settings.text("paletteMode")?.as_deref(), "paletteMode")?,
+        brand: system_of(
+            &systems,
+            settings.text("paletteMode")?.as_deref(),
+            "paletteMode",
+        )?,
         dither: crate::dither::from_settings(&mut settings)?,
         vivid: settings.flag("vivid")?.unwrap_or(false),
         photo_adjust: shaped::<AdjustOptions>(&mut settings, "photoAdjust")?
@@ -193,7 +245,7 @@ pub fn parse_options(text: &str) -> Result<(BuildOptions, usize), String> {
             .unwrap_or(NEUTRAL_ADJUST),
         palette_set: shaped::<PaletteSetOptions>(&mut settings, "paletteSet")?
             .as_ref()
-            .map(PaletteSetOptions::resolve)
+            .map(|set| set.resolve(&systems))
             .transpose()?,
         overlays: crate::overlay::configure(&mut settings)?,
     };
@@ -288,13 +340,16 @@ pub fn parse_predict_options(
         #[serde(default)]
         palette_mode: Option<String>,
         #[serde(default)]
+        thread_systems: Option<Vec<SystemOptions>>,
+        #[serde(default)]
         photo_adjust: Option<AdjustOptions>,
         /// The colours of a set to say how well it covers the picture (G-087): `[r, g, b]` each.
         #[serde(default)]
         palette_set: Option<Vec<[u8; 3]>>,
     }
     let o: PredictRequest = serde_json::from_str(text).map_err(|e| e.to_string())?;
-    let brand = Brand::from_mode(o.palette_mode.as_deref(), "paletteMode")?;
+    let systems = systems_from(o.thread_systems)?;
+    let brand = system_of(&systems, o.palette_mode.as_deref(), "paletteMode")?;
     Ok((
         crate::predict::PredictOptions {
             longer_side_stitches: o.longer_side_stitches,

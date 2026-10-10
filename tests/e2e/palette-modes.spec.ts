@@ -63,7 +63,7 @@ test("the Anchor palette button discloses that its colors are derived from DMC",
   // 1b's Photo tab holds the three steps until a photo is in, so the palette buttons need one to exist at all.
   await page.getByLabel("Image").setInputFiles(FIXTURE);
   await expectPhotoLoaded(page);
-  await expect(page.getByRole("button", { name: "Anchor", exact: true })).toHaveAttribute("title", /not independently measured/);
+  await expect(page.getByRole("button", { name: "Anchor", exact: true })).toHaveAttribute("title", /not measured/);
 });
 
 test("Crisp edges generates a pattern with a legend and no errors", async ({ page }) => {

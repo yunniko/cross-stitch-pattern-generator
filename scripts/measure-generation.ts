@@ -11,6 +11,7 @@ import { createHash } from "node:crypto";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { requestSystems } from "../tests/unit/helpers/thread-systems";
 
 const root = path.join(__dirname, "..");
 const bench = path.join(root, "rust", "target", "release", process.platform === "win32" ? "cs-bench.exe" : "cs-bench");
@@ -46,7 +47,8 @@ function picture(width: number, height: number): Buffer {
   return data;
 }
 
-const base = { longerSideStitches: 200, colorCount: 30, quantizer: "latest", threads: 1 };
+// The seeded thread systems, as the server would hand them to the pipeline (G-132).
+const base = { longerSideStitches: 200, colorCount: 30, quantizer: "latest", threads: 1, threadSystems: requestSystems() };
 const CASES: Array<[string, Record<string, unknown>]> = [
   ["standard, 200 stitches", base],
   ["DMC threads", { ...base, paletteMode: "dmc" }],
@@ -77,8 +79,10 @@ writeFileSync(file, picture(width, height));
 
 console.log(`| Case | Median of ${repeat} runs | Slowest stage | Chart |`);
 console.log("|---|---|---|---|");
+const optionsFile = path.join(dir, "options.json");
 for (const [name, options] of CASES) {
-  const stdout = execFileSync(bench, ["generate", file, String(width), String(height), JSON.stringify(options), String(repeat)], {
+  writeFileSync(optionsFile, JSON.stringify(options));
+  const stdout = execFileSync(bench, ["generate", file, String(width), String(height), `@${optionsFile}`, String(repeat)], {
     maxBuffer: 1 << 30,
     encoding: "utf8",
   });

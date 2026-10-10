@@ -1,6 +1,6 @@
 import type { PaletteMode } from "../pipeline/generation-modes";
 import type { ColorPrediction } from "../pipeline/prediction";
-import { findThread, formatThreadName, THREAD_BRAND_IDS, threadIdentity, type ThreadBrand } from "../threads/thread-brands";
+import { findThread, formatThreadName, storedSystem, systemLabel, threadIdentity, type ThreadBrand } from "../threads/thread-brands";
 import { MAX_COLORS, type GenerationPalette, type PaletteSetColor, type RGB, type StitchPattern, type ThreadSwatchRef } from "../types";
 
 export type { GenerationPalette, PaletteSetColor };
@@ -175,7 +175,8 @@ export function paletteFileName(name: string): string {
   return `${safe || "palette"}_palette.json`;
 }
 
-const MODES: readonly string[] = ["full", ...THREAD_BRAND_IDS];
+/** A set's mode: "full", or any system string, loaded here or not (G-132), since the server reads sets without the lists. */
+const isMode = (mode: unknown): mode is PaletteMode => mode === "full" || storedSystem(mode) !== undefined;
 
 function isRgb(value: unknown): value is RGB {
   return Array.isArray(value) && value.length === 3 && value.every((v) => Number.isInteger(v) && v >= 0 && v <= 255);
@@ -197,7 +198,7 @@ function parseColor(e: Record<string, unknown>, mode: PaletteMode): PaletteSetCo
   }
   if (mode !== "full" && e.code !== undefined) {
     if (typeof e.code !== "string") return { error: "A thread needs its code." };
-    return threadColor(mode, e.code) ?? { error: `${e.code} is not a ${mode.toUpperCase()} thread.` };
+    return threadColor(mode, e.code) ?? { error: `${e.code} is not a ${systemLabel(mode)} thread.` };
   }
   if (!isRgb(e.rgb)) return { error: "A colour needs its RGB, three whole numbers from 0 to 255." };
   return { rgb: e.rgb, ...(name ? { name } : {}) };
@@ -207,7 +208,7 @@ function parseColor(e: Record<string, unknown>, mode: PaletteMode): PaletteSetCo
 export function parseSet(data: unknown): { set: PaletteSet } | { error: string } {
   if (typeof data !== "object" || data === null) return { error: "That is not a palette." };
   const d = data as Record<string, unknown>;
-  if (typeof d.mode !== "string" || !MODES.includes(d.mode)) return { error: `A palette's mode must be one of: ${MODES.join(", ")}.` };
+  if (!isMode(d.mode)) return { error: "A palette's mode must be full or a thread system." };
   if (!Array.isArray(d.colors) || d.colors.length < 1 || d.colors.length > MAX_COLORS) {
     return { error: `A palette holds between 1 and ${MAX_COLORS} colours.` };
   }
@@ -227,7 +228,7 @@ export function parseSet(data: unknown): { set: PaletteSet } | { error: string }
 export function parseStoredSet(data: unknown): PaletteSet {
   if (typeof data !== "object" || data === null) return EMPTY_SET;
   const d = data as Record<string, unknown>;
-  if (typeof d.mode !== "string" || !MODES.includes(d.mode)) return EMPTY_SET;
+  if (!isMode(d.mode)) return EMPTY_SET;
   if (Array.isArray(d.colors) && d.colors.length === 0) return { mode: d.mode as PaletteMode, colors: [] };
   const parsed = parseSet(data);
   return "set" in parsed ? parsed.set : EMPTY_SET;

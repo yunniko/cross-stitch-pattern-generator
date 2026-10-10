@@ -21,7 +21,7 @@ import { DEFAULT_OPTIONS } from "../../lib/editor/workspace-storage";
 import { optionsInForce } from "../../lib/features/in-force";
 import { DITHER_MODES, ditherFeature } from "../../lib/pipeline/dither";
 import { GENERATION_SETTINGS } from "../../lib/pipeline/generation-settings";
-import { THREAD_BRAND_IDS } from "../../lib/threads/thread-brands";
+import { SEEDED_SYSTEM_NAMES } from "../../lib/thread-systems/thread-system";
 
 /** G-102 M1: the feature list is derived from the registries, and a feature's state resolves to on unless set. */
 
@@ -70,7 +70,7 @@ describe("the feature list", () => {
     expect(ditherFeature("off")).toBeNull();
     for (const texture of STITCH_TEXTURES) expect(isFeatureId(`texture.stitch.${texture.id}`)).toBe(true);
     for (const texture of CANVAS_TEXTURES) expect(isFeatureId(`texture.canvas.${texture.id}`)).toBe(true);
-    for (const brand of THREAD_BRAND_IDS) expect(isFeatureId(`brand.${brand}`)).toBe(true);
+    for (const { key } of SEEDED_SYSTEM_NAMES) expect(isFeatureId(`brand.${key}`)).toBe(true);
   });
 
   it("holds every generation setting that is a feature, with the sub-settings under their feature", () => {

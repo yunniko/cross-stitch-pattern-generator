@@ -1,5 +1,6 @@
-//! Port of `lib/threads/brand-match.ts` (`applyBrandPalette`, D56, D71, D92). The thread tables are compiled in from
-//! `data/`, which `scripts/rust-tables.mjs` writes from `lib/threads/`.
+//! Thread systems (G-132, D400) and `applyBrandPalette` (D56, D71, D92). A system is a maker's numbered threads as data,
+//! handed in with each request (`threadSystems` in the options): nothing is compiled in, so a system the site adds, edits
+//! or removes reaches generation without a build.
 
 use crate::color::{luminance, oklab_distance_sq, rgb_to_oklab, Oklab, Rgb};
 use crate::crisp::evidence::EvidenceLayer;
@@ -8,35 +9,7 @@ use crate::names::symbol_set;
 use crate::optimize::{run_local_optimizer, Ctx, Weights};
 use crate::pattern::{PaletteColor, StitchPattern};
 use std::collections::HashMap;
-use std::sync::OnceLock;
-
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Brand {
-    Dmc,
-    Cosmo,
-    Anchor,
-}
-
-impl Brand {
-    pub fn id(self) -> &'static str {
-        match self {
-            Brand::Dmc => "dmc",
-            Brand::Cosmo => "cosmo",
-            Brand::Anchor => "anchor",
-        }
-    }
-
-    /// The brand a palette mode names: `None` for the full range of colours. `what` names the setting in a refusal.
-    pub fn from_mode(mode: Option<&str>, what: &str) -> Result<Option<Self>, String> {
-        match mode {
-            None | Some("full") => Ok(None),
-            Some("dmc") => Ok(Some(Brand::Dmc)),
-            Some("cosmo") => Ok(Some(Brand::Cosmo)),
-            Some("anchor") => Ok(Some(Brand::Anchor)),
-            Some(other) => Err(format!("unknown {what} {other}")),
-        }
-    }
-}
+use std::sync::Arc;
 
 #[derive(Clone, Debug)]
 pub struct Thread {
@@ -46,59 +19,57 @@ pub struct Thread {
     oklab: Oklab,
 }
 
-fn parse_threads(tsv: &'static str) -> Vec<Thread> {
-    tsv.lines()
-        .filter(|l| !l.is_empty())
-        .map(|line| {
-            let mut parts = line.split('\t');
-            let code = parts.next().expect("code").to_string();
-            let name = parts.next().expect("name").to_string();
-            let n = u32::from_str_radix(parts.next().expect("rgb"), 16).expect("hex");
-            let rgb = [(n >> 16) as u8, (n >> 8) as u8, n as u8];
-            Thread {
-                code,
-                name,
-                rgb,
-                oklab: rgb_to_oklab(rgb),
-            }
-        })
-        .collect()
+/// One system: the key a chart stores as a colour's system ("dmc"), and its threads in the order the list gives them.
+#[derive(Debug)]
+pub struct ThreadSystem {
+    pub key: String,
+    threads: Vec<Thread>,
 }
 
-fn dmc() -> &'static [Thread] {
-    static T: OnceLock<Vec<Thread>> = OnceLock::new();
-    T.get_or_init(|| parse_threads(include_str!("../data/threads-dmc.tsv")))
-}
+/// A system as the options hold it: shared, since every colour of a run reads the same one.
+pub type System = Arc<ThreadSystem>;
 
-fn cosmo() -> &'static [Thread] {
-    static T: OnceLock<Vec<Thread>> = OnceLock::new();
-    T.get_or_init(|| parse_threads(include_str!("../data/threads-cosmo.tsv")))
-}
-
-fn dmc_to_anchor() -> &'static HashMap<&'static str, &'static str> {
-    static T: OnceLock<HashMap<&'static str, &'static str>> = OnceLock::new();
-    T.get_or_init(|| {
-        include_str!("../data/dmc-to-anchor.tsv")
-            .lines()
-            .filter(|l| !l.is_empty())
-            .map(|l| l.split_once('\t').expect("dmc<TAB>anchor"))
-            .collect()
-    })
-}
-
-/// `nearestColorInBrand`: the first thread at the smallest squared OKLab distance.
-fn nearest(rgb: Rgb, threads: &'static [Thread]) -> &'static Thread {
-    let target = rgb_to_oklab(rgb);
-    let mut best = &threads[0];
-    let mut best_distance = f64::INFINITY;
-    for t in threads {
-        let d = oklab_distance_sq(&target, &t.oklab);
-        if d < best_distance {
-            best_distance = d;
-            best = t;
+impl ThreadSystem {
+    /// A system of these threads, `(code, name, rgb)` each. Refused when it has none: there would be nothing to match to.
+    pub fn new(key: &str, threads: Vec<(String, String, Rgb)>) -> Result<Self, String> {
+        if key.is_empty() || threads.is_empty() {
+            return Err(format!(
+                "thread system {key:?} needs a key and at least one thread"
+            ));
         }
+        Ok(ThreadSystem {
+            key: key.to_string(),
+            threads: threads
+                .into_iter()
+                .map(|(code, name, rgb)| Thread {
+                    code,
+                    name,
+                    rgb,
+                    oklab: rgb_to_oklab(rgb),
+                })
+                .collect(),
+        })
     }
-    best
+
+    /// The thread with this code: its name (empty when the list has none) and its colour.
+    pub fn by_code(&self, code: &str) -> Option<&Thread> {
+        self.threads.iter().find(|t| t.code == code)
+    }
+
+    /// `nearestColorInBrand`: the first thread at the smallest squared OKLab distance.
+    pub fn nearest(&self, rgb: Rgb) -> &Thread {
+        let target = rgb_to_oklab(rgb);
+        let mut best = &self.threads[0];
+        let mut best_distance = f64::INFINITY;
+        for t in &self.threads {
+            let d = oklab_distance_sq(&target, &t.oklab);
+            if d < best_distance {
+                best_distance = d;
+                best = t;
+            }
+        }
+        best
+    }
 }
 
 /// `formatThreadName`.
@@ -110,51 +81,15 @@ pub(crate) fn thread_name(code: &str, name: &str) -> String {
     }
 }
 
-/// The thread of `brand` with this code: its name (empty when the brand has none) and its colour. An Anchor code is looked up
-/// through the DMC colour it stands for, as the brand palette does (D94).
-pub fn thread_by_code(brand: Brand, code: &str) -> Option<(String, Rgb)> {
-    match brand {
-        Brand::Dmc | Brand::Cosmo => {
-            let table = if brand == Brand::Dmc { dmc() } else { cosmo() };
-            table
-                .iter()
-                .find(|t| t.code == code)
-                .map(|t| (t.name.clone(), t.rgb))
-        }
-        Brand::Anchor => {
-            let dmc_code = dmc_to_anchor()
-                .iter()
-                .find(|(_, anchor)| **anchor == code)
-                .map(|(dmc, _)| *dmc)?;
-            dmc()
-                .iter()
-                .find(|t| t.code == dmc_code)
-                .map(|t| (String::new(), t.rgb))
-        }
-    }
+/// The thread of `system` nearest to `rgb`: its code, its name (empty when the list has none) and its colour.
+pub fn thread_for(system: &ThreadSystem, rgb: Rgb) -> (String, String, Rgb) {
+    let t = system.nearest(rgb);
+    (t.code.clone(), t.name.clone(), t.rgb)
 }
-
-/// The thread of `brand` nearest to `rgb`: its code, its name (empty when the brand has none) and its colour.
-pub fn thread_for(brand: Brand, rgb: Rgb) -> (String, String, Rgb) {
-    match brand {
-        Brand::Dmc | Brand::Cosmo => {
-            let t = nearest(rgb, if brand == Brand::Dmc { dmc() } else { cosmo() });
-            (t.code.clone(), t.name.clone(), t.rgb)
-        }
-        Brand::Anchor => {
-            let d = nearest(rgb, dmc());
-            let code = dmc_to_anchor()
-                .get(d.code.as_str())
-                .expect("every DMC code has an Anchor equivalent");
-            (code.to_string(), String::new(), d.rgb)
-        }
-    }
-}
-
 /// `applyBrandPalette`. `reoptimize` re-runs ICM with `DEFAULT_LOCAL_OPTIMIZER_WEIGHTS` against the thread palette.
 pub fn apply_brand_palette(
     pattern: StitchPattern,
-    brand: Brand,
+    brand: &ThreadSystem,
     reoptimize: Option<&Ctx>,
     layer: Option<&EvidenceLayer>,
 ) -> StitchPattern {
@@ -261,7 +196,7 @@ pub fn apply_brand_palette(
                 name: thread_name(code, name),
                 count: *count,
                 source: Some(crate::pattern::ThreadSource {
-                    brand: brand.id().to_string(),
+                    brand: brand.key.clone(),
                     code: code.clone(),
                 }),
             }
@@ -280,7 +215,7 @@ pub fn apply_brand_palette(
     StitchPattern {
         cell_palette,
         palette,
-        thread_brand: Some(brand.id()),
+        thread_brand: Some(brand.key.clone()),
         ..pattern
     }
 }

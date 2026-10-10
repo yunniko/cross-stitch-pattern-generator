@@ -15,6 +15,9 @@ pub const SYMMETRY_AXES: [&str; 4] = ["vertical", "horizontal", "diagonal", "ant
 pub struct ThreadRef {
     pub brand: String,
     pub code: String,
+    /// The name the system is printed by: the request's label for it (`Pattern::label_systems`), else the system as
+    /// stored (G-132, D400).
+    pub label: String,
 }
 
 #[derive(Clone, Debug)]
@@ -43,11 +46,7 @@ impl Color {
                 } else {
                     self.name.clone()
                 };
-                (
-                    crate::threads::brand_label(&s.brand).to_string(),
-                    s.code.clone(),
-                    name,
-                )
+                (s.label.clone(), s.code.clone(), name)
             }
         }
     }
@@ -91,6 +90,8 @@ pub struct Pattern {
     /// The chart's fabric, count and unit (G-094); kept as parsed. The exports take both from the request, which the app
     /// fills from this.
     pub fabric: Option<Value>,
+    /// The systems the request named, in the order it gave them (`label_systems`): the details list them first.
+    pub labelled_systems: Vec<String>,
 }
 
 /// The fields `Pattern::kept` holds, in the order `serializePattern` writes them, between `enhancementMode` and `symmetry`.
@@ -117,23 +118,35 @@ fn str_field(o: &Map<String, Value>, key: &str) -> Option<String> {
 }
 
 impl Pattern {
-    /// The systems this chart's threads are of, by label, in catalogue order (DMC, Cosmo, Anchor), then any system not
-    /// loaded as the chart stores it (G-132): what the details' Thread row says. The system the chart was generated in is not
-    /// one of them unless a colour is its thread (G-131, D396).
-    pub fn thread_systems(&self) -> Vec<String> {
-        const LOADED: [&str; 3] = ["dmc", "cosmo", "anchor"];
-        let mut used: Vec<&str> = Vec::new();
-        for s in self.palette.iter().filter_map(|c| c.source.as_ref()) {
-            if !used.contains(&s.brand.as_str()) {
-                used.push(&s.brand);
+    /// Names each thread's system by the label the request gives it, `[key, label]` pairs in the order the app loads its
+    /// systems (G-132, D400). A system the request does not name keeps its stored string as its label.
+    pub fn label_systems(&mut self, labels: &[(String, String)]) {
+        for s in self.palette.iter_mut().filter_map(|c| c.source.as_mut()) {
+            if let Some((_, label)) = labels.iter().find(|(key, _)| *key == s.brand) {
+                s.label = label.clone();
             }
         }
-        let loaded = LOADED.into_iter().filter(|brand| used.contains(brand));
-        let other = used.iter().copied().filter(|brand| !LOADED.contains(brand));
-        loaded
-            .chain(other)
-            .map(|brand| crate::threads::brand_label(brand).to_string())
-            .collect()
+        self.labelled_systems = labels.iter().map(|(key, _)| key.clone()).collect();
+    }
+
+    /// The systems this chart's threads are of, by label: those the request named in its order, then any other as the chart
+    /// stores it (G-132): what the details' Thread row says. The system the chart was generated in is not one of them
+    /// unless a colour is its thread (G-131, D396).
+    pub fn thread_systems(&self) -> Vec<String> {
+        let mut used: Vec<&ThreadRef> = Vec::new();
+        for s in self.palette.iter().filter_map(|c| c.source.as_ref()) {
+            if !used.iter().any(|u| u.brand == s.brand) {
+                used.push(s);
+            }
+        }
+        let named = self
+            .labelled_systems
+            .iter()
+            .filter_map(|key| used.iter().find(|s| s.brand == *key));
+        let other = used
+            .iter()
+            .filter(|s| !self.labelled_systems.contains(&s.brand));
+        named.chain(other).map(|s| s.label.clone()).collect()
     }
 
     /// Parses an editable save. Validation is the TypeScript's job; this trusts its input.
@@ -159,13 +172,14 @@ impl Pattern {
         {
             let e = entry.as_object().ok_or("palette entry")?;
             let rgb = e.get("rgb").and_then(Value::as_array).ok_or("rgb")?;
-            let source = e
-                .get("source")
-                .and_then(Value::as_object)
-                .map(|s| ThreadRef {
-                    brand: str_field(s, "brand").unwrap_or_default(),
+            let source = e.get("source").and_then(Value::as_object).map(|s| {
+                let brand = str_field(s, "brand").unwrap_or_default();
+                ThreadRef {
+                    label: brand.clone(),
+                    brand,
                     code: str_field(s, "code").unwrap_or_default(),
-                });
+                }
+            });
             palette.push(Color {
                 index,
                 rgb: [0, 1, 2].map(|k| rgb[k].as_u64().unwrap_or(0) as u8),
@@ -238,6 +252,7 @@ impl Pattern {
                 .filter_map(|key| o.get(*key).map(|value| (*key, value.clone())))
                 .collect(),
             fabric: o.get("fabric").cloned(),
+            labelled_systems: Vec::new(),
         })
     }
 
@@ -441,6 +456,9 @@ pub struct Request {
     pub stitch_texture: String,
     /// The canvas the realistic preview is drawn on; absent means a transparent ground.
     pub canvas: Option<Canvas>,
+    /// The thread systems' labels, `[[key, label], …]` in the order the app loads them (`systemLabels`, G-132): the
+    /// exports print a thread's system by its label. Absent, each prints as the chart stores it.
+    pub system_labels: Vec<(String, String)>,
 }
 
 /// The canvas colour and cloth of the realistic preview (`canvas` in the request; `texture` is a catalog id or "off").
@@ -490,6 +508,11 @@ impl Request {
                         .ok_or("canvas.color must be #rrggbb")?,
                     texture: str_field(c, "texture").unwrap_or_else(|| "off".into()),
                 }),
+            },
+            system_labels: match o.get("systemLabels") {
+                None | Some(Value::Null) => Vec::new(),
+                Some(list) => serde_json::from_value(list.clone())
+                    .map_err(|e| format!("systemLabels must be [key, label] pairs: {e}"))?,
             },
         })
     }

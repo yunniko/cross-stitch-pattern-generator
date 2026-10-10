@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_OPTIONS } from "@/lib/editor/workspace-storage";
 import { DITHER_MODES } from "@/lib/pipeline/dither";
-import { THREAD_BRAND_IDS } from "@/lib/threads/thread-brands";
+import { SEEDED_SYSTEM_NAMES } from "@/lib/thread-systems/thread-system";
 import { SIZE_PRESETS } from "@/lib/types";
 import { settingsError } from "@/processor/validate-settings";
+import { requestSystems } from "./helpers/thread-systems";
 
 /**
  * The processor must accept what the editor actually sends (G-034 M3).
@@ -19,6 +20,8 @@ import { settingsError } from "@/processor/validate-settings";
 function requestFrom(overrides: Record<string, unknown> = {}) {
   const options = DEFAULT_OPTIONS;
   return {
+    // The server puts in the systems from its table (G-132); the processor accepts a mode only among them.
+    threadSystems: requestSystems(),
     photoHash: "a".repeat(64),
     longerSideStitches: options.sizePreset === "custom" ? options.customSize : SIZE_PRESETS[options.sizePreset],
     colorCount: options.colorCount,
@@ -63,7 +66,7 @@ describe("processor settings validation", () => {
   });
 
   it("accepts every palette mode the editor can hold", () => {
-    for (const paletteMode of ["full", ...THREAD_BRAND_IDS]) {
+    for (const paletteMode of ["full", ...SEEDED_SYSTEM_NAMES.map((s) => s.key)]) {
       expect(settingsError(requestFrom({ paletteMode })), `paletteMode ${paletteMode}`).toBeNull();
     }
   });
@@ -136,6 +139,8 @@ describe("processor settings validation", () => {
     expect(settingsError(requestFrom({ longerSideStitches: 10.5 }))).toMatch(/longerSideStitches/);
     expect(settingsError(requestFrom({ colorCount: 1 }))).toMatch(/colorCount/);
     expect(settingsError(requestFrom({ paletteMode: "sparkle" }))).toMatch(/paletteMode/);
+    expect(settingsError(requestFrom({ paletteMode: "dmc", threadSystems: [] }))).toMatch(/paletteMode/);
+    expect(settingsError(requestFrom({ threadSystems: [{ key: "dmc", threads: [["1", "", "red"]] }] }))).toMatch(/threadSystems/);
     expect(settingsError(requestFrom({ edgeMode: "soft" }))).toMatch(/edgeMode/);
     expect(settingsError(requestFrom({ ditherMode: "halftone-spiral" }))).toMatch(/ditherMode/);
     expect(settingsError("not an object")).toMatch(/JSON object/);

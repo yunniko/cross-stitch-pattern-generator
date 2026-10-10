@@ -246,6 +246,15 @@ fn dither_patterns(file: &str) {
     println!("wrote {} dither patterns to {file}", PATTERNS.len());
 }
 
+/// An options argument: the JSON itself, or `@path` for a file holding it. A request carrying thread systems (G-132)
+/// outgrows what a command line may hold on some systems, so the harnesses write it to a file.
+fn options_text(arg: &str) -> String {
+    match arg.strip_prefix('@') {
+        Some(path) => std::fs::read_to_string(path).expect("read options"),
+        None => arg.to_string(),
+    }
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     if args.len() == 3 && args[1] == "dither-previews" {
@@ -263,7 +272,8 @@ fn main() {
     if args.len() >= 6 && args[1] == "predict" {
         let data = std::fs::read(&args[2]).expect("read image");
         let (width, height): (usize, usize) = (args[3].parse().unwrap(), args[4].parse().unwrap());
-        let (options, _) = cs_core::json::parse_predict_options(&args[5]).expect("options");
+        let (options, _) =
+            cs_core::json::parse_predict_options(&options_text(&args[5])).expect("options");
         let image = Image {
             width,
             height,
@@ -286,7 +296,7 @@ fn main() {
     }
     if args.len() < 6 || args[1] != "generate" {
         eprintln!(
-            "usage: cs-bench generate <image.rgba> <width> <height> '<options json>' [repeat]"
+            "usage: cs-bench generate <image.rgba> <width> <height> '<options json>'|@<options file> [repeat]"
         );
         std::process::exit(2);
     }
@@ -298,7 +308,7 @@ fn main() {
         width * height * 4,
         "image is not width x height RGBA"
     );
-    let (build, threads) = parse_options(&args[5]).expect("options");
+    let (build, threads) = parse_options(&options_text(&args[5])).expect("options");
     let repeat: usize = args.get(6).map(|r| r.parse().expect("repeat")).unwrap_or(1);
     let image = Image {
         width,

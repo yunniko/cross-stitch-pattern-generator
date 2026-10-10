@@ -8,7 +8,7 @@ use crate::names::{name_colors, symbol_set};
 use crate::pattern::{BackstitchLine, PaletteColor, StitchPattern, ThreadSource};
 use crate::quantize::{mean_oklab_as_rgb, vivid_oklab_as_rgb};
 use crate::stitch_fit::Segment;
-use crate::threads::{apply_brand_palette, thread_for, thread_name, Brand};
+use crate::threads::{apply_brand_palette, thread_for, thread_name, System, ThreadSystem};
 
 /// Drops palette entries no cell uses: (compacted labels, the kept original indices).
 fn compact(labels: &[u8], palette_len: usize) -> (Vec<u8>, Vec<usize>) {
@@ -167,8 +167,8 @@ pub(super) fn chart(run: &mut Run, clock: &mut Clock) {
         thread_brand: options
             .palette_set
             .as_ref()
-            .and_then(|s| s.brand)
-            .map(|b| b.id()),
+            .and_then(|s| s.brand.as_ref())
+            .map(|b| b.key.clone()),
         edge_mode: run.crisp.then(|| options.edge_mode.id()),
         dither_mode: options.dither.as_ref().map(|pattern| pattern.id()),
         dither_settings: options
@@ -188,10 +188,10 @@ pub(super) fn chart(run: &mut Run, clock: &mut Clock) {
 }
 
 /// The thread brand the chart is matched to, when one is asked for. A chart made from a set has its threads already.
-fn brand_of(run: &Run) -> Option<Brand> {
+fn brand_of(run: &Run) -> Option<System> {
     match &run.options.palette_set {
-        Some(set) => set.brand,
-        None => run.options.brand,
+        Some(set) => set.brand.clone(),
+        None => run.options.brand.clone(),
     }
 }
 
@@ -200,7 +200,7 @@ pub(super) fn thread_brand(run: &mut Run, clock: &mut Clock) {
     if run.options.palette_set.is_some() {
         return;
     }
-    let Some(brand) = run.options.brand else {
+    let Some(brand) = run.options.brand.clone() else {
         return;
     };
     let pattern = run.pattern.take().expect("the chart stage ran");
@@ -208,7 +208,7 @@ pub(super) fn thread_brand(run: &mut Run, clock: &mut Clock) {
         let ctx = run.ctx();
         apply_brand_palette(
             pattern,
-            brand,
+            &brand,
             // A dithered chart skips the fine ICM re-run like the other smoothing passes: it would smooth the dither
             // straight back out (G-052 M3).
             run.smooth.then_some(&ctx),
@@ -225,7 +225,7 @@ const SAME_THREAD_DISTANCE_SQUARED: f64 = 0.07 * 0.07;
 /// The palette index of the thread a line colour is stitched in: an existing thread close enough to it (in a brand's
 /// palette, the very thread the colour snaps to), else a new one at the end of the palette, used by backstitch only.
 /// When the palette has no room left the nearest existing thread serves.
-fn line_thread(pattern: &mut StitchPattern, rgb: Rgb, brand: Option<Brand>) -> usize {
+fn line_thread(pattern: &mut StitchPattern, rgb: Rgb, brand: Option<&ThreadSystem>) -> usize {
     let symbols = symbol_set();
     let target = rgb_to_oklab(rgb);
     let nearest = |pattern: &StitchPattern| {
@@ -264,7 +264,7 @@ fn line_thread(pattern: &mut StitchPattern, rgb: Rgb, brand: Option<Brand>) -> u
         Some(brand) => {
             let (code, name, rgb) = thread_for(brand, rgb);
             let source = ThreadSource {
-                brand: brand.id().to_string(),
+                brand: brand.key.clone(),
                 code: code.clone(),
             };
             (rgb, thread_name(&code, &name), Some(source))
@@ -296,7 +296,7 @@ fn attach_stitches(
     pattern: &mut StitchPattern,
     segments: &[Segment],
     colors: &[Rgb],
-    brand: Option<Brand>,
+    brand: Option<&ThreadSystem>,
 ) {
     let threads: Vec<usize> = colors
         .iter()
@@ -318,7 +318,7 @@ pub(super) fn lay_overlays(run: &mut Run, _clock: &mut Clock) {
     let brand = brand_of(run);
     let mut pattern = run.pattern.take().expect("the chart stage ran");
     for laid in &run.laid {
-        attach_stitches(&mut pattern, &laid.segments, &laid.colors, brand);
+        attach_stitches(&mut pattern, &laid.segments, &laid.colors, brand.as_deref());
     }
     run.pattern = Some(pattern);
 }

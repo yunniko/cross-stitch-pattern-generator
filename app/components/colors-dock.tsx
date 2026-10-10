@@ -14,9 +14,9 @@ import {
   setColorThread,
 } from "@/lib/editor/pattern-edit";
 import {
-  THREAD_BRANDS,
-  THREAD_BRAND_IDS,
   formatThreadName,
+  loadedSystem,
+  systemLabel,
   isLoadedSystem,
   type ThreadBrand,
   type ThreadColor,
@@ -25,6 +25,7 @@ import { MAX_COLORS, type PaletteColor, type RGB, type StitchPattern } from "@/l
 import { DISMISS_RETARGET_ATTRIBUTE, useDismissOnOutsidePointer } from "../hooks/use-dismiss-on-outside-pointer";
 import { useLatest } from "../hooks/use-latest";
 import { ThreadRows, threadsSummary } from "./threads-pane";
+import { useThreadSystems } from "../thread-systems/thread-systems-context";
 import { ThreadFields } from "./thread-fields";
 import { PaletteLibrary } from "./palette-library";
 import { appendPalette, missingColors } from "@/lib/editor/palette-load";
@@ -40,15 +41,15 @@ const COMPARE_HINT = "Hover or focus a swatch to compare it with the current col
 /** A brand's thread line filtered by code or name substring, case-insensitive. */
 function filterBrandColors(query: string, brand: ThreadBrand): readonly ThreadColor[] {
   const q = query.trim().toLowerCase();
-  const colors = THREAD_BRANDS[brand].colors;
+  const colors = loadedSystem(brand)?.colors ?? [];
   if (!q) return colors;
   return colors.filter((c) => c.code.toLowerCase().includes(q) || c.name.toLowerCase().includes(q));
 }
 
-/** Anchor's colours are derived, and says so wherever its threads are chosen (G-029 AC4). */
-function DerivationNote({ brand }: { brand: ThreadBrand }) {
-  const { label, derivationNote } = THREAD_BRANDS[brand];
-  return derivationNote ? <p className="text-xs text-muted">{`${label} colors are ${derivationNote}.`}</p> : null;
+/** What a system's note says of its colours, wherever its threads are chosen: Anchor's are derived (G-029 AC4, G-132). */
+function SystemNote({ brand }: { brand: ThreadBrand }) {
+  const note = loadedSystem(brand)?.note;
+  return note ? <p className="text-xs text-muted">{note}</p> : null;
 }
 
 function countOf(n: number): string {
@@ -74,7 +75,7 @@ export function BrandColorPicker({ brand, query, onQueryChange, onPick, currentC
   const gridRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const [inspected, setInspected] = useState<ThreadColor | null>(null);
-  const label = THREAD_BRANDS[brand].label;
+  const label = systemLabel(brand);
 
   // Focus the search without scrolling the dock, then centre the current swatch inside the grid's own scroll area:
   // `scrollTop` on the grid, since scrollIntoView would also move the dock. Runs when the grid opens on a brand.
@@ -243,12 +244,10 @@ export function ColorsDock({
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [loaded, setLoaded] = useState<{ set: PaletteSet; name: string } | null>(null);
   const [paletteNote, setPaletteNote] = useState<string | null>(null);
-  // Under the feature switches (G-102): each brand is a feature.
+  // Under the feature switches (G-102): each system is a feature. The systems are the table's (G-132).
+  const systems = useThreadSystems();
   const modeOptions = useGatedOptions(
-    [
-      { value: "full" as const, label: "Full range" },
-      ...THREAD_BRAND_IDS.map((brand) => ({ value: brand, label: THREAD_BRANDS[brand].label })),
-    ],
+    [{ value: "full" as const, label: "Full range" }, ...systems.map((system) => ({ value: system.id, label: system.label }))],
     brandFeature
   );
   const editorPanelRef = useRef<HTMLDivElement>(null);
@@ -471,7 +470,7 @@ export function ColorsDock({
       <div ref={editorPanelRef} role="dialog" aria-label={`Edit color ${current.name}`} className={PANEL}>
         {/* Any system's thread may be any colour of any chart (G-131): the chart's own system only opens the editor on it. */}
         <SegmentedControl className="self-start" options={modeOptions} value={editing.mode} onChange={changeMode} />
-        {brandMode && <DerivationNote brand={brandMode} />}
+        {brandMode && <SystemNote brand={brandMode} />}
 
         {brandMode ? (
           <BrandColorPicker
@@ -627,7 +626,7 @@ export function ColorsDock({
           />
           {addMode !== "full" ? (
             <>
-              <DerivationNote brand={addMode} />
+              <SystemNote brand={addMode} />
               <BrandColorPicker
                 key={addMode}
                 brand={addMode}

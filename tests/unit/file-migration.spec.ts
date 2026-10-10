@@ -7,7 +7,8 @@ import { deserializePattern, parsePatternDocument, readFabric, serializePattern 
 import { decodeRecord } from "@/lib/editor/project-store";
 import { NO_SYMMETRY } from "@/lib/editor/symmetry-axes";
 import { exportWithRust } from "@/processor/rust-jobs";
-import { formatThreadName, THREAD_BRANDS } from "@/lib/threads/thread-brands";
+import { formatThreadName } from "@/lib/threads/thread-brands";
+import { seededColors } from "./helpers/thread-systems";
 import type { StitchPattern } from "@/lib/types";
 
 /**
@@ -25,7 +26,7 @@ process.env.CS_JOB_BINARY = path.join(
   process.platform === "win32" ? "cs-job.exe" : "cs-job"
 );
 
-const dmc = THREAD_BRANDS.dmc.colors;
+const dmc = seededColors("dmc");
 const cells = [0, 1, 0, 1, 255, 0];
 
 /** A chart of one layer exactly as the current version writes it (format 7, G-130 D390), with every optional field, in the writer's order. */

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { serializeOxs, serializeOxsBytes, serializeOxsParts } from "@/lib/editor/oxs";
-import { formatThreadName, THREAD_BRANDS } from "@/lib/threads/thread-brands";
+import { formatThreadName } from "@/lib/threads/thread-brands";
+import { seededColors } from "./helpers/thread-systems";
 import { EMPTY_CELL, type PaletteColor, type StitchPattern } from "@/lib/types";
 import { serializeOxsPreG046M4 } from "./reference/oxs-serialize-pre-g046m4";
 
@@ -11,7 +12,7 @@ import { serializeOxsPreG046M4 } from "./reference/oxs-serialize-pre-g046m4";
  */
 
 function chart(width: number, height: number, emptyAt: (x: number, y: number) => boolean, threads = false): StitchPattern {
-  const dmc = THREAD_BRANDS.dmc.colors;
+  const dmc = seededColors("dmc");
   const palette: PaletteColor[] = ["★", "A", "é", "∆"].map((symbol, i) =>
     threads
       ? { index: i, rgb: dmc[i].rgb, symbol, name: formatThreadName(dmc[i]), count: 0, source: { brand: "dmc", code: dmc[i].code } }

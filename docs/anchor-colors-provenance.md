@@ -1,5 +1,7 @@
 # `lib/anchor-colors.ts` — data provenance, license judgment call, and license
 
+**Where this data lives now (G-132, D400):** in the ThreadSystem table, as the site's `anchor` system, seeded by `prisma/migrations/20261010100000_thread_systems/migration.sql` together with its source and licence; the tests read the same list from `tests/fixtures/thread-systems/anchor.json`. The file names below are those of the time this was written.
+
 `DMC_TO_ANCHOR` (454 entries: a real DMC thread code mapped to its
 documented Anchor-equivalent code) and `ANCHOR_COLORS` (355 entries: a
 deduplicated, browsable Anchor-code + representative-RGB list) were built

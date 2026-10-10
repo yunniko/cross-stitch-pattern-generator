@@ -1,0 +1,120 @@
+import { storedSystem, THREAD_CODE_MAX, type ThreadSystemInfo } from "../threads/thread-brands";
+
+/**
+ * Thread systems as data (G-132, D400): what a system's list is, read and checked once for the table, the requests the
+ * server makes of the pipeline, and the browser's registry. Pure, so the admin's and a person's uploads (M3, M4) are
+ * checked by the same code as the seeded lists.
+ */
+
+/** A thread as stored and as the pipeline is handed it: its number, its name ("" for none) and its colour as "rrggbb". */
+export type ThreadRow = [code: string, name: string, hex: string];
+
+/** A system as a generation request carries it to the pipeline. */
+export interface RequestSystem {
+  key: string;
+  threads: ThreadRow[];
+}
+
+/**
+ * The site's systems the migration seeds, by key and name: the switches `brand.<key>` are declared from these until the
+ * admin's own systems have switches of their own (G-132 M3).
+ */
+export const SEEDED_SYSTEM_NAMES: readonly { key: string; label: string }[] = [
+  { key: "dmc", label: "DMC" },
+  { key: "cosmo", label: "Cosmo" },
+  { key: "anchor", label: "Anchor" },
+];
+
+/** The most threads one system may list (Owner, G-132): more than any maker's range. */
+export const MAX_THREADS = 2000;
+/** The longest thread name kept. */
+export const THREAD_NAME_MAX = 60;
+/** The most systems one request may carry: the palette mode's and those of a set's colours, which the server limits anyway. */
+export const MAX_REQUEST_SYSTEMS = 32;
+
+const HEX = /^[0-9a-f]{6}$/;
+const CONTROL = /[\u0000-\u001f\u007f]/;
+
+/** What is wrong with a list of threads, or null. Every code is unique, case aside, so a number finds one thread. */
+export function threadListRefusal(threads: unknown): string | null {
+  if (!Array.isArray(threads) || threads.length < 1 || threads.length > MAX_THREADS) {
+    return `A thread system lists between 1 and ${MAX_THREADS} threads.`;
+  }
+  const codes = new Set<string>();
+  for (const row of threads) {
+    if (!Array.isArray(row) || row.length !== 3 || !row.every((v) => typeof v === "string")) {
+      return "Each thread is its number, its name and its colour.";
+    }
+    const [code, name, hex] = row as string[];
+    if (code === "" || code.trim() !== code || code.length > THREAD_CODE_MAX || CONTROL.test(code)) {
+      return `A thread number is 1 to ${THREAD_CODE_MAX} characters: ${JSON.stringify(code.slice(0, 30))} is not one.`;
+    }
+    if (name.length > THREAD_NAME_MAX || CONTROL.test(name))
+      return `The name of thread ${code} is longer than ${THREAD_NAME_MAX} characters.`;
+    if (!HEX.test(hex)) return `The colour of thread ${code} is not a colour.`;
+    const folded = code.toLowerCase();
+    if (codes.has(folded)) return `Thread ${code} is listed twice.`;
+    codes.add(folded);
+  }
+  return null;
+}
+
+/** The `threadSystems` a generation request carries (put in by the server, never the browser): what is wrong, or null. */
+export function threadSystemsRefusal(value: unknown): string | null {
+  if (!Array.isArray(value) || value.length > MAX_REQUEST_SYSTEMS) {
+    return `threadSystems must be a list of at most ${MAX_REQUEST_SYSTEMS} thread systems.`;
+  }
+  const keys = new Set<string>();
+  for (const system of value) {
+    if (typeof system !== "object" || system === null) return "threadSystems must each be a key and its threads.";
+    const { key, threads } = system as Record<string, unknown>;
+    if (storedSystem(key) === undefined) return "threadSystems must each have a key of 1 to 40 characters.";
+    if (keys.has(key as string)) return `threadSystems names ${key as string} twice.`;
+    keys.add(key as string);
+    const refusal = threadListRefusal(threads);
+    if (refusal) return `threadSystems ${key as string}: ${refusal}`;
+  }
+  return null;
+}
+
+/** The keys of the systems a request carries. */
+export function requestSystemKeys(body: Record<string, unknown>): string[] {
+  return Array.isArray(body.threadSystems)
+    ? body.threadSystems.flatMap((s) => (typeof s === "object" && s !== null && typeof s.key === "string" ? [s.key] : []))
+    : [];
+}
+
+/** The systems a generation or prediction request names: its palette mode's, its set's, and those of its set's colours. */
+export function namedSystems(body: Record<string, unknown>): string[] {
+  const named = new Set<string>();
+  const add = (value: unknown) => {
+    const system = storedSystem(value);
+    if (system) named.add(system);
+  };
+  add(body.paletteMode);
+  const set = body.paletteSet;
+  if (typeof set === "object" && set !== null && !Array.isArray(set)) {
+    const s = set as Record<string, unknown>;
+    add(s.mode);
+    if (Array.isArray(s.colors))
+      for (const c of s.colors) if (typeof c === "object" && c !== null) add((c as Record<string, unknown>).system);
+  }
+  return [...named];
+}
+
+const hex = (rgb: readonly number[]) => rgb.map((c) => c.toString(16).padStart(2, "0")).join("");
+const rgb = (h: string): [number, number, number] => [
+  parseInt(h.slice(0, 2), 16),
+  parseInt(h.slice(2, 4), 16),
+  parseInt(h.slice(4, 6), 16),
+];
+
+/** A list as the registry holds it. */
+export function threadColors(rows: readonly ThreadRow[]): ThreadSystemInfo["colors"] {
+  return rows.map(([code, name, h]) => ({ code, name, rgb: rgb(h) }));
+}
+
+/** A registry list as rows. */
+export function threadRows(colors: ThreadSystemInfo["colors"]): ThreadRow[] {
+  return colors.map((c) => [c.code, c.name, hex(c.rgb)]);
+}

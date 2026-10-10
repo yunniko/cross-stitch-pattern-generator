@@ -38,16 +38,17 @@ model User {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  accounts     Account[]
-  sessions     Session[]
-  subscription Subscription?
-  consents     PurchaseConsent[]
-  withdrawals  Withdrawal[]
-  features     UserFeature[]
-  limits       UserLimit[]
-  charts       SavedChart[]
-  stamps       Stamp[]
-  palettes     Palette[]
+  accounts      Account[]
+  sessions      Session[]
+  subscription  Subscription?
+  consents      PurchaseConsent[]
+  withdrawals   Withdrawal[]
+  features      UserFeature[]
+  limits        UserLimit[]
+  charts        SavedChart[]
+  stamps        Stamp[]
+  palettes      Palette[]
+  threadSystems ThreadSystem[]
 
   @@index([role])
 }
@@ -481,6 +482,33 @@ model Palette {
 
   @@unique([userId, name])
   @@index([userId, updatedAt])
+}
+
+/// A thread system (G-132, D400): a maker's numbered threads as data, which generation snaps to and the editor picks
+/// from. A site system (no owner) is offered to everyone its `brand.<key>` switch allows; the three first ones are seeded
+/// by their migration. A person's own (an owner) is theirs alone, and goes with their account.
+model ThreadSystem {
+  id          String   @id @default(cuid())
+  /// What a chart stores as a colour's system ("dmc"), unique among the site's systems and among one person's.
+  key         String
+  label       String
+  /// What a person should know about the colours, shown beside the list.
+  note        String?
+  source      String?
+  licence     String?
+  /// The threads as JSON, `[[code, name, "rrggbb"], ...]` in the order a picker shows them (`threadListRefusal`).
+  threads     String
+  threadCount Int
+  /// The order the site's systems are offered in.
+  position    Int      @default(0)
+  ownerId     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  owner User? @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  // A site system's key is unique by a partial index in the migration: Postgres treats each null owner as distinct here.
+  @@unique([ownerId, key])
 }
 
 /// A version of a document the site publishes (G-128 M1, D383): the terms, the privacy policy, or the withdrawal

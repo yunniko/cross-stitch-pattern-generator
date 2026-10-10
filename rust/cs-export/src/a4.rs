@@ -1414,7 +1414,22 @@ pub fn zip_entry_name(name: &str) -> String {
 mod code_column_tests {
     use super::*;
 
+    /// The labels the app sends with a request (`systemLabels`), in the order it loads the systems.
+    fn labels() -> Vec<(String, String)> {
+        [("dmc", "DMC"), ("cosmo", "Cosmo"), ("anchor", "Anchor")]
+            .iter()
+            .map(|(k, l)| (k.to_string(), l.to_string()))
+            .collect()
+    }
+
+    /// A colour as an export sees it once the request's labels are applied.
     fn color(name: &str, source: Option<(&str, &str)>) -> Color {
+        let label = |brand: &str| {
+            labels()
+                .into_iter()
+                .find(|(k, _)| k == brand)
+                .map_or(brand.to_string(), |(_, l)| l)
+        };
         Color {
             index: 0,
             rgb: [0, 0, 0],
@@ -1424,6 +1439,7 @@ mod code_column_tests {
             source: source.map(|(brand, code)| crate::model::ThreadRef {
                 brand: brand.into(),
                 code: code.into(),
+                label: label(brand),
             }),
         }
     }
@@ -1477,7 +1493,7 @@ mod code_column_tests {
     }
 
     #[test]
-    fn the_thread_row_names_the_systems_in_use_in_catalogue_order() {
+    fn the_thread_row_names_the_systems_in_use_in_the_order_loaded() {
         let mut p = crate::model::Pattern::from_editable_json(
             r#"{"width":1,"height":1,"cellPalette":[0],"palette":[{"rgb":[0,0,0],"symbol":"A","name":"a"}]}"#,
         )
@@ -1494,6 +1510,7 @@ mod code_column_tests {
             color("321", Some(("dmc", "321"))),
             color("310", Some(("dmc", "310"))),
         ];
+        p.label_systems(&labels());
         assert_eq!(p.thread_systems(), vec!["DMC", "Anchor"]);
         // A system not loaded comes after the loaded ones, as the chart stores it (G-132).
         p.palette
