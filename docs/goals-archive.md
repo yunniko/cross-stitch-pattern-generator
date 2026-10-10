@@ -9,6 +9,7 @@ their last state in `GOALS.md`; decision references (Dnn) now resolve to
 (STANDARDS.md → Documentation). This page is the index: every completed goal, newest first, and the file
 holding it.
 
+- **G-132** · Thread systems as plugins: managed in the admin, uploaded by users, and never needed to open a chart — DONE (2026-10-10, deployed v0.26.0, Owner sign-off 2026-10-10) — [`G-131-to-G-140.md`](goals-archive/G-131-to-G-140.md)
 - **G-131** · Palettes: thread number and system on every colour, no brand lock, saved to the account, loaded into a chart — DONE (2026-10-10, deployed v0.25.0, Owner sign-off 2026-10-10) — [`G-131-to-G-140.md`](goals-archive/G-131-to-G-140.md)
 - **G-130** · Layers: stitches on separate layers, shown, hidden, ordered and merged in a Layers tab — DONE (2026-10-09, deployed v0.23.0, Owner sign-off 2026-10-09) — [`G-121-to-G-130.md`](goals-archive/G-121-to-G-130.md)
 - **G-129** · A subscriber's buttons: change plan, cancel, withdraw; proportionate refunds and the admin's refund buttons — DONE (2026-10-09, deployed v0.22.5, Owner sign-off 2026-10-09) — [`G-121-to-G-130.md`](goals-archive/G-121-to-G-130.md)
