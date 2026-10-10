@@ -1,3 +1,4 @@
+import { featureUsable, lockedNote, type Feature, type FeatureStates } from "../features/features";
 import { storedSystem, THREAD_CODE_MAX, type ThreadSystemInfo } from "../threads/thread-brands";
 
 /**
@@ -15,15 +16,65 @@ export interface RequestSystem {
   threads: ThreadRow[];
 }
 
+/** The group the systems' switches are listed under in the admin's feature lists. */
+export const THREAD_BRANDS_GROUP = "Thread brands";
+
 /**
- * The site's systems the migration seeds, by key and name: the switches `brand.<key>` are declared from these until the
- * admin's own systems have switches of their own (G-132 M3).
+ * Each site system is a feature of its own, `brand.<key>`, switched per site, set, tier and person like any other (G-132
+ * M3, D401). The systems are rows, not code, so their features are made from the rows wherever the list is shown.
  */
-export const SEEDED_SYSTEM_NAMES: readonly { key: string; label: string }[] = [
-  { key: "dmc", label: "DMC" },
-  { key: "cosmo", label: "Cosmo" },
-  { key: "anchor", label: "Anchor" },
-];
+export function systemFeatures(systems: readonly { key: string; label: string }[]): Feature[] {
+  return systems.map(({ key, label }) => ({ id: `brand.${key}`, group: THREAD_BRANDS_GROUP, label }));
+}
+
+/**
+ * A generation asking for a system this person may not use, refused by the system's name (`labels`, from its row), or
+ * null. A system not in `labels` is no switch's: the pipeline refuses it by name, having been given no list for it.
+ */
+export function systemRefusal(body: Record<string, unknown>, states: FeatureStates, labels: ReadonlyMap<string, string>): string | null {
+  const mode = body.paletteMode;
+  if (typeof mode !== "string" || mode === "full" || featureUsable(states, `brand.${mode}`)) return null;
+  return lockedNote(labels.get(mode) ?? mode);
+}
+
+/** The longest key: it is stored in charts and named in a feature id, so it stays short. */
+export const SYSTEM_KEY_MAX = 30;
+/** The longest name of a system. */
+export const SYSTEM_LABEL_MAX = 40;
+/** The longest note, source or licence. */
+export const SYSTEM_TEXT_MAX = 500;
+
+/**
+ * What is wrong with a new system's key, or null. Lower-case letters, digits and hyphens, so it is a valid feature id and
+ * reads the same in a file; never "full", the mode of no system. A key is never changed: charts store it.
+ */
+export function systemKeyRefusal(key: unknown): string | null {
+  if (typeof key !== "string" || !new RegExp(`^[a-z0-9][a-z0-9-]{0,${SYSTEM_KEY_MAX - 1}}$`).test(key) || key === "full") {
+    return `A key is 1 to ${SYSTEM_KEY_MAX} lower-case letters, digits and hyphens, and not "full".`;
+  }
+  return null;
+}
+
+/** A system's name, note, source and licence as entered: trimmed, with what is wrong with them, if anything. */
+export function systemDetails(input: {
+  label: unknown;
+  note?: unknown;
+  source?: unknown;
+  licence?: unknown;
+}): { label: string; note: string | null; source: string | null; licence: string | null } | { error: string } {
+  const text = (value: unknown) => (typeof value === "string" ? value.trim() : "");
+  const label = text(input.label);
+  if (label === "" || label.length > SYSTEM_LABEL_MAX || CONTROL.test(label)) {
+    return { error: `A name is 1 to ${SYSTEM_LABEL_MAX} characters.` };
+  }
+  const out = { label, note: null as string | null, source: null as string | null, licence: null as string | null };
+  for (const field of ["note", "source", "licence"] as const) {
+    const value = text(input[field]);
+    if (value.length > SYSTEM_TEXT_MAX) return { error: `The ${field} is longer than ${SYSTEM_TEXT_MAX} characters.` };
+    out[field] = value === "" ? null : value;
+  }
+  return out;
+}
 
 /** The most threads one system may list (Owner, G-132): more than any maker's range. */
 export const MAX_THREADS = 2000;

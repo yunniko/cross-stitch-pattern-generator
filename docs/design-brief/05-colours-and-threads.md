@@ -20,7 +20,7 @@ The thread systems are data the site holds, not part of the app (G-132): each is
 | **Cosmo** | 500 | Code only | Cosmo publishes no colour names |
 | **Anchor** | 355 | Code only | Its colours are those of each thread's documented DMC equivalent, not measured from Anchor threads |
 
-A thread system is matched like any other: a colour snaps to the nearest thread of the list chosen.
+A thread system is matched like any other: a colour snaps to the nearest thread of the list chosen. The admin adds, edits, downloads and deletes the site's systems, and each has a switch of its own (`10`).
 
 Any colour of any chart may be a thread of any system, or no thread at all: a chart is never locked to one system. A chart generated in a thread system remembers that system, which only decides where "+ Add" and the colour editor first open. A colour's thread is remembered by system and number, so it survives later changes to the thread tables. A number may also be typed by hand (below), and one that no table lists is kept as typed; a typed number never changes the colour. A system this site does not have (a file from another app, or a system since removed) is kept as the file names it ("Madeira"), up to 40 characters: the colour, its name, its system and its number all stay, and every export prints that name.
 

@@ -1,7 +1,8 @@
 import { featureUsable, type FeatureStates } from "@/lib/features/features";
 import { prisma } from "@/lib/prisma";
 import type { ThreadSystemInfo } from "@/lib/threads/thread-brands";
-import { namedSystems, threadColors, type RequestSystem, type ThreadRow } from "./thread-system";
+import { namedSystems, systemFeatures, threadColors, type RequestSystem, type ThreadRow } from "./thread-system";
+import type { Feature } from "@/lib/features/features";
 
 /**
  * Thread systems on the server (G-132, D400): read from the table on every use, never from the browser's registry, which
@@ -47,6 +48,11 @@ export async function requestSystemsFor(body: Record<string, unknown>, states: F
 export async function systemLabelsFor(): Promise<[string, string][]> {
   const rows = await prisma.threadSystem.findMany({ where: SITE, orderBy: [...ORDER], select: { key: true, label: true } });
   return rows.map((row) => [row.key, row.label]);
+}
+
+/** The site systems' switches (`brand.<key>`), for the admin's feature lists. */
+export async function systemFeaturesFor(): Promise<Feature[]> {
+  return systemFeatures((await systemLabelsFor()).map(([key, label]) => ({ key, label })));
 }
 
 /**

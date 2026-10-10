@@ -21,6 +21,8 @@ export interface FeatureStatesEditorProps {
   /** The site's resolved states, shown beside a person's or a set's own so the admin sees what "As the site" means. */
   site?: Record<string, FeatureState>;
   onChange: (entries: Array<{ featureId: string; state: StateChoice }>) => Promise<ActionResult>;
+  /** The features that are data, not code (the thread systems, `systemFeatures`), listed after the registry's. */
+  extra?: readonly Feature[];
   testId?: string;
 }
 
@@ -32,7 +34,7 @@ const TITLE: Record<StateChoice, string> = {
   site: "No state of its own: whatever the site says",
 };
 
-export function FeatureStatesEditor({ states, choices, site, onChange, testId }: FeatureStatesEditorProps) {
+export function FeatureStatesEditor({ states, choices, site, onChange, extra = [], testId }: FeatureStatesEditorProps) {
   const fallback: StateChoice = choices.includes("site") ? "site" : "on";
   const [pending, startTransition] = useTransition();
   const [shown, show] = useOptimistic(states, (current, entries: Array<{ featureId: string; state: StateChoice }>) => {
@@ -61,7 +63,7 @@ export function FeatureStatesEditor({ states, choices, site, onChange, testId }:
           {problem}
         </p>
       )}
-      {groupFeatures(FEATURES).map(({ group, features }) => {
+      {groupFeatures([...FEATURES, ...extra]).map(({ group, features }) => {
         const groupStates = new Set(features.map(stateOf));
         const groupValue = groupStates.size === 1 ? [...groupStates][0] : ("mixed" as const);
         return (

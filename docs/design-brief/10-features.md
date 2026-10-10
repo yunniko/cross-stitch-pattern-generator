@@ -16,7 +16,7 @@ A feature with no state set is On. A person's own state wins over their tier's s
 
 ## What is a feature
 
-The list is derived from what the editor has, so a new tool, export kind, generation setting, dither pattern, texture or thread brand appears in it by being added, unless it declares itself core. The groups, and what is in them today:
+The list is derived from what the editor has, so a new tool, export kind, generation setting, dither pattern or texture appears in it by being added, unless it declares itself core. A thread system is data the admin adds (`05`), and each of the site's has a switch of its own, named as the system is. The groups, and what is in them today:
 
 | Group | Features | Core (never switched) |
 |---|---|---|
@@ -33,7 +33,7 @@ The list is derived from what the editor has, so a new tool, export kind, genera
 | Generation | Choice of algorithm, Crisp edges, Dithering (as a whole), Vivid colour detail, Backstitch from lines (with "also in photographs" and the sensitivity), Set up palette, Texture strokes (with the density), Photo adjustment | The size, the colour count, the palette mode itself |
 | Dither patterns | Clustered dots, Rings, Lines (the four directions as one), Bayer 4×4, Bayer 8×8, Blue noise, Floyd–Steinberg, Atkinson, Hand-drawn (with its texture editing) | Off |
 | Textures | Classic, Pixel, Cell outline, Cell outline shaded, Cross 2 stitch textures; Natural linen and Counted canvas cloths | The plain canvas colour |
-| Thread brands | DMC, Cosmo, Anchor | Full range |
+| Thread brands | Each of the site's thread systems, by its name (DMC, Cosmo and Anchor to start) | Full range |
 
 Undo and Redo, opening a file, starting an empty grid, importing pixel art, the command list, Preferences and the keyboard cursor are core.
 
@@ -69,13 +69,17 @@ Every admin page refuses a visitor (to the sign-in) and a signed-in reader (to t
 | Feature sets | Make a set by name (up to 60 characters, unique); for each feature, As the site, On, Locked or Hidden, with what the site says shown beside As the site; delete a set no tier, and neither guests nor accounts, is given |
 | Tiers | Make a tier by name; give it one set or none; the number of people on it. Nothing is sold: a subscription is written by a billing goal to come |
 | A person | From the users list: their tier and its set named; for each feature, As the site, On, Locked or Hidden |
-| Changes | The latest thirty changes, newest first: when, the scope (site, audience, user, set, tier), what is now true, who made it |
+| Thread systems | The site's systems, each with its name, key, number of threads, a strip of its first colours, note, source, licence and when it last changed. Add one from a CSV or JSON file, or from a typed list (a number, a name and a colour a line); the list is checked as it is typed and a wrong line is named. Edit a system's name, note, source, licence and threads; its key is fixed, since charts store it. Download one as CSV or JSON, either of which reads back unchanged. Delete one after a second ask: its switches go with it, and charts keep its colours by number |
+| Changes | The latest thirty changes, newest first: when, the scope (site, audience, user, set, tier), what is now true, who made it. Thread systems' changes are in the Change log, under Thread systems |
 
 ## Limits and messages
 
 | Thing | Value |
 |---|---|
 | A set's or a tier's name | 1 to 60 characters, no line break; a set's name is unique |
+| A thread system's key | 1 to 30 lower-case letters, digits and hyphens, starting with a letter or digit; not "full"; unique among the site's |
+| A thread system's name; its note, source and licence | 1 to 40 characters; up to 500 each, optional |
+| A thread system's list | 1 to 2,000 threads, each number listed once (in any case); a file up to 512 KB |
 | Changes shown | 30 |
 | How long a browser keeps its states | 300 seconds unless set; 5 to 86,400 |
 | The note on a locked feature | "*Name* is not available to you." |

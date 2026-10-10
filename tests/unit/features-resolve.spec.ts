@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { REQUEST_WORKSPACES, exportRefusal, generationRefusal, workspaceRefusal } from "../../lib/features/request-check";
 import { isFeatureId } from "../../app/features/registry";
 import { resolveFeatures } from "../../lib/features/resolve";
+import { systemRefusal } from "../../lib/thread-systems/thread-system";
 
 /** G-102 M2: the states resolve person > tier > site, and the server refuses a request for a feature not usable. */
 
@@ -45,8 +46,6 @@ describe("the server's refusal", () => {
   it("refuses a generation that asks for a feature not usable, by its name, and lets one asking for nothing through", () => {
     expect(generationRefusal({ vivid: true }, states)).toBe("Vivid colour detail is not available to you.");
     expect(generationRefusal({ vivid: false }, states)).toBeNull();
-    expect(generationRefusal({ paletteMode: "cosmo" }, states)).toBe("Cosmo is not available to you.");
-    expect(generationRefusal({ paletteMode: "dmc" }, states)).toBeNull();
     expect(generationRefusal({ ditherMode: "lines-vertical" }, states)).toBe("Lines is not available to you.");
     expect(generationRefusal({ ditherMode: "bayer-4" }, states)).toBeNull();
     expect(generationRefusal({}, states)).toBeNull();
@@ -58,6 +57,15 @@ describe("the server's refusal", () => {
       "Texture strokes is not available to you."
     );
     expect(generationRefusal({ textureStrokes: false, textureDensity: 0.4 }, { "generation.textureStrokes": "hidden" })).toBeNull();
+  });
+
+  it("refuses a system switched off by the name its row gives it (G-132 M3)", () => {
+    const labels = new Map([["cosmo", "Cosmo"]]);
+    expect(systemRefusal({ paletteMode: "cosmo" }, states, labels)).toBe("Cosmo is not available to you.");
+    expect(systemRefusal({ paletteMode: "kreinik" }, { "brand.kreinik": "locked" }, labels)).toBe("kreinik is not available to you.");
+    expect(systemRefusal({ paletteMode: "dmc" }, states, labels)).toBeNull();
+    expect(systemRefusal({ paletteMode: "full" }, { "brand.full": "locked" }, labels)).toBeNull();
+    expect(systemRefusal({}, states, labels)).toBeNull();
   });
 
   it("refuses an export of a kind or with a texture not usable", () => {

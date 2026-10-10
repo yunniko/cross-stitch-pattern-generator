@@ -6,7 +6,6 @@ import { STITCH_TEXTURES } from "../export/stitch-texture-catalog";
 import { DITHER_MODES, ditherFeature, ditherLabel, type DitherMode } from "../pipeline/dither";
 import { GENERATION_SETTINGS } from "../pipeline/generation-settings";
 import { isNeutralAdjust } from "../pipeline/photo-adjust";
-import { SEEDED_SYSTEM_NAMES } from "../thread-systems/thread-system";
 import { generationSettingFeature } from "./declare";
 import { featureUsable, lockedNote, type FeatureStates } from "./features";
 
@@ -28,7 +27,6 @@ const LABELS: Record<string, string> = Object.fromEntries([
   ...DITHER_MODES.flatMap((mode) => (ditherFeature(mode) === null ? [] : [[ditherFeature(mode)!, ditherLabel(mode)]])),
   ...STITCH_TEXTURES.map((texture) => [`texture.stitch.${texture.id}`, `${texture.label} stitch texture`]),
   ...CANVAS_TEXTURES.map((texture) => [`texture.canvas.${texture.id}`, `${texture.label} cloth`]),
-  ...SEEDED_SYSTEM_NAMES.map(({ key, label }) => [`brand.${key}`, label]),
 ]);
 
 const note = (feature: string) => lockedNote(LABELS[feature] ?? feature);
@@ -82,10 +80,7 @@ export function generationRefusal(body: Record<string, unknown>, states: Feature
     const asksNothing = ASKS_NOTHING[setting.id] ?? (() => false);
     if (!asksNothing(value)) return note(feature);
   }
-  // A brand, and a dither pattern, are features of their own.
-  if (typeof body.paletteMode === "string" && body.paletteMode !== "full" && !featureUsable(states, `brand.${body.paletteMode}`)) {
-    return note(`brand.${body.paletteMode}`);
-  }
+  // A dither pattern is a feature of its own; so is a thread system, checked against its row (`systemRefusal`).
   if (typeof body.ditherMode === "string" && (DITHER_MODES as readonly string[]).includes(body.ditherMode)) {
     const feature = ditherFeature(body.ditherMode as DitherMode);
     if (feature !== null && !featureUsable(states, feature)) return note(feature);

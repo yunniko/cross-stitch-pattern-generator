@@ -13,7 +13,7 @@ import {
   setSiteFeaturesAction,
 } from "@/lib/admin/feature-actions";
 import type { ActionResult } from "@/lib/admin/feature-actions";
-import type { FeatureState } from "@/lib/features/features";
+import type { Feature, FeatureState } from "@/lib/features/features";
 import { FeatureStatesEditor } from "./feature-states-editor";
 import { LimitsEditor, type LimitLayerRow } from "./limits-editor";
 
@@ -26,13 +26,15 @@ export interface FeaturesAdminProps {
   changes: Array<{ id: string; scope: string; change: string; by: string; at: string }>;
   /** The limits each layer gives (G-108 M1): the site, guests, accounts and each tier. */
   limits: LimitLayerRow[];
+  /** The thread systems' switches, made from their rows (`systemFeatures`). */
+  systems: readonly Feature[];
 }
 
 const FIELD = "rounded-md border border-control-line bg-control px-3 py-1.5 text-sm text-ink outline-none focus:border-accent";
 const H1 = "m-0 text-lg font-semibold text-ink";
 const H2 = "m-0 text-base font-medium text-ink";
 
-export function FeaturesAdmin({ site, sets, tiers, changes, audiences, limits }: FeaturesAdminProps) {
+export function FeaturesAdmin({ site, sets, tiers, changes, audiences, limits, systems }: FeaturesAdminProps) {
   const [section, setSection] = useState<"site" | "audiences" | "sets" | "tiers" | "limits" | "changes">("site");
   const [chosenSet, setChosenSet] = useState<string | null>(sets[0]?.id ?? null);
   const [problem, setProblem] = useState<string | null>(null);
@@ -101,7 +103,13 @@ export function FeaturesAdmin({ site, sets, tiers, changes, audiences, limits }:
       )}
 
       {section === "site" && (
-        <FeatureStatesEditor testId="site-features" states={site} choices={["on", "locked", "hidden"]} onChange={setSiteFeaturesAction} />
+        <FeatureStatesEditor
+          testId="site-features"
+          states={site}
+          choices={["on", "locked", "hidden"]}
+          extra={systems}
+          onChange={setSiteFeaturesAction}
+        />
       )}
 
       {section === "sets" && (
@@ -171,6 +179,7 @@ export function FeaturesAdmin({ site, sets, tiers, changes, audiences, limits }:
                 states={set.entries}
                 site={site}
                 choices={["site", "on", "locked", "hidden"]}
+                extra={systems}
                 onChange={(entries) => setFeatureSetEntriesAction(set.id, entries)}
               />
             </div>

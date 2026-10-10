@@ -1,10 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_OPTIONS } from "@/lib/editor/workspace-storage";
 import { DITHER_MODES } from "@/lib/pipeline/dither";
-import { SEEDED_SYSTEM_NAMES } from "@/lib/thread-systems/thread-system";
 import { SIZE_PRESETS } from "@/lib/types";
 import { settingsError } from "@/processor/validate-settings";
-import { requestSystems } from "./helpers/thread-systems";
+import { requestSystems, SEEDED_SYSTEMS } from "./helpers/thread-systems";
 
 /**
  * The processor must accept what the editor actually sends (G-034 M3).
@@ -66,7 +65,7 @@ describe("processor settings validation", () => {
   });
 
   it("accepts every palette mode the editor can hold", () => {
-    for (const paletteMode of ["full", ...SEEDED_SYSTEM_NAMES.map((s) => s.key)]) {
+    for (const paletteMode of ["full", ...SEEDED_SYSTEMS.map((s) => s.id)]) {
       expect(settingsError(requestFrom({ paletteMode })), `paletteMode ${paletteMode}`).toBeNull();
     }
   });

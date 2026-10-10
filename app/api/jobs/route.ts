@@ -5,7 +5,8 @@ import { quotaForRoute } from "@/lib/limits/quota-server";
 import { generationRefusal, workspaceRefusal } from "@/lib/features/request-check";
 import { featureStatesFor } from "@/lib/features/server";
 import { parseBody } from "@/lib/server/parse-body";
-import { requestSystemsFor, withThreadSystems } from "@/lib/thread-systems/server";
+import { requestSystemsFor, systemLabelsFor, withThreadSystems } from "@/lib/thread-systems/server";
+import { systemRefusal } from "@/lib/thread-systems/thread-system";
 
 /**
  * Starts a generation (G-034 M2). The settings are forwarded as they arrive and validated by the processor, which is
@@ -35,7 +36,11 @@ export async function POST(req: Request): Promise<Response> {
   const userId = (await auth())?.user?.id ?? null;
   // The workspace first (G-103, D314): with Photo off nothing of it is served, whatever the settings ask.
   const states = await featureStatesFor(userId);
-  const refusal = workspaceRefusal("/api/jobs", states) ?? generationRefusal(parseBody(body), states);
+  const parsed = parseBody(body);
+  const refusal =
+    workspaceRefusal("/api/jobs", states) ??
+    generationRefusal(parsed, states) ??
+    systemRefusal(parsed, states, new Map(await systemLabelsFor()));
   if (refusal) return NextResponse.json({ error: refusal }, { status: 403 });
 
   // The thread systems it names, from the table and never from the browser (G-132, D400).

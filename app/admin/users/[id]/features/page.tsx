@@ -6,6 +6,7 @@ import { ENTITLEMENT_SELECT, hasTier } from "@/lib/billing/entitlement";
 import { billingPolicy } from "@/lib/settings/server";
 import { layerOver, limitDefaults, limitValuesOf } from "@/lib/limits/limits";
 import { LimitsEditor } from "@/app/admin/features/limits-editor";
+import { systemFeaturesFor } from "@/lib/thread-systems/server";
 import { UserFeatures } from "./user-features";
 
 /**
@@ -18,7 +19,7 @@ const STATE: Record<"ON" | "LOCKED" | "HIDDEN", FeatureState> = { ON: "on", LOCK
 
 export default async function AdminUserFeaturesPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [user, siteRows, siteLimits, accountLimits, policy] = await Promise.all([
+  const [user, siteRows, siteLimits, accountLimits, policy, systems] = await Promise.all([
     prisma.user.findUnique({
       where: { id },
       select: {
@@ -39,6 +40,7 @@ export default async function AdminUserFeaturesPage({ params }: { params: Promis
     prisma.siteLimit.findMany(),
     prisma.audienceLimit.findMany({ where: { audience: "accounts" } }),
     billingPolicy(),
+    systemFeaturesFor(),
   ]);
   if (!user) notFound();
   const tier = user.subscription?.tier ?? null;
@@ -65,6 +67,7 @@ export default async function AdminUserFeaturesPage({ params }: { params: Promis
         userId={user.id}
         states={Object.fromEntries(user.features.map((row) => [row.featureId, STATE[row.state]]))}
         site={Object.fromEntries(siteRows.map((row) => [row.featureId, STATE[row.state]]))}
+        systems={systems}
       />
       <h2 className="m-0 mt-4 text-base font-semibold text-ink">Limits</h2>
       <LimitsEditor

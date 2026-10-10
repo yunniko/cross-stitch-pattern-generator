@@ -11,6 +11,8 @@ export const SETTING_SCOPE = "SETTING";
 export const BILLING_SCOPE = "BILLING";
 /** A new version of one of the site's documents (G-128 M1, D383; `LEGAL_KINDS`). The subject is its kind. */
 export const LEGAL_SCOPE = "LEGAL";
+/** A site thread system added, changed or deleted (G-132 M3, D401). The subject is its key. */
+export const THREAD_SYSTEM_SCOPE = "THREADS";
 
 export const CHANGE_GROUPS = [
   { id: "users", label: "Users", scopes: [ACCOUNT_SCOPE, "USER"] },
@@ -19,6 +21,7 @@ export const CHANGE_GROUPS = [
   { id: "billing", label: "Billing", scopes: [BILLING_SCOPE] },
   { id: "settings", label: "Settings", scopes: [SETTING_SCOPE] },
   { id: "legal", label: "Documents", scopes: [LEGAL_SCOPE] },
+  { id: "threads", label: "Thread systems", scopes: [THREAD_SYSTEM_SCOPE] },
 ] as const;
 
 export type ChangeGroupId = (typeof CHANGE_GROUPS)[number]["id"];
@@ -38,9 +41,10 @@ export function groupLabelOf(scope: string): string {
   return CHANGE_GROUPS.find((group) => (group.scopes as readonly string[]).includes(scope))?.label ?? scope;
 }
 
-/** The scopes of the switches, which the Features page's own Changes tab shows: every one but a role, a login, billing, a setting or a document. */
+/** The scopes of the switches, which the Features page's own changes show: every one but a role, a login, billing, a setting, a document or a thread system. */
+const NOT_SWITCHES: readonly string[] = [ACCOUNT_SCOPE, SETTING_SCOPE, BILLING_SCOPE, LEGAL_SCOPE, THREAD_SYSTEM_SCOPE];
 export const FEATURE_SCOPES: readonly string[] = CHANGE_GROUPS.flatMap((group) => group.scopes).filter(
-  (scope) => scope !== ACCOUNT_SCOPE && scope !== SETTING_SCOPE && scope !== BILLING_SCOPE && scope !== LEGAL_SCOPE
+  (scope) => !NOT_SWITCHES.includes(scope)
 );
 
 /** "2026-10-07 16:58", in UTC, as the log lists a change. */

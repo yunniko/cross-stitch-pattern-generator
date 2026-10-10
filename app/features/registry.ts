@@ -6,14 +6,14 @@ import { featureShown, featureUsable, type Feature, type FeatureStates } from "@
 import { toolOffered, WORKSPACE_FEATURE_GROUP, WORKSPACES, type Workspace } from "@/lib/editor/workspaces";
 import { DITHER_MODES, ditherFeature, ditherLabel } from "@/lib/pipeline/dither";
 import { GENERATION_SETTINGS } from "@/lib/pipeline/generation-settings";
-import { SEEDED_SYSTEM_NAMES } from "@/lib/thread-systems/thread-system";
 import { COMMAND_DEFINITIONS } from "../commands/registry";
 import { TOOL_DEFINITIONS, toolDefinition, type Tool } from "../tools/registry";
 
 /**
  * The feature list (G-102): **every feature of the editor, derived from the registries that hold the features
- * themselves.** A tool, a command, an export kind, a generation setting, a dither pattern, a texture or a thread brand
- * appears here by being declared where it lives, with no edit to this file or to the admin page that reads it.
+ * themselves.** A tool, a command, an export kind, a generation setting, a dither pattern or a texture appears here by
+ * being declared where it lives, with no edit to this file or to the admin page that reads it. A thread system is data,
+ * and its feature is made from its row (`systemFeatures`).
  *
  * The id of a feature is stable and dotted by its source. A thing may say which feature it is under (`feature` on its
  * declaration, `FeatureDeclaration`): its own, none (core, never switched), or another's.
@@ -98,8 +98,8 @@ function build(): Feature[] {
   for (const texture of STITCH_TEXTURES)
     add({ id: `texture.stitch.${texture.id}`, group: "Textures", label: `${texture.label} stitch texture` });
   for (const texture of CANVAS_TEXTURES) add({ id: `texture.canvas.${texture.id}`, group: "Textures", label: `${texture.label} cloth` });
-
-  for (const { key, label } of SEEDED_SYSTEM_NAMES) add({ id: `brand.${key}`, group: "Thread brands", label });
+  // The thread systems are rows, not code: their features (`brand.<key>`) are made from the rows where the list is shown
+  // (`systemFeatures`, G-132 M3).
 
   return features;
 }

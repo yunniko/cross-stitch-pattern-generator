@@ -3,6 +3,7 @@ import type { FeatureState } from "@/lib/features/features";
 import { FEATURE_SCOPES } from "@/lib/admin/change-log";
 import { latestChanges } from "@/lib/admin/change-log-data";
 import { ACCOUNT_LIMITS, layerOver, limitDefaults, limitValuesOf } from "@/lib/limits/limits";
+import { systemFeaturesFor } from "@/lib/thread-systems/server";
 import { FeaturesAdmin } from "./features-admin";
 import type { LimitLayerRow } from "./limits-editor";
 
@@ -16,7 +17,7 @@ export const dynamic = "force-dynamic";
 const STATE: Record<"ON" | "LOCKED" | "HIDDEN", FeatureState> = { ON: "on", LOCKED: "locked", HIDDEN: "hidden" };
 
 export default async function AdminFeaturesPage() {
-  const [siteRows, sets, tiers, changes, audiences, siteLimits, audienceLimits] = await Promise.all([
+  const [siteRows, sets, tiers, changes, audiences, siteLimits, audienceLimits, systems] = await Promise.all([
     prisma.featureState.findMany(),
     prisma.featureSet.findMany({
       orderBy: { name: "asc" },
@@ -31,6 +32,7 @@ export default async function AdminFeaturesPage() {
     prisma.audienceSet.findMany(),
     prisma.siteLimit.findMany(),
     prisma.audienceLimit.findMany(),
+    systemFeaturesFor(),
   ]);
   const siteOwn = limitValuesOf(siteLimits);
   const site = layerOver(limitDefaults(), siteOwn);
@@ -81,6 +83,7 @@ export default async function AdminFeaturesPage() {
         audiences: set.audiences.map((entry) => entry.audience),
       }))}
       limits={limitRows}
+      systems={systems}
       audiences={Object.fromEntries(audiences.map((entry) => [entry.audience, entry.featureSetId]))}
       tiers={tiers.map((tier) => ({ id: tier.id, name: tier.name, featureSetId: tier.featureSetId, people: tier._count.subscriptions }))}
       changes={changes.map((change) => ({

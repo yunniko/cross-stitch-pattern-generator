@@ -47,6 +47,7 @@ describe("the Change log's groups (D348)", () => {
     expect(groupLabelOf("ACCOUNT")).toBe("Users");
     expect(groupLabelOf("SETTING")).toBe("Settings");
     expect(groupLabelOf("BILLING")).toBe("Billing");
+    expect(groupLabelOf("THREADS")).toBe("Thread systems");
     expect(groupLabelOf("OTHER")).toBe("OTHER");
   });
 
