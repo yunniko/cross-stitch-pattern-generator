@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-10-10 at cc26c0f; production runs cc26c0f, v0.26.0 (1,949 unit, Rust goldens 74, cargo test all ok at 2029f63; CI on 68ed14f: e2e 699 and 41)
+Last verified: 2026-10-10 at 4951b34; production runs cc26c0f, v0.26.0 (1,962 unit at 4951b34; 1,949 unit, Rust goldens 74, cargo test all ok at 2029f63; CI on 68ed14f: e2e 699 and 41)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab), live at
@@ -8,6 +8,8 @@ standalone Owner project (not svc-lab), live at
 goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 ## Current state
+
+**G-133, locked layers and the tries strip — ACTIVE, M1 and M2 done, M3 (release) next.** M1 (D403): a try made again with the same chart and settings is not stored twice, the existing one is chosen (`keepTry` in `lib/editor/tries.ts`); the current try is the one chosen while the chart still equals it (`currentTryId`), so every try is selectable; the strip has no Edit shortcut. M2 (D404): `LayerHeader.locked`, saved only when true (no format bump); a locked layer refuses drawing (`lib/editor/tool-layer.ts`, and `withLayerView` as the backstop), renaming, deleting and merging either way (`setLayerLocked`, `assertUnlocked` in `lib/document/layers.ts`); chart-wide edits (crop, move, palette) still apply to it. The lock is a toggle per row in `app/components/layers-pane.tsx`.
 
 **G-132, thread systems as plugins — signed off 2026-10-10, archived; deployed in v0.26.0.** M1 (D399): a colour's system is an open string: a loaded system is stored by its id, any other kept as written (`threadSystem`, `isLoadedSystem` and `systemLabel` in `lib/threads/thread-brands.ts`); every format keeps it, exports print it, and the colour editor opens such a colour in the common colour picker. M2 (D400): the systems are `ThreadSystem` rows seeded by the migration; pages load them through `app/thread-systems/thread-systems-context.tsx`; the job, prediction and export routes replace whatever the browser sent with the table's (`lib/thread-systems/server.ts`); Rust has no list of its own; Anchor is a plain list. M3 (D401): `/admin/thread-systems` adds, edits, downloads and deletes site systems (`lib/admin/thread-system-actions.ts`, files read by `lib/thread-systems/thread-list-file.ts`); each system's switch `brand.<key>` is made from its row (`systemFeatures`). M4 (D402): a person's own systems are `ThreadSystem` rows with an owner, keyed `my-<name>`, under the one switch `threads.custom` and the limit `threads.systems`; uploaded through `/api/thread-systems` (`lib/thread-systems/own-system.ts` pure, `own-server.ts` reads and writes), listed at `/account/thread-systems`, and offered by `app/thread-systems/own-system-choice.tsx` as "Yours" beside each system choice. M5: released and checked live, the seed included.
 
@@ -374,6 +376,7 @@ which the Pattern Keeper PDF shares and calls with backstitch switched off.)
 
 ## Next steps and open questions
 
+- **G-133** (locked layers, tries): M3 releases and deploys it under the standing approval; then the Owner signs off.
 - **G-131 (palettes) is signed off and archived (2026-10-10).** Not verified: how the Pattern Keeper app reads the new System and Number columns.
 - **G-130 (layers) is signed off and archived (2026-10-09).** Open for later: other layer kinds (bitmap, vector) join the registry in `lib/document/layer-kinds.ts`, each tool naming the kinds it works on (D390, D392).
 - **G-109 (counted limits) is signed off and archived (2026-10-09).** Every counted limit is unlimited; the values are the Owner's to set on the admin's Limits tab.
