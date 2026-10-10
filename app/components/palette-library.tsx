@@ -1,20 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { paletteFileName, paletteFileText, parsePaletteFile, type PaletteSet } from "@/lib/editor/palette-set";
-import {
-  readSavedPalettes,
-  withoutSavedPalette,
-  withSavedPalette,
-  writeSavedPalettes,
-  type SavedPalette,
-} from "@/lib/editor/saved-palettes";
 import { downloadBlob } from "@/lib/export/a4-export";
+import { PALETTES_FEATURE } from "@/lib/palettes/palette";
+import { lockedControlProps } from "./feature-gate";
+import { usePaletteAccount } from "./palette-account";
 import { PillButton } from "./ui";
 
 /**
- * Saving and loading palettes (G-087, G-131): by name, and as a palette file, the same on the generation page and the Edit
- * page. What a load does is the page's: Set up palette takes the palette as it is; the Edit page asks Append or Replace.
+ * Saving and loading palettes (G-087, G-131): by name to the account, and as a palette file, the same on the generation page
+ * and the Edit page. Signed out, a palette is saved as a file only (D398). What a load does is the page's: Set up palette
+ * takes the palette as it is; the Edit page asks Append or Replace.
  */
 
 export interface PaletteLibraryProps {
@@ -27,34 +24,37 @@ export interface PaletteLibraryProps {
   onNote: (note: string) => void;
 }
 
+const FIELD = "min-w-0 flex-1 rounded-md border border-line bg-sunken px-2 py-1 text-xs text-ink";
+
 export function PaletteLibrary({ palette, initialName = "", onLoad, onNote }: PaletteLibraryProps) {
-  const [saved, setSaved] = useState<SavedPalette[]>([]);
+  const account = usePaletteAccount();
   const [chosen, setChosen] = useState("");
   const [name, setName] = useState(initialName);
+  const [busy, setBusy] = useState(false);
 
-  // Read after mount: the server render has no browser storage.
-  // Deferred a microtask: a synchronous setState in an effect body is flagged by react-hooks/set-state-in-effect.
-  useEffect(() => {
-    void Promise.resolve().then(() => setSaved(readSavedPalettes()));
-  }, []);
-
-  function keep(list: SavedPalette[]) {
-    setSaved(list);
-    if (!writeSavedPalettes(list)) onNote("This browser would not keep the palette.");
+  /** The name to save under, or null after saying why there is none. */
+  function nameToSave(): string | null {
+    const trimmed = name.trim().slice(0, 60);
+    if (palette.colors.length === 0) onNote("Add a colour before saving.");
+    else if (!trimmed) onNote("Give the palette a name.");
+    else return trimmed;
+    return null;
   }
 
-  function save() {
-    const list = withSavedPalette(saved, name, palette);
-    if (!list) {
-      onNote(palette.colors.length === 0 ? "Add a colour before saving." : "Give the palette a name.");
-      return;
-    }
-    keep(list);
-    const savedName = name.trim().slice(0, 60);
-    setChosen(savedName);
-    // Kept in this browser for the list below, and written out as a file, the way to take a palette to another browser or share it.
+  function saveFile() {
+    const savedName = nameToSave();
+    if (!savedName) return;
     downloadBlob(new Blob([paletteFileText(palette, savedName)], { type: "application/json" }), paletteFileName(savedName));
-    onNote(`Saved “${savedName}” in this browser and downloaded it as a palette file.`);
+    onNote(`Downloaded “${savedName}” as a palette file.`);
+  }
+
+  async function run(work: () => Promise<string>) {
+    setBusy(true);
+    try {
+      onNote(await work());
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function importFile(file: File) {
@@ -68,55 +68,92 @@ export function PaletteLibrary({ palette, initialName = "", onLoad, onNote }: Pa
     onLoad(parsed.set, loadedName);
   }
 
+  const kept = account.kind === "account" ? (account.palettes ?? []) : [];
+  const found = kept.find((p) => p.id === chosen);
+
   return (
     <div className="flex flex-col gap-1.5" data-testid="palette-library">
-      <div className="flex gap-1.5">
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Name to save as"
-          aria-label="Palette name"
-          maxLength={60}
-          className="min-w-0 flex-1 rounded-md border border-line bg-sunken px-2 py-1 text-xs text-ink"
-        />
-        <PillButton size="xs" onClick={save}>
-          Save palette
+      <input
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="Palette name"
+        aria-label="Palette name"
+        maxLength={60}
+        className={FIELD}
+      />
+      <div className="flex flex-wrap gap-1.5">
+        {account.kind === "locked" && (
+          <PillButton size="xs" {...lockedControlProps("locked", PALETTES_FEATURE)}>
+            Save to account
+          </PillButton>
+        )}
+        {account.kind === "account" && (
+          <PillButton
+            size="xs"
+            disabled={busy}
+            onClick={() => {
+              const savedName = nameToSave();
+              if (savedName) void run(() => account.save(savedName, palette));
+            }}
+          >
+            Save to account
+          </PillButton>
+        )}
+        <PillButton size="xs" onClick={saveFile}>
+          Save as file
         </PillButton>
       </div>
-      {saved.length > 0 && (
+      {account.kind === "file" && !account.signedIn && (
+        <p className="text-[11px] leading-4 text-muted">Sign in to keep palettes with your account.</p>
+      )}
+
+      {account.kind === "account" && account.browserPalettes.length > 0 && (
+        // The one-time offer (Owner, 2026-10-10): palettes an earlier version kept in this browser, moved into the account.
+        <div className="flex flex-col gap-1.5 rounded-md border border-line p-2" data-testid="palette-move-offer">
+          <p className="text-[11px] leading-4 text-ink">
+            This browser keeps {account.browserPalettes.length} {account.browserPalettes.length === 1 ? "palette" : "palettes"} from before.
+            Move {account.browserPalettes.length === 1 ? "it" : "them"} into your account?
+          </p>
+          <div className="flex gap-1.5">
+            <PillButton size="xs" disabled={busy} onClick={() => void run(account.moveBrowserPalettes)}>
+              Move to account
+            </PillButton>
+            <PillButton size="xs" disabled={busy} onClick={account.declineMove}>
+              Leave them
+            </PillButton>
+          </div>
+        </div>
+      )}
+
+      {account.kind === "account" && account.error && <p className="text-[11px] leading-4 text-danger">{account.error}</p>}
+      {kept.length > 0 && account.kind === "account" && (
         <div className="flex gap-1.5">
-          <select
-            value={chosen}
-            onChange={(e) => setChosen(e.target.value)}
-            aria-label="Saved palettes"
-            className="min-w-0 flex-1 rounded-md border border-line bg-sunken px-2 py-1 text-xs text-ink"
-          >
-            <option value="">Saved palettes…</option>
-            {saved.map((p) => (
-              <option key={p.name} value={p.name}>
+          <select value={found ? chosen : ""} onChange={(e) => setChosen(e.target.value)} aria-label="Saved palettes" className={FIELD}>
+            <option value="">Your palettes…</option>
+            {kept.map((p) => (
+              <option key={p.id} value={p.id}>
                 {p.name} ({p.set.colors.length})
               </option>
             ))}
           </select>
           <PillButton
             size="xs"
-            disabled={!chosen}
+            disabled={!found}
             onClick={() => {
-              const found = saved.find((p) => p.name === chosen);
-              if (found) {
-                setName(found.name);
-                onLoad(found.set, found.name);
-              }
+              if (!found) return;
+              setName(found.name);
+              onLoad(found.set, found.name);
             }}
           >
             Load
           </PillButton>
           <PillButton
             size="xs"
-            disabled={!chosen}
+            disabled={!found || busy}
             onClick={() => {
-              keep(withoutSavedPalette(saved, chosen));
+              if (!found) return;
               setChosen("");
+              void run(() => account.remove(found.id));
             }}
           >
             Delete

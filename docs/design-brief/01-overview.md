@@ -104,7 +104,7 @@ While the preferences are open nothing behind them takes a key or a press; Escap
 | The open chart (with its photo) | The browser's own storage, one chart | Until replaced or the browser clears it | Saved automatically after changes; restored on the next visit; a damaged one is cleared with a notice and a report that can be downloaded |
 | The generation and display settings | The browser | Until cleared | Size, colour count, algorithm, palette mode and set, colour detail, edge mode, dithering and its texture, photo-adjustment values, canvas colour, canvas cloth, stitch texture, whether exports carry the canvas, text settings; each validated field by field and replaced by its default if invalid |
 | The preferences (below) | The browser | Until cleared | Validated and defaulted the same way |
-| Saved palettes (named sets of colours) | The browser | Until cleared | At most 50, names up to 60 characters |
+| Saved palettes (named sets of colours) | The account; signed out, a palette file only | Until deleted, or the account is | At most the person's palette limit (by default 100), one per name, names up to 60 characters; palettes an earlier version kept in the browser are offered once for moving into the account |
 | Anything else | The saved chart file | Wherever the person keeps it | The editable file carries the chart, the photo, symmetry axes, the colour set, photo adjustments and generation textures |
 
 A new photo for a new chart resets the photo-adjustment values and the colour set and sets the colour count to the recommendation for the new picture; regenerating the same picture resets none of them.

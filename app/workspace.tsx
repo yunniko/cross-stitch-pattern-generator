@@ -79,6 +79,7 @@ import { usePhotoEdits } from "./hooks/use-photo-edits";
 import { useWorkspaceOptions } from "./hooks/use-workspace-options";
 import { skinStyle } from "@/lib/skin/skin";
 import { ATELIER, SkinProvider } from "./skin/skin";
+import { PaletteAccountProvider } from "./components/palette-account";
 import { optionsInForce } from "@/lib/features/in-force";
 import { useFeatures } from "./features/features-context";
 
@@ -662,308 +663,311 @@ export default function Workspace({ account }: WorkspaceProps) {
 
   return (
     <SkinProvider skin={skin}>
-      <div className="flex h-screen flex-col bg-app font-sans text-ink" style={skinStyle(skin.colours)}>
-        {/* 1b draws no visible title, but the document still needs one heading: for assistive technology, and as the witness that the app booted. */}
-        <h1 className="sr-only">Cross-Stitch Pattern Generator</h1>
-        {commandListOpen && <CommandList commands={commands} onClose={closeCommandList} />}
-        {/* The browser's own settings, not the open chart's: a preference is what the next chart starts from. */}
-        {preferencesOpen && (
-          <Preferences options={browserOptions} pattern={pattern} onChange={updateOption} onClose={() => setPreferencesOpen(false)} />
-        )}
-        <FileInputs
-          photoRef={lifecycle.inputs.photo}
-          openRef={lifecycle.inputs.open}
-          pixelArtRef={lifecycle.inputs.pixelArt}
-          onPhoto={lifecycle.photoChosen}
-          onOpen={lifecycle.fileChosen}
-          onPixelArt={(file) => void lifecycle.pixelArtChosen(file)}
-          photoDisabled={source.isLoading || generation.isProcessing}
-        />
-        {stamps.naming && <StampNameDialog facts={stamps.naming.facts} onSave={stamps.naming.save} onCancel={stamps.naming.cancel} />}
-        {stamps.gallery && (
-          <StampGallery
-            stamps={stamps.gallery.stamps}
-            error={stamps.gallery.error}
-            placing={stamps.gallery.placing}
-            onChoose={(id) => stamps.gallery?.choose(id, placeChosenStamp)}
-            onClose={stamps.gallery.close}
+      {/* The palettes kept with the account (G-131 M4): one list for Set up palette and the Edit page. */}
+      <PaletteAccountProvider signedIn={account !== null}>
+        <div className="flex h-screen flex-col bg-app font-sans text-ink" style={skinStyle(skin.colours)}>
+          {/* 1b draws no visible title, but the document still needs one heading: for assistive technology, and as the witness that the app booted. */}
+          <h1 className="sr-only">Cross-Stitch Pattern Generator</h1>
+          {commandListOpen && <CommandList commands={commands} onClose={closeCommandList} />}
+          {/* The browser's own settings, not the open chart's: a preference is what the next chart starts from. */}
+          {preferencesOpen && (
+            <Preferences options={browserOptions} pattern={pattern} onChange={updateOption} onClose={() => setPreferencesOpen(false)} />
+          )}
+          <FileInputs
+            photoRef={lifecycle.inputs.photo}
+            openRef={lifecycle.inputs.open}
+            pixelArtRef={lifecycle.inputs.pixelArt}
+            onPhoto={lifecycle.photoChosen}
+            onOpen={lifecycle.fileChosen}
+            onPixelArt={(file) => void lifecycle.pixelArtChosen(file)}
+            photoDisabled={source.isLoading || generation.isProcessing}
           />
-        )}
-        {accountSave.conflict && (
-          <SaveConflict
-            savedAt={accountSave.conflict.savedAt}
-            onSaveCopy={accountSave.conflict.saveCopy}
-            onReplace={accountSave.conflict.replace}
-            onCancel={accountSave.conflict.cancel}
-          />
-        )}
-        {lifecycle.confirm && (
-          <ConfirmNewChart
-            pattern={lifecycle.confirm.pattern}
-            exportThenStart={gatedAction("file.export-editable", features, lifecycle.confirm.exportThenStart)}
-            onKeepEditing={lifecycle.confirm.keepEditing}
-            onStartNew={lifecycle.confirm.startNew}
-            pinnedTries={tries.pinnedCount}
-          />
-        )}
+          {stamps.naming && <StampNameDialog facts={stamps.naming.facts} onSave={stamps.naming.save} onCancel={stamps.naming.cancel} />}
+          {stamps.gallery && (
+            <StampGallery
+              stamps={stamps.gallery.stamps}
+              error={stamps.gallery.error}
+              placing={stamps.gallery.placing}
+              onChoose={(id) => stamps.gallery?.choose(id, placeChosenStamp)}
+              onClose={stamps.gallery.close}
+            />
+          )}
+          {accountSave.conflict && (
+            <SaveConflict
+              savedAt={accountSave.conflict.savedAt}
+              onSaveCopy={accountSave.conflict.saveCopy}
+              onReplace={accountSave.conflict.replace}
+              onCancel={accountSave.conflict.cancel}
+            />
+          )}
+          {lifecycle.confirm && (
+            <ConfirmNewChart
+              pattern={lifecycle.confirm.pattern}
+              exportThenStart={gatedAction("file.export-editable", features, lifecycle.confirm.exportThenStart)}
+              onKeepEditing={lifecycle.confirm.keepEditing}
+              onStartNew={lifecycle.confirm.startNew}
+              pinnedTries={tries.pinnedCount}
+            />
+          )}
 
-        {everyWorkspaceOff ? (
-          <NoWorkspace />
-        ) : (
-          <EditorLayout
-            appBar={
-              <AppBar
-                account={account}
-                chartName={chartShown ? (pattern.name ?? "cross-stitch-pattern") : null}
-                workspace={workspace}
-                onWorkspaceChange={chooseWorkspace}
-                workspaceOpen={(candidate) => workspaceOpen(candidate, workspaceConditions)}
-                history={
-                  photoStageShown
-                    ? { ...photoHistory, pieceInHand: false }
-                    : chartShown
+          {everyWorkspaceOff ? (
+            <NoWorkspace />
+          ) : (
+            <EditorLayout
+              appBar={
+                <AppBar
+                  account={account}
+                  chartName={chartShown ? (pattern.name ?? "cross-stitch-pattern") : null}
+                  workspace={workspace}
+                  onWorkspaceChange={chooseWorkspace}
+                  workspaceOpen={(candidate) => workspaceOpen(candidate, workspaceConditions)}
+                  history={
+                    photoStageShown
+                      ? { ...photoHistory, pieceInHand: false }
+                      : chartShown
+                        ? {
+                            canUndo: history.canUndo,
+                            canRedo: history.canRedo,
+                            undo: history.undo,
+                            redo: history.redo,
+                            pieceInHand: tools.piece.selection !== null,
+                          }
+                        : null
+                  }
+                  onNewChart={() => setStartingNew(true)}
+                  newChartDisabled={startScreenVisible}
+                  save={saveMenu}
+                  addStamp={{ onOpen: stamps.openGallery, unusable: addStampUnusable }}
+                  onOpenCommands={() => setCommandListOpen(true)}
+                  commandsDisabled={startingNew}
+                  commandsButtonRef={commandsButtonRef}
+                  onOpenPreferences={() => setPreferencesOpen(true)}
+                />
+              }
+              tools={
+                <ToolRail
+                  workspace={workspace}
+                  activeTool={activeTool}
+                  // In Photo the photo's own tools work on the photo alone, before any chart (G-124).
+                  disabled={!chartShown && !photoEditable}
+                  onSelect={switchTool}
+                  squareCanvas={pattern !== null && pattern.width === pattern.height}
+                  onMirror={applyMirror}
+                />
+              }
+              quickBar={
+                <QuickBar
+                  pattern={pattern}
+                  workspace={workspace}
+                  tool={{
+                    label: toolDefinition(activeTool).label,
+                    shares: tools.shares,
+                    options: tools.options,
+                    valueOf: (option) => readToolOption(options, option),
+                    onChange: (option, value) => {
+                      const written = writeToolOption(options, option, value);
+                      updateOption(written.key, written.value as never);
+                    },
+                    quick: tools.quick,
+                    quickCompact: tools.quickCompact,
+                  }}
+                  photo={{
+                    isLoading: source.isLoading,
+                    hasSource: source.hasPhoto,
+                    toolUp: photoEditable && toolDefinition(activeTool).workspace === "photo",
+                  }}
+                  colours={{ slots: colours.slots, onActivate: colours.setActiveSlot, onSwap: colours.swap }}
+                  symmetry={{
+                    axes: liveSymmetry,
+                    squareCanvas: pattern !== null && pattern.width === pattern.height,
+                    onToggle: symmetryState.toggle,
+                  }}
+                  lock={{ on: options.lockTransparency, onChange: (on) => updateOption("lockTransparency", on) }}
+                  start={{ startingNew, photoDrop: dropPhoto !== null, onBackToChart: () => setStartingNew(false) }}
+                />
+              }
+              notices={
+                <WorkspaceNotices
+                  restoreFailure={lifecycle.restore.failure}
+                  onDownloadRestoreReport={() =>
+                    lifecycle.restore.failure && downloadPatternLoadReport({ content: lifecycle.restore.failure.payload })
+                  }
+                  onDismissRestoreFailure={lifecycle.restore.dismissFailure}
+                  openError={lifecycle.messages.openError}
+                  onDismissOpenError={lifecycle.messages.dismissOpenError}
+                  openNotice={lifecycle.messages.openNotice}
+                  onDismissOpenNotice={lifecycle.messages.dismissOpenNotice}
+                  exportError={exports.exportError}
+                  onDismissExportError={exports.dismissExportError}
+                  accountSaveMessage={accountSave.message}
+                  onDismissAccountSaveMessage={accountSave.dismissMessage}
+                  stampMessage={stamps.message}
+                  onDismissStampMessage={stamps.dismissMessage}
+                />
+              }
+              stage={
+                <ImageWindow
+                  refs={{ scroller: scrollerRef, frame: frameRef, canvas: canvasRef, hoverCanvas: hoverCanvasRef }}
+                  chart={{
+                    pattern,
+                    cellSize,
+                    sourceMeta: source.meta,
+                    view: view.shown,
+                    activeTool,
+                    activeColorIndex,
+                    cursorHidden: hoverOutline !== null,
+                    lookingOnly: !editing,
+                    zoomsOut: readToolOption(options, ZOOM_DIRECTION) === "out",
+                  }}
+                  start={{
+                    visible: startScreenVisible,
+                    startingNew,
+                    isLoadingImage: source.isLoading,
+                    choosePhoto: gatedAction("file.choose-photo", features, lifecycle.choosePhoto),
+                    dropPhoto,
+                    onCreateBlank: lifecycle.createBlank,
+                    onImportPixelArt: lifecycle.choosePixelArt,
+                    onOpenPatternFile: lifecycle.chooseFile,
+                  }}
+                  preview={renderer}
+                  adjust={adjustPreview}
+                  photoStage={
+                    photoStageShown && source.pixelBuffer
                       ? {
-                          canUndo: history.canUndo,
-                          canRedo: history.canRedo,
-                          undo: history.undo,
-                          redo: history.redo,
-                          pieceInHand: tools.piece.selection !== null,
+                          pixelSize: { width: source.pixelBuffer.width, height: source.pixelBuffer.height },
+                          selection: photoEdits.selection,
+                          onPress: activeTool === "photo-wand" ? tools.photoPress : null,
                         }
                       : null
-                }
-                onNewChart={() => setStartingNew(true)}
-                newChartDisabled={startScreenVisible}
-                save={saveMenu}
-                addStamp={{ onOpen: stamps.openGallery, unusable: addStampUnusable }}
-                onOpenCommands={() => setCommandListOpen(true)}
-                commandsDisabled={startingNew}
-                commandsButtonRef={commandsButtonRef}
-                onOpenPreferences={() => setPreferencesOpen(true)}
-              />
-            }
-            tools={
-              <ToolRail
-                workspace={workspace}
-                activeTool={activeTool}
-                // In Photo the photo's own tools work on the photo alone, before any chart (G-124).
-                disabled={!chartShown && !photoEditable}
-                onSelect={switchTool}
-                squareCanvas={pattern !== null && pattern.width === pattern.height}
-                onMirror={applyMirror}
-              />
-            }
-            quickBar={
-              <QuickBar
-                pattern={pattern}
-                workspace={workspace}
-                tool={{
-                  label: toolDefinition(activeTool).label,
-                  shares: tools.shares,
-                  options: tools.options,
-                  valueOf: (option) => readToolOption(options, option),
-                  onChange: (option, value) => {
-                    const written = writeToolOption(options, option, value);
-                    updateOption(written.key, written.value as never);
-                  },
-                  quick: tools.quick,
-                  quickCompact: tools.quickCompact,
-                }}
-                photo={{
-                  isLoading: source.isLoading,
-                  hasSource: source.hasPhoto,
-                  toolUp: photoEditable && toolDefinition(activeTool).workspace === "photo",
-                }}
-                colours={{ slots: colours.slots, onActivate: colours.setActiveSlot, onSwap: colours.swap }}
-                symmetry={{
-                  axes: liveSymmetry,
-                  squareCanvas: pattern !== null && pattern.width === pattern.height,
-                  onToggle: symmetryState.toggle,
-                }}
-                lock={{ on: options.lockTransparency, onChange: (on) => updateOption("lockTransparency", on) }}
-                start={{ startingNew, photoDrop: dropPhoto !== null, onBackToChart: () => setStartingNew(false) }}
-              />
-            }
-            notices={
-              <WorkspaceNotices
-                restoreFailure={lifecycle.restore.failure}
-                onDownloadRestoreReport={() =>
-                  lifecycle.restore.failure && downloadPatternLoadReport({ content: lifecycle.restore.failure.payload })
-                }
-                onDismissRestoreFailure={lifecycle.restore.dismissFailure}
-                openError={lifecycle.messages.openError}
-                onDismissOpenError={lifecycle.messages.dismissOpenError}
-                openNotice={lifecycle.messages.openNotice}
-                onDismissOpenNotice={lifecycle.messages.dismissOpenNotice}
-                exportError={exports.exportError}
-                onDismissExportError={exports.dismissExportError}
-                accountSaveMessage={accountSave.message}
-                onDismissAccountSaveMessage={accountSave.dismissMessage}
-                stampMessage={stamps.message}
-                onDismissStampMessage={stamps.dismissMessage}
-              />
-            }
-            stage={
-              <ImageWindow
-                refs={{ scroller: scrollerRef, frame: frameRef, canvas: canvasRef, hoverCanvas: hoverCanvasRef }}
-                chart={{
-                  pattern,
-                  cellSize,
-                  sourceMeta: source.meta,
-                  view: view.shown,
-                  activeTool,
-                  activeColorIndex,
-                  cursorHidden: hoverOutline !== null,
-                  lookingOnly: !editing,
-                  zoomsOut: readToolOption(options, ZOOM_DIRECTION) === "out",
-                }}
-                start={{
-                  visible: startScreenVisible,
-                  startingNew,
-                  isLoadingImage: source.isLoading,
-                  choosePhoto: gatedAction("file.choose-photo", features, lifecycle.choosePhoto),
-                  dropPhoto,
-                  onCreateBlank: lifecycle.createBlank,
-                  onImportPixelArt: lifecycle.choosePixelArt,
-                  onOpenPatternFile: lifecycle.chooseFile,
-                }}
-                preview={renderer}
-                adjust={adjustPreview}
-                photoStage={
-                  photoStageShown && source.pixelBuffer
-                    ? {
-                        pixelSize: { width: source.pixelBuffer.width, height: source.pixelBuffer.height },
-                        selection: photoEdits.selection,
-                        onPress: activeTool === "photo-wand" ? tools.photoPress : null,
-                      }
-                    : null
-                }
-                pointer={{
-                  onDown: handleCanvasPointerDown,
-                  onMove: handleCanvasPointerMove,
-                  onUp: handleCanvasPointerUp,
-                  onLeave: () => updateHoverOutline(null),
-                  onDoubleClick: tools.onDoubleClick,
-                  onDrop: handleCanvasDrop,
-                }}
-                options={options}
-                cropOverlay={startingNew ? null : tools.overlay}
-                marks={
-                  // Where the pages of a paged export fall, while that export is the one chosen.
-                  workspace === "export" && chartShown && paginatesAsA4(exports.exportKind) && exports.a4LayoutPreview ? (
-                    <PageCuts pages={exports.a4LayoutPreview.pages} cellSize={cellSize} lettered={exports.exportKind.startsWith("a4-")} />
-                  ) : null
-                }
-              />
-            }
-            viewControls={
-              chartShown ? (
-                <ViewControls
-                  awayRef={viewControlsRef}
-                  chosen={view.chosenView}
-                  shown={view.shown}
-                  onChange={view.chooseView}
-                  hasPhoto={pattern.sourceImage !== undefined}
-                  editing={editing}
-                  layerNote={editing ? tools.layerNote : null}
-                  isolate={lit.isolate}
-                  onIsolateChange={lit.setIsolate}
-                  litCount={lit.count}
-                  zoomLevel={panZoom.zoomLevel}
-                  onZoomIn={() => panZoom.zoomBy(ZOOM_STEP)}
-                  onZoomOut={() => panZoom.zoomBy(1 / ZOOM_STEP)}
-                  onResetZoom={panZoom.resetZoom}
+                  }
+                  pointer={{
+                    onDown: handleCanvasPointerDown,
+                    onMove: handleCanvasPointerMove,
+                    onUp: handleCanvasPointerUp,
+                    onLeave: () => updateHoverOutline(null),
+                    onDoubleClick: tools.onDoubleClick,
+                    onDrop: handleCanvasDrop,
+                  }}
+                  options={options}
+                  cropOverlay={startingNew ? null : tools.overlay}
+                  marks={
+                    // Where the pages of a paged export fall, while that export is the one chosen.
+                    workspace === "export" && chartShown && paginatesAsA4(exports.exportKind) && exports.a4LayoutPreview ? (
+                      <PageCuts pages={exports.a4LayoutPreview.pages} cellSize={cellSize} lettered={exports.exportKind.startsWith("a4-")} />
+                    ) : null
+                  }
                 />
-              ) : null
-            }
-            strip={
-              workspace === "photo" && chartShown && !photoFree ? (
-                <TriesStrip
-                  tries={tries.tries}
-                  currentId={currentTryId}
-                  busy={generation.isProcessing}
-                  refusal={tries.refusal}
-                  onChoose={showTry}
-                  onPin={tries.pin}
-                  onUnpin={tries.unpin}
-                  onDelete={tries.remove}
-                  onEdit={gatedAction("view.workspace-edit", features, () => chooseWorkspace("edit"))}
+              }
+              viewControls={
+                chartShown ? (
+                  <ViewControls
+                    awayRef={viewControlsRef}
+                    chosen={view.chosenView}
+                    shown={view.shown}
+                    onChange={view.chooseView}
+                    hasPhoto={pattern.sourceImage !== undefined}
+                    editing={editing}
+                    layerNote={editing ? tools.layerNote : null}
+                    isolate={lit.isolate}
+                    onIsolateChange={lit.setIsolate}
+                    litCount={lit.count}
+                    zoomLevel={panZoom.zoomLevel}
+                    onZoomIn={() => panZoom.zoomBy(ZOOM_STEP)}
+                    onZoomOut={() => panZoom.zoomBy(1 / ZOOM_STEP)}
+                    onResetZoom={panZoom.resetZoom}
+                  />
+                ) : null
+              }
+              strip={
+                workspace === "photo" && chartShown && !photoFree ? (
+                  <TriesStrip
+                    tries={tries.tries}
+                    currentId={currentTryId}
+                    busy={generation.isProcessing}
+                    refusal={tries.refusal}
+                    onChoose={showTry}
+                    onPin={tries.pin}
+                    onUnpin={tries.unpin}
+                    onDelete={tries.remove}
+                    onEdit={gatedAction("view.workspace-edit", features, () => chooseWorkspace("edit"))}
+                  />
+                ) : null
+              }
+              readout={
+                <StatusBar
+                  pattern={startingNew ? null : composite}
+                  aidaCount={options.aidaCount}
+                  sizeUnit={options.sizeUnit}
+                  autosaveStatus={lifecycle.autosaveStatus}
+                  hasPattern={chartShown}
+                  scrollerRef={scrollerRef}
+                  frameRef={frameRef}
+                  cellSize={cellSize}
                 />
-              ) : null
-            }
-            readout={
-              <StatusBar
-                pattern={startingNew ? null : composite}
-                aidaCount={options.aidaCount}
-                sizeUnit={options.sizeUnit}
-                autosaveStatus={lifecycle.autosaveStatus}
-                hasPattern={chartShown}
-                scrollerRef={scrollerRef}
-                frameRef={frameRef}
-                cellSize={cellSize}
-              />
-            }
-            panel={
-              <WorkspacePanel
-                workspace={workspace}
-                pattern={pattern}
-                shown={composite}
-                chartShown={chartShown}
-                startingNew={startingNew}
-                photoFree={photoFree}
-                options={options}
-                onOptionChange={updateOption}
-                onChartOptionChange={updateChartOption}
-                edit={{
-                  tab: editTab,
-                  onTabChange: (tab) => {
-                    setToolTabClosedAt(tools.activation);
-                    chooseInspectorTab(tab);
-                  },
-                  toolTab: tools.tab && chartShown ? { ...tools.tab, shown: toolTabUp, onChoose: () => setToolTabClosedAt(-1) } : null,
-                  name: nameDraft,
-                  onNameChange: setNameDraft,
-                  onNameCommit: () => pattern && history.set(renamePattern(pattern, nameDraft)),
-                  commit: history.set,
-                  onPreviewChange: setColorPreview,
-                  onMergeColors: handleMergeColors,
-                  onReplacePalette: handleReplacePalette,
-                  documentId: lifecycle.documentId,
-                  layers: layers.tab,
-                }}
-                colours={colours}
-                lit={lit}
-                piece={tools.piece}
-                source={source}
-                generation={generation}
-                prediction={colorPrediction}
-                adjustPreview={adjustPreview}
-                photoEdit={{
-                  hasSelection: photoEdits.selection !== null,
-                  busy: photoEdits.busy,
-                  apply: () => photoEdits.apply(options.photoAdjust, () => updateOption("photoAdjust", NEUTRAL_ADJUST)),
-                  cancel: () => updateOption("photoAdjust", NEUTRAL_ADJUST),
-                  ...photoHistory,
-                  edited: !source.edits.isOriginal,
-                  restore: source.edits.restore,
-                }}
-                exports={exports}
-              />
-            }
-          />
-        )}
+              }
+              panel={
+                <WorkspacePanel
+                  workspace={workspace}
+                  pattern={pattern}
+                  shown={composite}
+                  chartShown={chartShown}
+                  startingNew={startingNew}
+                  photoFree={photoFree}
+                  options={options}
+                  onOptionChange={updateOption}
+                  onChartOptionChange={updateChartOption}
+                  edit={{
+                    tab: editTab,
+                    onTabChange: (tab) => {
+                      setToolTabClosedAt(tools.activation);
+                      chooseInspectorTab(tab);
+                    },
+                    toolTab: tools.tab && chartShown ? { ...tools.tab, shown: toolTabUp, onChoose: () => setToolTabClosedAt(-1) } : null,
+                    name: nameDraft,
+                    onNameChange: setNameDraft,
+                    onNameCommit: () => pattern && history.set(renamePattern(pattern, nameDraft)),
+                    commit: history.set,
+                    onPreviewChange: setColorPreview,
+                    onMergeColors: handleMergeColors,
+                    onReplacePalette: handleReplacePalette,
+                    documentId: lifecycle.documentId,
+                    layers: layers.tab,
+                  }}
+                  colours={colours}
+                  lit={lit}
+                  piece={tools.piece}
+                  source={source}
+                  generation={generation}
+                  prediction={colorPrediction}
+                  adjustPreview={adjustPreview}
+                  photoEdit={{
+                    hasSelection: photoEdits.selection !== null,
+                    busy: photoEdits.busy,
+                    apply: () => photoEdits.apply(options.photoAdjust, () => updateOption("photoAdjust", NEUTRAL_ADJUST)),
+                    cancel: () => updateOption("photoAdjust", NEUTRAL_ADJUST),
+                    ...photoHistory,
+                    edited: !source.edits.isOriginal,
+                    restore: source.edits.restore,
+                  }}
+                  exports={exports}
+                />
+              }
+            />
+          )}
 
-        {/*
+          {/*
         The navigator is gone from the interface (Owner, 2026-09-18), but three specs read this canvas as their way of
         seeing which stitches got painted -- one pixel per stitch, true colours, independent of zoom and scroll. It is
         kept off-screen rather than hidden, because `display:none` would stop the renderer painting it at all, while a
         backing store set directly by the renderer is unaffected by being positioned away. Since G-045 M5 the specs
         address it by `data-testid`, so neither this element's role nor its text is load-bearing.
       */}
-        <aside className="pointer-events-none fixed top-0 left-0 h-px w-px overflow-hidden">
-          Navigator
-          <canvas ref={navigatorCanvasRef} data-testid="navigator-raster" />
-        </aside>
-      </div>
+          <aside className="pointer-events-none fixed top-0 left-0 h-px w-px overflow-hidden">
+            Navigator
+            <canvas ref={navigatorCanvasRef} data-testid="navigator-raster" />
+          </aside>
+        </div>
+      </PaletteAccountProvider>
     </SkinProvider>
   );
 }

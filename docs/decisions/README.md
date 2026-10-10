@@ -434,3 +434,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D395 — A colour's thread is the person's: any system in any chart, typed numbers kept, a recolour keeps it — active
 - D396 — Every key prints System and Number columns, filled from each colour's own thread; the Pattern Keeper PDF re-pinned — active
 - D397 — A palette colour carries its own colour, name and thread; a set's mode only chooses what is offered — active
+- D398 — Saved palettes live in the account, one per name, limited by count; signed out, a file only — active

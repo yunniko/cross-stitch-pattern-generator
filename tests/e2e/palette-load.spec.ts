@@ -32,7 +32,7 @@ test("the Edit page saves the chart's palette with each colour's name, and Appen
   await openPalette(page);
   const before = await editButtons(page).count();
   await block(page).getByLabel("Palette name").fill("Mine");
-  const [download] = await Promise.all([page.waitForEvent("download"), block(page).getByRole("button", { name: "Save palette" }).click()]);
+  const [download] = await Promise.all([page.waitForEvent("download"), block(page).getByRole("button", { name: "Save as file" }).click()]);
   const saved = JSON.parse(await readFile((await download.path())!, "utf8"));
   expect(saved.version).toBe(2);
   expect(saved.colors).toHaveLength(before);
@@ -50,9 +50,8 @@ test("the Edit page saves the chart's palette with each colour's name, and Appen
   await undo(page).click();
   await expect(editButtons(page)).toHaveCount(before);
 
-  // The palette saved a moment ago is in the list, and holds nothing the chart lacks.
-  await block(page).getByLabel("Saved palettes").selectOption("Mine");
-  await block(page).getByRole("button", { name: "Load", exact: true }).click();
+  // The palette saved a moment ago holds nothing the chart lacks.
+  await block(page).getByLabel("Palette file").setInputFiles(paletteFile("Mine", saved.colors));
   await expect(page.getByTestId("palette-load-choice")).toContainText("all of them in this chart already");
   await expect(page.getByTestId("palette-load-choice").getByRole("button", { name: "Append" })).toBeDisabled();
 });
@@ -100,7 +99,7 @@ test("a chosen colour's name and thread are typed by hand while setting up, neve
   await expect(page.locator('[data-set-cell="0"]')).toHaveCSS("background-color", "rgb(51, 102, 153)");
 
   await page.getByLabel("Palette name").fill("Sea");
-  const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Save palette" }).click()]);
+  const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Save as file" }).click()]);
   const saved = JSON.parse(await readFile((await download.path())!, "utf8"));
   expect(saved.colors).toEqual([{ rgb: [51, 102, 153], name: "Sea", system: "anchor", number: "X1" }]);
 });

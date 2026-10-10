@@ -10,7 +10,7 @@ Values come from the code (constants in `lib/types.ts`, `processor/job-protocol.
 | Colours in the palette | 100 | Each has a one-character symbol; there are as many symbols as colours |
 | Colours asked of a generation | 2 to 100 | While a recommendation is known the upper end is lowered to it (never below 2); see `02` |
 | Colours chosen by hand for a generation | 1 to 100 | One palette mode per set |
-| Saved palettes | 50, names up to 60 characters | In the browser only |
+| Saved palettes | 100 by default (the admin's limit "Palettes kept"), names up to 60 characters | With the account, one per name; signed out, as a file only |
 | Photo for generating | JPEG, PNG or WebP; up to 25 MB; up to 50 million pixels | Refused while arriving (size) or before decoding (pixels) |
 | Pixel-art image to import | PNG, GIF, WebP or BMP | Imported exactly; refused, not repaired, if it cannot be one stitch per pixel |
 | Files that can be opened | `.json` (editable file), `.zip` and `.cspzip` (bundle of exports), `.oxs` | A file of another kind is refused with a message |

@@ -30,7 +30,7 @@ export interface Limit {
   label: string;
   /** What the admin is told about it, one sentence. */
   note: string;
-  unit: "MB" | "stamps" | "generations" | "exports";
+  unit: "MB" | "stamps" | "palettes" | "generations" | "exports";
   /** Set for a counted limit (G-109); absent for a size. */
   counted?: Counted;
   /** The site's value while the admin has set none. */
@@ -53,6 +53,14 @@ export const ACCOUNT_LIMITS: readonly Limit[] = [
     label: "Stamps kept",
     note: "The stamps a person keeps with their account may number up to this many.",
     unit: "stamps",
+    siteDefault: 100,
+    max: 1_000_000,
+  },
+  {
+    id: "palettes.count",
+    label: "Palettes kept",
+    note: "The palettes a person keeps with their account may number up to this many.",
+    unit: "palettes",
     siteDefault: 100,
     max: 1_000_000,
   },

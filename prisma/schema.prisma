@@ -47,6 +47,7 @@ model User {
   limits       UserLimit[]
   charts       SavedChart[]
   stamps       Stamp[]
+  palettes     Palette[]
 
   @@index([role])
 }
@@ -461,6 +462,24 @@ model Stamp {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId, updatedAt])
+}
+
+/// A palette kept with an account (G-131 M4, D398): its colours, their names and threads, as the palette file holds them.
+/// Private to its owner, one per name, counted against `palettes.count`, and deleted with the account.
+model Palette {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  /// The palette as data: `{ mode, colors: [{ rgb, name?, system?, number? }] }`, read back with `parseSet`.
+  data      String
+  colors    Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, name])
   @@index([userId, updatedAt])
 }
 

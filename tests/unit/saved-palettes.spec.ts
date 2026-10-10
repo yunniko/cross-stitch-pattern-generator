@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { EMPTY_SET } from "../../lib/editor/palette-set";
-import { readSavedPalettes, withoutSavedPalette, withSavedPalette, writeSavedPalettes } from "../../lib/editor/saved-palettes";
+import { readSavedPalettes, writeSavedPalettes } from "../../lib/editor/saved-palettes";
 
-/** G-087: palettes the user names and keeps in the browser. */
+/** G-087, G-131 M4: palettes an earlier version kept in the browser, read to be moved into the account. */
 
 function memory(initial?: string) {
   const data = new Map<string, string>(initial === undefined ? [] : [["cross-stitch:saved-palettes", initial]]);
@@ -12,28 +11,15 @@ function memory(initial?: string) {
   };
 }
 
-const rust = { mode: "full" as const, colors: [{ rgb: [170, 34, 0] as [number, number, number] }] };
+const rust = { mode: "full" as const, colors: [{ rgb: [170, 34, 0] as [number, number, number], name: "Rust" }] };
 
 describe("saved palettes", () => {
-  it("round trips through storage", () => {
+  it("round trips through storage, what is left after a move written back", () => {
     const storage = memory();
-    const list = withSavedPalette([], "Rust", rust);
-    expect(list).not.toBeNull();
-    expect(writeSavedPalettes(list!, storage)).toBe(true);
+    expect(writeSavedPalettes([{ name: "Rust", set: rust }], storage)).toBe(true);
     expect(readSavedPalettes(storage)).toEqual([{ name: "Rust", set: rust }]);
-  });
-
-  it("saving under an existing name replaces it; an empty name or set is refused", () => {
-    const first = withSavedPalette([], "Rust", rust)!;
-    const second = withSavedPalette(first, " Rust ", { mode: "full", colors: [{ rgb: [1, 2, 3] }] })!;
-    expect(second).toHaveLength(1);
-    expect(second[0].set.colors[0].rgb).toEqual([1, 2, 3]);
-    expect(withSavedPalette(first, "  ", rust)).toBeNull();
-    expect(withSavedPalette(first, "Empty", EMPTY_SET)).toBeNull();
-  });
-
-  it("deletes by name", () => {
-    expect(withoutSavedPalette(withSavedPalette([], "Rust", rust)!, "Rust")).toEqual([]);
+    expect(writeSavedPalettes([], storage)).toBe(true);
+    expect(readSavedPalettes(storage)).toEqual([]);
   });
 
   it("reads nothing, not an error, from absent, damaged or foreign storage; keeps what is valid", () => {

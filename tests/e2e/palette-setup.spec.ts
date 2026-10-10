@@ -105,23 +105,24 @@ test("in a thread brand the colours are threads, found by code", async ({ page }
   await expect(page.getByLabel(/Search Anchor threads/)).toBeVisible();
 });
 
-test("palettes are saved by name, loaded and deleted", async ({ page }) => {
+test("signed out, a palette is saved by name as a file only, and loads back from it", async ({ page }) => {
   await loadPhoto(page);
   await setupSwitch(page).click();
   await page.getByLabel("Colour to add").fill("#aa2200");
   await page.getByRole("button", { name: "Add colour" }).click();
+  await expect(page.getByRole("button", { name: "Save to account" })).toHaveCount(0);
+  await expect(page.getByText("Sign in to keep palettes with your account.")).toBeVisible();
   await page.getByLabel("Palette name").fill("Rust");
-  const [file] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Save palette" }).click()]);
+  const [file] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Save as file" }).click()]);
   expect(file.suggestedFilename()).toBe("Rust_palette.json");
+  const saved = path.join(test.info().outputDir, "Rust_palette.json");
+  await file.saveAs(saved);
 
   await page.getByRole("button", { name: "Clear" }).click();
   await expect(page.getByTestId("palette-set-count")).toHaveText("0");
-  await page.getByLabel("Saved palettes").selectOption("Rust");
-  await page.getByRole("button", { name: "Load", exact: true }).click();
-  await expect(page.getByTestId("palette-set-count")).toHaveText("1");
-
-  await page.getByRole("button", { name: "Delete" }).click();
   await expect(page.getByLabel("Saved palettes")).toHaveCount(0);
+  await page.getByLabel("Palette file").setInputFiles(saved);
+  await expect(page.getByTestId("palette-set-count")).toHaveText("1");
 });
 
 test("the Export dropdown writes a palette file with the chart's colours, and it loads back as a palette", async ({ page }) => {
