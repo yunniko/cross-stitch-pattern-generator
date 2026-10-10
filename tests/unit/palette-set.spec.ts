@@ -13,6 +13,8 @@ import {
   setRequest,
   threadColor,
   withColor,
+  withColorName,
+  withColorThread,
   withoutColor,
   type PaletteSet,
 } from "@/lib/editor/palette-set";
@@ -29,15 +31,21 @@ describe("a set of colours", () => {
     let set = dmc("310");
     set = withColor(set, threadColor("dmc", "321")!);
     set = withColor(set, threadColor("dmc", "321")!);
-    expect(set.colors.map((c) => c.code)).toEqual(["310", "321"]);
-    expect(withoutColor(set, 0).colors.map((c) => c.code)).toEqual(["321"]);
+    expect(set.colors.map((c) => c.source?.code)).toEqual(["310", "321"]);
+    expect(withoutColor(set, 0).colors.map((c) => c.source?.code)).toEqual(["321"]);
     let big: PaletteSet = { mode: "full", colors: [] };
     for (let i = 0; i < 150; i++) big = withColor(big, { rgb: [i, 0, 0] });
     expect(big.colors).toHaveLength(100);
   });
 
-  it("is named to the generation by code in a brand and by colour otherwise", () => {
-    expect(setRequest(dmc("310", "321"))).toEqual({ mode: "dmc", colors: [{ code: "310" }, { code: "321" }] });
+  it("is named to the generation by colour, name, system and number, whatever the set's mode (D397)", () => {
+    const black = threadColor("dmc", "310")!;
+    expect(setRequest(dmc("310"))).toEqual({ mode: "dmc", colors: [{ rgb: black.rgb, name: black.name, system: "dmc", number: "310" }] });
+    const mixed: PaletteSet = {
+      mode: "full",
+      colors: [black, { rgb: [5, 6, 7], name: "Moss", source: { brand: "anchor", code: "9999x" } }],
+    };
+    expect(setRequest(mixed).colors[1]).toEqual({ rgb: [5, 6, 7], name: "Moss", system: "anchor", number: "9999x" });
     expect(setRequest({ mode: "full", colors: [{ rgb: [1, 2, 3] }] })).toEqual({ mode: "full", colors: [{ rgb: [1, 2, 3] }] });
     expect(colorLabel({ rgb: [255, 0, 16] })).toBe("#ff0010");
     expect(colorLabel(threadColor("dmc", "310")!)).toMatch(/^310 - /);
@@ -51,7 +59,7 @@ describe("a set of colours", () => {
         { rgb: [200, 20, 20], cells: 3, thread: { code: "321", name: "Red" } },
       ],
     } as unknown as ColorPrediction;
-    expect(setFromPrediction(prediction, "dmc").colors.map((c) => c.code)).toEqual(["310", "321"]);
+    expect(setFromPrediction(prediction, "dmc").colors.map((c) => c.source?.code)).toEqual(["310", "321"]);
     expect(setFromPrediction(prediction, "full").colors.map((c) => c.rgb)).toEqual([
       [10, 10, 10],
       [12, 12, 12],
@@ -75,7 +83,36 @@ describe("the palette file", () => {
     }
   });
 
+  it("keeps each colour's own colour, name, system and number, mixed systems and typed numbers too (version 2, D397)", () => {
+    const set: PaletteSet = {
+      mode: "dmc",
+      colors: [
+        { rgb: [1, 1, 1], name: "Night", source: { brand: "dmc", code: "310" } },
+        { rgb: [200, 10, 10], source: { brand: "anchor", code: "47" } },
+        { rgb: [3, 4, 5], name: "Hand-dyed", source: { brand: "dmc", code: "X-12" } },
+        { rgb: [9, 9, 9], name: "Plain" },
+      ],
+    };
+    const text = paletteFileText(set, "mixed");
+    expect(JSON.parse(text).version).toBe(2);
+    expect(JSON.parse(text).colors[0]).toEqual({ system: "dmc", number: "310", name: "Night", rgb: [1, 1, 1] });
+    const back = parsePaletteFile(text);
+    expect("set" in back && back.set).toEqual(set);
+  });
+
+  it("still loads a version 1 file: a code in a brand's set takes the catalogue's colour and name", () => {
+    const v1 = JSON.stringify({ format: "cross-stitch-palette", version: 1, mode: "dmc", colors: [{ code: "310", name: "ignored" }] });
+    const back = parsePaletteFile(v1);
+    expect("set" in back && back.set.colors).toEqual([threadColor("dmc", "310")]);
+    const custom = JSON.stringify({ format: "cross-stitch-palette", version: 1, mode: "full", colors: [{ rgb: [1, 2, 3] }] });
+    expect(parsePaletteFile(custom)).toEqual({ set: { mode: "full", colors: [{ rgb: [1, 2, 3] }] } });
+  });
+
   it("refuses what is not a palette, with a reason", () => {
+    const v2 = (colors: unknown[]) => JSON.stringify({ format: "cross-stitch-palette", version: 2, mode: "full", colors });
+    expect(parsePaletteFile(v2([{ rgb: [1, 2, 3], system: "dmc" }]))).toHaveProperty("error");
+    expect(parsePaletteFile(v2([{ rgb: [1, 2, 3], system: "sparkle", number: "1" }]))).toHaveProperty("error");
+    expect(parsePaletteFile(v2([{ system: "dmc", number: "310" }]))).toHaveProperty("error");
     expect(parsePaletteFile("not json")).toHaveProperty("error");
     expect(parsePaletteFile(JSON.stringify({ format: "something-else" }))).toHaveProperty("error");
     expect(parsePaletteFile(JSON.stringify({ format: "cross-stitch-palette", mode: "dmc", colors: [{ code: "no-such" }] }))).toHaveProperty(
@@ -102,8 +139,8 @@ describe("the palette file", () => {
     } as unknown as StitchPattern;
     const set = setFromPattern(pattern);
     expect(set.mode).toBe("full");
-    expect(set.colors[0].code).toBe("310");
-    expect(set.colors[1]).toEqual({ rgb: [9, 9, 9] });
+    expect(set.colors[0]).toEqual({ rgb: [0, 0, 0], name: "310 - Black", source: { brand: "dmc", code: "310" } });
+    expect(set.colors[1]).toEqual({ rgb: [9, 9, 9], name: "Mine" });
   });
 });
 
@@ -135,6 +172,35 @@ describe("the set a chart carries", () => {
   it("keeps whether the chart was made from it", () => {
     const set = { ...dmc("310"), active: false };
     expect(parseGenerationPalette(generationPaletteData(set))).toEqual(set);
+  });
+});
+
+describe("a colour's name and thread, edited by hand (G-131)", () => {
+  const set: PaletteSet = { mode: "full", colors: [threadColor("dmc", "310")!, { rgb: [9, 9, 9], name: "Mine" }] };
+
+  it("a typed number never changes the colour, and a name made from the old number follows it", () => {
+    const next = withColorThread(set, 0, { brand: "anchor", code: "403" });
+    expect(next.colors[0].rgb).toEqual(set.colors[0].rgb);
+    expect(next.colors[0].source).toEqual({ brand: "anchor", code: "403" });
+    expect(next.colors[0].name).toBe(`403${set.colors[0].name!.slice(3)}`);
+    expect(withColorThread(set, 1, { brand: "dmc", code: "77" }).colors[1]).toEqual({
+      rgb: [9, 9, 9],
+      name: "Mine",
+      source: { brand: "dmc", code: "77" },
+    });
+    expect(withColorThread(set, 0, null).colors[0].source).toBeUndefined();
+  });
+
+  it("refuses a thread another colour is already, the number's case aside", () => {
+    const typed: PaletteSet = { mode: "full", colors: [{ rgb: [1, 1, 1], source: { brand: "dmc", code: "X1" } }, { rgb: [2, 2, 2] }] };
+    expect(withColorThread(typed, 1, { brand: "dmc", code: "x1" })).toBe(typed);
+  });
+
+  it("a name is kept trimmed, and an empty one goes back to the thread's", () => {
+    expect(withColorName(set, 1, "  Moss  ").colors[1].name).toBe("Moss");
+    const unnamed = withColorName(set, 0, " ");
+    expect(unnamed.colors[0].name).toBeUndefined();
+    expect(colorLabel(unnamed.colors[0])).toMatch(/^310 - /);
   });
 });
 
@@ -185,7 +251,7 @@ describe("QA 2026-10-04 fixes", () => {
   });
 
   it("a file from a newer version is refused, not half read", () => {
-    const file = JSON.stringify({ format: "cross-stitch-palette", version: 2, mode: "full", colors: [{ rgb: [1, 2, 3] }] });
+    const file = JSON.stringify({ format: "cross-stitch-palette", version: 3, mode: "full", colors: [{ rgb: [1, 2, 3] }] });
     expect(parsePaletteFile(file)).toEqual({ error: "That palette file was written by a newer version of this app." });
   });
 });

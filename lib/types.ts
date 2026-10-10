@@ -128,13 +128,15 @@ export interface BackstitchLine {
   paletteIndex: number;
 }
 
-/** A colour of a set the user chose for a generation (G-087): a thread by its code in a brand, a custom colour by its RGB otherwise. */
+/**
+ * A colour of a palette (G-087, G-131 D397): its colour, the name a chart shows for it, and the thread it is, of any system,
+ * listed or typed. The thread is what identifies it; a colour with none is known by its RGB.
+ */
 export interface PaletteSetColor {
-  /** The thread's code in a brand; absent for a custom colour. */
-  code?: string;
   rgb: RGB;
-  /** The thread's name, for showing; the code and the colour are what identify it. */
+  /** The name as a chart shows it ("321 - Red", or the user's own). Absent: the thread's catalogue name, or none. */
   name?: string;
+  source?: ThreadSwatchRef;
 }
 
 /**

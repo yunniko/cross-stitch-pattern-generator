@@ -9,7 +9,8 @@ use crate::threads::Brand;
 use serde::Deserialize;
 use serde_json::{json, Map, Value};
 
-/// A set of colours the chart is made from (G-087): the palette mode, and a colour each, by thread code in a brand or by RGB.
+/// A set of colours the chart is made from (G-087): the palette mode, and a colour each, by its RGB with its name and its
+/// thread of any system, typed or listed (G-131, D397), or by a listed thread's code in the set's brand.
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct PaletteSetOptions {
@@ -23,6 +24,12 @@ struct SetColorOptions {
     code: Option<String>,
     #[serde(default)]
     rgb: Option<[u8; 3]>,
+    #[serde(default)]
+    name: Option<String>,
+    #[serde(default)]
+    system: Option<String>,
+    #[serde(default)]
+    number: Option<String>,
 }
 
 impl PaletteSetOptions {
@@ -33,23 +40,52 @@ impl PaletteSetOptions {
         }
         let mut colors = Vec::new();
         for c in &self.colors {
-            colors.push(match (brand, &c.code, c.rgb) {
-                (Some(brand), Some(code), _) => {
-                    let (name, rgb) = crate::threads::thread_by_code(brand, code)
-                        .ok_or_else(|| format!("unknown {} thread {code}", self.mode))?;
+            let name = c.name.clone().filter(|n| !n.trim().is_empty());
+            colors.push(match (&c.system, &c.number, c.rgb) {
+                // A thread of any system with its own colour: a typed number never changes the colour (D397).
+                (Some(system), Some(number), Some(rgb)) => {
+                    let brand = Brand::from_mode(Some(system.as_str()), "thread system")?
+                        .ok_or_else(|| "a thread's system is a thread brand".to_string())?;
+                    let number = number.trim();
+                    if number.is_empty() {
+                        return Err("a thread needs its number".into());
+                    }
+                    let listed = crate::threads::thread_by_code(brand, number);
                     SetColor {
                         rgb,
-                        code: Some(code.clone()),
-                        label: crate::threads::thread_name(code, &name),
+                        source: Some((brand, number.to_string())),
+                        label: name.unwrap_or_else(|| match listed {
+                            Some((listed_name, _)) => {
+                                crate::threads::thread_name(number, &listed_name)
+                            }
+                            None => number.to_string(),
+                        }),
                     }
                 }
-                (Some(_), None, _) => return Err("a thread of a brand needs its code".into()),
-                (None, _, Some(rgb)) => SetColor {
-                    rgb,
-                    code: None,
-                    label: String::new(),
+                (Some(_), _, _) | (_, Some(_), _) => {
+                    return Err("a thread needs its system, its number and its rgb".into())
+                }
+                (None, None, rgb) => match (brand, &c.code, rgb) {
+                    (Some(brand), Some(code), _) => {
+                        let (listed_name, rgb) = crate::threads::thread_by_code(brand, code)
+                            .ok_or_else(|| format!("unknown {} thread {code}", self.mode))?;
+                        SetColor {
+                            rgb,
+                            source: Some((brand, code.clone())),
+                            label: name
+                                .unwrap_or_else(|| crate::threads::thread_name(code, &listed_name)),
+                        }
+                    }
+                    (_, _, Some(rgb)) => SetColor {
+                        rgb,
+                        source: None,
+                        label: name.unwrap_or_default(),
+                    },
+                    (Some(_), None, None) => {
+                        return Err("a thread of a brand needs its code".into())
+                    }
+                    (None, _, None) => return Err("a custom colour needs its rgb".into()),
                 },
-                (None, _, None) => return Err("a custom colour needs its rgb".into()),
             });
         }
         Ok(PaletteSet { brand, colors })

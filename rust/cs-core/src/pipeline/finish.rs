@@ -119,13 +119,10 @@ pub(super) fn chart(run: &mut Run, clock: &mut Clock) {
             let (name, source) = match &options.palette_set {
                 Some(set) => {
                     let chosen = &set.colors[used[original]];
-                    let source =
-                        set.brand
-                            .zip(chosen.code.as_ref())
-                            .map(|(brand, code)| ThreadSource {
-                                brand: brand.id(),
-                                code: code.clone(),
-                            });
+                    let source = chosen.source.as_ref().map(|(brand, code)| ThreadSource {
+                        brand: brand.id(),
+                        code: code.clone(),
+                    });
                     (
                         if chosen.label.is_empty() {
                             name

@@ -75,6 +75,19 @@ describe("checking a request", () => {
     );
   });
 
+  it("takes a set's colours with a name and any system's thread, typed numbers too, whatever the set's mode (G-131)", () => {
+    const set = (colors: unknown[]) => generationSettingsRefusal({ ...VALID, paletteMode: "dmc", paletteSet: { mode: "dmc", colors } });
+    expect(set([{ rgb: [1, 2, 3], name: "Moss", system: "anchor", number: "X-9" }, { code: "310" }, { rgb: [4, 5, 6] }])).toBeNull();
+    for (const bad of [
+      { rgb: [1, 2, 3], system: "dmc" },
+      { rgb: [1, 2, 3], system: "sparkle", number: "1" },
+      { system: "dmc", number: "310" },
+      { rgb: [1, 2, 3], name: "x".repeat(61) },
+    ]) {
+      expect(set([bad])).toMatch(/^paletteSet\.colors must each be/);
+    }
+  });
+
   it("refuses dithering with Crisp edges, and only once each is a valid value by itself", () => {
     const both = { ...VALID, ditherMode: "bayer-4", edgeMode: "crisp" };
     expect(generationSettingsRefusal(both)).toMatch(/^ditherMode cannot be combined with a Crisp edgeMode/);

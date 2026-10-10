@@ -48,8 +48,8 @@ export interface RunServerPatternJobOptions {
   /** Texture strokes over the stitches (G-085), and how many, 0 to 1. */
   textureStrokes?: boolean;
   textureDensity?: number;
-  /** A set of colours the chart is made from (G-087): the palette mode, and a code each in a brand or an RGB each otherwise. */
-  paletteSet?: { mode: string; colors: Array<{ code: string } | { rgb: RGB }> };
+  /** A set of colours the chart is made from (G-087): the palette mode, and each colour with its name and thread (D397). */
+  paletteSet?: { mode: string; colors: Array<{ rgb: RGB; name?: string; system?: string; number?: string }> };
   onProgress?: (fraction: number) => void;
   /** Called while the job is waiting for a worker, so the editor can say where in the queue it is rather than just "working". */
   onQueued?: (position: number, estimatedWaitMs: number) => void;

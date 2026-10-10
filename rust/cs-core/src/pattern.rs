@@ -63,12 +63,13 @@ pub struct BuildOptions {
     pub palette_set: Option<PaletteSet>,
 }
 
-/// A colour of a set the user chose: its colour, and in a thread brand its code and label.
+/// A colour of a set the user chose: its colour, its thread of any system (D397), and its name.
 #[derive(Clone, Debug)]
 pub struct SetColor {
     pub rgb: Rgb,
-    pub code: Option<String>,
-    /// The name the chart shows: "code - name" in a brand, empty for a custom colour (which is named from its colour).
+    pub source: Option<(Brand, String)>,
+    /// The name the chart shows: the user's, else "code - name" for a thread; empty for a custom colour with none (which is
+    /// named from its colour).
     pub label: String,
 }
 

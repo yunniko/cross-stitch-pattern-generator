@@ -3,6 +3,8 @@ import { layerKind, type ChartTransform } from "../document/layer-kinds";
 import { rebuilt } from "../document/layers";
 import type { ChartDocument } from "../document/types";
 import { EMPTY_CELL } from "../types";
+import { replaceMapping, replacePalette } from "./palette-load";
+import type { PaletteSet } from "./palette-set";
 import { mergeColors, resizeCanvas, shiftPattern } from "./pattern-edit";
 
 /**
@@ -33,6 +35,17 @@ export function mergeColorsInDocument(document: ChartDocument, sourceIndex: numb
   const remap = new Uint8Array(document.palette.length);
   for (let i = 0; i < remap.length; i++) remap[i] = i < sourceIndex ? i : i - 1;
   remap[sourceIndex] = targetIndex === EMPTY_CELL ? EMPTY_CELL : remap[targetIndex];
+  const layers = document.layers.map((layer) => layerKind(layer).remapColors(layer, remap));
+  return rebuilt(document, { layers, palette: flat.palette, backstitch: flat.backstitch });
+}
+
+/**
+ * The chart's palette replaced by a loaded one (G-131, D397) on every layer, hidden ones too: the flat chart's
+ * `replacePalette`, across the document. Each stitch keeps its kind and takes its colour's mapped one.
+ */
+export function replacePaletteInDocument(document: ChartDocument, set: PaletteSet): ChartDocument {
+  const flat = replacePalette(flatten(document), set);
+  const remap = Uint8Array.from(replaceMapping(document.palette, set));
   const layers = document.layers.map((layer) => layerKind(layer).remapColors(layer, remap));
   return rebuilt(document, { layers, palette: flat.palette, backstitch: flat.backstitch });
 }

@@ -7,7 +7,8 @@ import { WHATS_NEW_PATH } from "@/lib/app-version";
 import { useDrawingColours } from "./hooks/use-drawing-colours";
 import { useSymmetryAxes } from "./hooks/use-symmetry-axes";
 import { downloadPatternLoadReport } from "@/lib/editor/error-report";
-import { mergeColorsInDocument, transformDocument } from "@/lib/editor/document-edit";
+import { mergeColorsInDocument, replacePaletteInDocument, transformDocument } from "@/lib/editor/document-edit";
+import type { PaletteSet } from "@/lib/editor/palette-set";
 import { renamePattern } from "@/lib/editor/pattern-edit";
 import { useChartFabric } from "./hooks/use-chart-fabric";
 import { useEditorView } from "./hooks/use-editor-view";
@@ -512,6 +513,16 @@ export default function Workspace({ account }: WorkspaceProps) {
     lit.forget();
   }
 
+  /** A loaded palette replaces the chart's (G-131, D397): on every layer, as one undo step. */
+  function handleReplacePalette(set: PaletteSet) {
+    if (!pattern || set.colors.length === 0) return;
+    history.apply((document) => replacePaletteInDocument(document, set));
+    tools.piece.invalidateClipboard();
+    // Every index may now name another thread, so the drawing squares and the lit threads start over.
+    colours.reset();
+    lit.forget();
+  }
+
   /**
    * A quick mirror (G-037): any floating selection is merged and the mirror applied, committed as one undo step. It changes
    * the active layer's stitches, so it is refused where a drawing tool would be (D392).
@@ -915,6 +926,7 @@ export default function Workspace({ account }: WorkspaceProps) {
                   commit: history.set,
                   onPreviewChange: setColorPreview,
                   onMergeColors: handleMergeColors,
+                  onReplacePalette: handleReplacePalette,
                   documentId: lifecycle.documentId,
                   layers: layers.tab,
                 }}

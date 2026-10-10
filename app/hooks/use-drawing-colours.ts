@@ -31,6 +31,8 @@ export interface DrawingColours {
   swap: () => void;
   /** A thread was merged away: whatever the squares hold is renumbered to match the palette that remains. */
   forgetColor: (removed: number) => void;
+  /** The palette was replaced wholesale (G-131): no index the squares held names the same thread any more. */
+  reset: () => void;
   /**
    * The colour a press paints with, asked for when the gesture starts so the right button paints with the
    * background. A thread the palette no longer has counts as nothing held (D217).
@@ -58,6 +60,7 @@ export function useDrawingColours(paletteLength: number): DrawingColours {
     setActiveSlot: (slot) => setSlots((s) => withActive(s, slot)),
     swap: () => setSlots(swapped),
     forgetColor: (removed) => setSlots((s) => withColorRemoved(s, removed)),
+    reset: () => setSlots(NO_COLORS),
     colorForPointer,
     takeColor: (index, button) => setSlots((s) => withColorForButton(s, button, paintableIndex(index, paletteLength))),
   };

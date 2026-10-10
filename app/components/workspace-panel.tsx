@@ -14,6 +14,7 @@ import type { useSourceImage } from "../hooks/use-source-image";
 import type { UpdateWorkspaceOption } from "../hooks/use-workspace-options";
 import type { Tools } from "../tools/use-tools";
 import { ChartPane } from "./chart-pane";
+import type { PaletteSet } from "@/lib/editor/palette-set";
 import { ColorsDock } from "./colors-dock";
 import { ExportFooter, ExportPane, type ExportControls } from "./export-pane";
 import { editTabs, Inspector, type InspectorTab, type InspectorTabItem } from "./inspector";
@@ -57,6 +58,8 @@ export interface WorkspacePanelProps {
     commit: (next: StitchPattern) => void;
     onPreviewChange: (preview: { base: StitchPattern; next: StitchPattern } | null) => void;
     onMergeColors: (sourceIndex: number, targetIndex: number) => void;
+    /** A loaded palette replaces the chart's, every layer remapped onto it (G-131). */
+    onReplacePalette: (set: PaletteSet) => void;
     documentId: number;
     /**
      * The Layers tab (G-130): null when its feature is hidden, so there is no tab; `locked` greys it; `pane` is null while
@@ -153,6 +156,7 @@ export function WorkspacePanel({
               onPreviewChange={edit.onPreviewChange}
               documentId={edit.documentId}
               onMergeColors={edit.onMergeColors}
+              onReplacePalette={edit.onReplacePalette}
             />
           )
         }

@@ -1,5 +1,5 @@
 import type { FeatureDeclaration } from "../features/features";
-import { THREAD_BRAND_IDS } from "../threads/thread-brands";
+import { THREAD_BRAND_IDS, threadIdentity } from "../threads/thread-brands";
 import { MAX_COLORS, MAX_STITCHES, MIN_COLORS, MIN_STITCHES } from "../types";
 import { DITHER_MODES, isDithered, type DitherMode } from "./dither";
 import { isValidDitherTexture } from "./dither-hand-drawn";
@@ -61,7 +61,10 @@ export type ExtraSettings = Record<string, boolean | number | string>;
 const PALETTE_MODES = ["full", ...THREAD_BRAND_IDS];
 const isByteTriple = (v: unknown) => Array.isArray(v) && v.length === 3 && v.every((c) => Number.isInteger(c) && c >= 0 && c <= 255);
 
-/** A set of colours to make the chart from (G-087): its mode, and a code each in a brand or an RGB each otherwise. */
+/**
+ * A set of colours to make the chart from (G-087): its mode, and each colour by its RGB with its name and its thread of any
+ * system, typed or listed (G-131, D397); or, as before, by a listed thread's code in the set's brand.
+ */
 function paletteSetRefusal(set: unknown, body: Record<string, unknown>): string | null {
   if (typeof set !== "object" || set === null) return "paletteSet must be an object.";
   const s = set as Record<string, unknown>;
@@ -74,12 +77,18 @@ function paletteSetRefusal(set: unknown, body: Record<string, unknown>): string 
   const valid = colors.every((c) => {
     if (typeof c !== "object" || c === null) return false;
     const e = c as Record<string, unknown>;
-    if (s.mode === "full") return isByteTriple(e.rgb);
-    return typeof e.code === "string" && e.code.length >= 1 && e.code.length <= 16;
+    if (e.name !== undefined && (typeof e.name !== "string" || e.name.length > 60)) return false;
+    if (e.system !== undefined || e.number !== undefined) {
+      return (
+        isByteTriple(e.rgb) && typeof e.system === "string" && typeof e.number === "string" && threadIdentity(e.system, e.number) !== null
+      );
+    }
+    if (isByteTriple(e.rgb)) return true;
+    return s.mode !== "full" && typeof e.code === "string" && e.code.length >= 1 && e.code.length <= 16;
   });
   return valid
     ? null
-    : "paletteSet.colors must each be a thread code in a brand or an RGB of whole numbers from 0 to 255 in the full colour mode.";
+    : "paletteSet.colors must each be an RGB of whole numbers from 0 to 255, with a name and a thread system and number if any, or a thread code of the set's brand.";
 }
 
 /**

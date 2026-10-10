@@ -1,4 +1,4 @@
-import { parseSet, type PaletteSet } from "./palette-set";
+import { parseSet, setData, type PaletteSet } from "./palette-set";
 
 /**
  * Palettes the user named and kept for reuse (G-087): a list in this browser's localStorage, each one a set in the palette mode
@@ -58,10 +58,7 @@ export function withoutSavedPalette(list: readonly SavedPalette[], name: string)
 export function writeSavedPalettes(list: readonly SavedPalette[], storage: Storage | null = browserStorage()): boolean {
   if (!storage) return false;
   try {
-    storage.setItem(
-      KEY,
-      JSON.stringify(list.map((p) => ({ name: p.name, mode: p.set.mode, colors: p.set.colors.map((c) => ({ code: c.code, rgb: c.rgb })) })))
-    );
+    storage.setItem(KEY, JSON.stringify(list.map((p) => ({ name: p.name, ...setData(p.set) }))));
     return true;
   } catch {
     return false;

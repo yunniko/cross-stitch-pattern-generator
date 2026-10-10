@@ -66,7 +66,7 @@ The kinds, in the order shown; the editable file is chosen to begin with, and th
 | **"Pixel art PNG (1 px per stitch)"** | One pixel per stitch, true colours, empty stitches transparent; backstitch not included | `<name>_pixels.png` | Device |
 | **Editable pattern (.json)** | The editable file | `<name>_editable.json` | Device |
 | **OXS chart for other programs (.oxs)** | Open Cross Stitch chart: colours, stitches, backstitch, the fabric count and author; each colour's thread as its own system and number ("Cosmo 2213"), a typed number as typed, a colour that is no thread with none; a half stitch is written as a whole stitch | `<name>.oxs` | **[server]** |
-| **Palette file (.json)** | The chart's colours as a palette (`02`: format, mode, and each colour with its thread code and RGB); a chart with no colours is refused: "This chart has no colours yet, so there is no palette to export." | `<name>_palette.json` | Device |
+| **Palette file (.json)** | The chart's colours as a palette (`02`: format version 2, mode, and each colour with its RGB, name, and thread system and number); a chart with no colours is refused: "This chart has no colours yet, so there is no palette to export." | `<name>_palette.json` | Device |
 
 `<name>` is the chart's name. A chart too large to draw as one picture is refused with the message in `09`.
 

@@ -108,3 +108,46 @@ fn a_chart_from_a_set_is_the_same_every_time_and_takes_the_dither_and_the_lines(
     let c = build(&banded(), crisp);
     assert!(c.palette.len() <= 2 && c.edge_mode.is_none());
 }
+
+#[test]
+fn a_set_of_mixed_and_typed_threads_keeps_each_colours_thread_name_and_colour() {
+    // G-131 (D397): each colour brings its own system and number, listed or typed, and its own name; nothing is looked up
+    // over the colour given.
+    let set = r#"{"longerSideStitches":40,"colorCount":5,"paletteSet":{"mode":"dmc","colors":[
+        {"rgb":[200,30,30],"system":"dmc","number":"321"},
+        {"rgb":[30,160,40],"system":"anchor","number":"X-77","name":"My green"},
+        {"rgb":[30,40,200],"name":"Sky"},
+        {"rgb":[245,245,240],"system":"cosmo","number":"100"}]}}"#;
+    let p = build(&banded(), set);
+    assert_eq!(p.thread_brand, Some("dmc"));
+    let find = |rgb: [u8; 3]| {
+        p.palette
+            .iter()
+            .find(|c| c.rgb == rgb)
+            .expect("the colour is used")
+    };
+    let red = find([200, 30, 30]);
+    assert_eq!(
+        red.source.as_ref().map(|s| (s.brand, s.code.as_str())),
+        Some(("dmc", "321"))
+    );
+    assert!(red.name.starts_with("321 - "), "{}", red.name);
+    let green = find([30, 160, 40]);
+    assert_eq!(
+        green.source.as_ref().map(|s| (s.brand, s.code.as_str())),
+        Some(("anchor", "X-77"))
+    );
+    assert_eq!(green.name, "My green");
+    let blue = find([30, 40, 200]);
+    assert!(blue.source.is_none());
+    assert_eq!(blue.name, "Sky");
+    assert_eq!(
+        find([245, 245, 240]).source.as_ref().map(|s| s.brand),
+        Some("cosmo")
+    );
+    let half = r#"{"longerSideStitches":40,"colorCount":5,"paletteSet":{"mode":"full","colors":[{"rgb":[1,2,3],"system":"dmc"}]}}"#;
+    assert!(
+        parse_options(half).is_err(),
+        "a system without its number is refused"
+    );
+}

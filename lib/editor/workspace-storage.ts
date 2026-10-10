@@ -1,7 +1,7 @@
 import { DEFAULT_EXPORT_CELL_MM, normalCellMm } from "../export/export-cell-size";
 import { drawnSettingValues, type ExtraSettings } from "../pipeline/generation-settings";
 import { parseToolOptionBag, type ToolOptionBag } from "./tool-options";
-import { EMPTY_SET, parseStoredSet, type PaletteSet } from "./palette-set";
+import { EMPTY_SET, parseStoredSet, setData, type PaletteSet } from "./palette-set";
 import { isStitchKind } from "./stitch-kind";
 import type { OverlapCells } from "../export/a4-layout";
 import type { LegacyProjectSlot } from "./project-store";
@@ -278,7 +278,8 @@ export function loadWorkspaceOptions(): WorkspaceOptions {
 export function saveWorkspaceOptions(options: WorkspaceOptions): void {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(OPTIONS_KEY, JSON.stringify(options));
+    // The set is written as its files write it, the form `parseStoredSet` reads back (D397).
+    window.localStorage.setItem(OPTIONS_KEY, JSON.stringify({ ...options, paletteSet: setData(options.paletteSet) }));
   } catch {
     // Best-effort -- losing a persisted preference isn't worth surfacing an error for.
   }

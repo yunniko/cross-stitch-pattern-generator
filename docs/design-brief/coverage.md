@@ -537,3 +537,4 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | G-131 | 05-colours-and-threads 08-exports-and-files | palettes with thread system and number, saved to the account, loaded into a chart |
 | D395 | 05-colours-and-threads | any system's thread in any chart; a colour's system and number typed by hand |
 | D396 | 08-exports-and-files | System and Number columns in every key; OXS writes typed numbers |
+| D397 | 02-photo-and-generation 05-colours-and-threads 08-exports-and-files | palette file version 2; a set's mode only offers threads; Append and Replace into a chart |

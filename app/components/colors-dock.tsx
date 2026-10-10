@@ -14,11 +14,14 @@ import {
   setColorThread,
 } from "@/lib/editor/pattern-edit";
 import { THREAD_BRANDS, THREAD_BRAND_IDS, formatThreadName, type ThreadBrand, type ThreadColor } from "@/lib/threads/thread-brands";
-import type { PaletteColor, RGB, StitchPattern } from "@/lib/types";
+import { MAX_COLORS, type PaletteColor, type RGB, type StitchPattern } from "@/lib/types";
 import { DISMISS_RETARGET_ATTRIBUTE, useDismissOnOutsidePointer } from "../hooks/use-dismiss-on-outside-pointer";
 import { useLatest } from "../hooks/use-latest";
 import { ThreadRows, threadsSummary } from "./threads-pane";
 import { ThreadFields } from "./thread-fields";
+import { PaletteLibrary } from "./palette-library";
+import { appendPalette, missingColors } from "@/lib/editor/palette-load";
+import { setFromPattern, type PaletteSet } from "@/lib/editor/palette-set";
 import { PillButton, SegmentedControl } from "./ui";
 import { SkinIcon } from "../skin/skin";
 import { useGatedOptions } from "../features/features-context";
@@ -39,6 +42,10 @@ function filterBrandColors(query: string, brand: ThreadBrand): readonly ThreadCo
 function DerivationNote({ brand }: { brand: ThreadBrand }) {
   const { label, derivationNote } = THREAD_BRANDS[brand];
   return derivationNote ? <p className="text-xs text-muted">{`${label} colors are ${derivationNote}.`}</p> : null;
+}
+
+function countOf(n: number): string {
+  return n === 1 ? "1 colour" : `${n} colours`;
 }
 
 interface BrandColorPickerProps {
@@ -191,6 +198,8 @@ export interface ColorsDockProps {
   /** Changes when the palette is replaced wholesale; an open color editor closes. */
   documentId: number;
   onMergeColors: (sourceIndex: number, targetIndex: number) => void;
+  /** A loaded palette replaces the chart's, every layer remapped onto it (G-131). */
+  onReplacePalette: (set: PaletteSet) => void;
 }
 
 /**
@@ -214,6 +223,7 @@ export function ColorsDock({
   onPreviewChange,
   documentId,
   onMergeColors,
+  onReplacePalette,
 }: ColorsDockProps) {
   const [editor, setEditor] = useState<ColorEditorState | null>(null);
   const [addingColor, setAddingColor] = useState(false);
@@ -223,6 +233,9 @@ export function ColorsDock({
   const [renamingIndex, setRenamingIndex] = useState<number | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
   const [editingSymbolIndex, setEditingSymbolIndex] = useState<number | null>(null);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [loaded, setLoaded] = useState<{ set: PaletteSet; name: string } | null>(null);
+  const [paletteNote, setPaletteNote] = useState<string | null>(null);
   // Under the feature switches (G-102): each brand is a feature.
   const modeOptions = useGatedOptions(
     [
@@ -333,6 +346,68 @@ export function ColorsDock({
     setAddBrandQuery("");
   }
 
+  /** Append (G-131): the loaded colours the chart lacks, at the end of its palette, as one undo step. */
+  function appendLoaded() {
+    if (!pattern || !loaded) return;
+    const result = appendPalette(pattern, loaded.set);
+    if (result.added > 0) onChange(result.pattern);
+    setPaletteNote(
+      `Added ${countOf(result.added)} from “${loaded.name}”.` +
+        (result.skipped > 0 ? ` ${countOf(result.skipped)} did not fit: a chart holds at most ${MAX_COLORS} colours.` : "")
+    );
+    setLoaded(null);
+  }
+
+  /** Replace (G-131, D397): the loaded palette becomes the chart's, each chart colour mapped onto it. */
+  function replaceWithLoaded() {
+    if (!loaded) return;
+    onReplacePalette(loaded.set);
+    setPaletteNote(`The chart now uses “${loaded.name}”: ${countOf(loaded.set.colors.length)}.`);
+    setLoaded(null);
+  }
+
+  function renderPaletteBlock() {
+    if (!paletteOpen || !pattern) return null;
+    const missing = loaded ? missingColors(pattern, loaded.set).length : 0;
+    return (
+      <div className="mx-4 mb-2 flex flex-col gap-1.5 rounded-md border border-line p-2" data-testid="chart-palette">
+        <PaletteLibrary
+          palette={setFromPattern(pattern)}
+          onNote={setPaletteNote}
+          onLoad={(set, name) => {
+            setLoaded(set.colors.length > 0 ? { set, name } : null);
+            setPaletteNote(set.colors.length > 0 ? null : `“${name}” holds no colours.`);
+          }}
+        />
+        {loaded && (
+          <div className="flex flex-col gap-1.5 border-t border-line pt-1.5" data-testid="palette-load-choice">
+            <p className="text-[11px] leading-4 text-muted">
+              “{loaded.name}”: {countOf(loaded.set.colors.length)},{" "}
+              {missing === 0 ? "all of them in this chart already" : `${missing} not in this chart`}. Append adds those; Replace makes the
+              chart use this palette, each colour taking the same thread or else the nearest.
+            </p>
+            <div className="flex gap-1.5">
+              <PillButton size="xs" disabled={missing === 0} onClick={appendLoaded}>
+                Append
+              </PillButton>
+              <PillButton size="xs" onClick={replaceWithLoaded}>
+                Replace
+              </PillButton>
+              <PillButton size="xs" onClick={() => setLoaded(null)}>
+                Cancel
+              </PillButton>
+            </div>
+          </div>
+        )}
+        {paletteNote && (
+          <p className="text-[11px] leading-4 text-muted" role="status" data-testid="chart-palette-note">
+            {paletteNote}
+          </p>
+        )}
+      </div>
+    );
+  }
+
   function commitRename() {
     if (renamingIndex !== null && pattern) onChange(renameColor(pattern, renamingIndex, renameDraft));
     setRenamingIndex(null);
@@ -433,21 +508,36 @@ export function ColorsDock({
     <div className="flex flex-col">
       <div className="flex items-center justify-between px-4 pt-3.5 pb-2">
         <span className="font-mono text-xs text-muted">{pattern ? threadsSummary(counted ?? pattern, aidaCount) : "No threads yet"}</span>
-        <PillButton
-          size="xs"
-          onClick={() => {
-            setAddColorDraftHex("#808080");
-            setAddBrandQuery("");
-            setAddMode(
-              modeOptions.some((option) => option.value === pattern?.threadBrand && !option.disabled) ? pattern!.threadBrand! : "full"
-            );
-            setAddingColor(true);
-          }}
-          disabled={!pattern}
-        >
-          + Add
-        </PillButton>
+        <div className="flex gap-1.5">
+          <PillButton
+            size="xs"
+            aria-expanded={paletteOpen}
+            disabled={!pattern}
+            onClick={() => {
+              setPaletteOpen(!paletteOpen);
+              setLoaded(null);
+              setPaletteNote(null);
+            }}
+          >
+            Palette
+          </PillButton>
+          <PillButton
+            size="xs"
+            onClick={() => {
+              setAddColorDraftHex("#808080");
+              setAddBrandQuery("");
+              setAddMode(
+                modeOptions.some((option) => option.value === pattern?.threadBrand && !option.disabled) ? pattern!.threadBrand! : "full"
+              );
+              setAddingColor(true);
+            }}
+            disabled={!pattern}
+          >
+            + Add
+          </PillButton>
+        </div>
       </div>
+      {renderPaletteBlock()}
 
       {pattern && pattern.palette.length === 0 && (
         <p className="px-4 pb-2 text-xs text-muted">

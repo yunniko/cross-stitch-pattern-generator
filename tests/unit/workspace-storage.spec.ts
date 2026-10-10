@@ -124,7 +124,10 @@ describe("workspace-storage", () => {
         textureStrokes: true,
         textureDensity: 0.6,
         paletteSetup: true,
-        paletteSet: { mode: "dmc" as const, colors: [{ code: "310", rgb: [0, 0, 0] as [number, number, number], name: "Black" }] },
+        paletteSet: {
+          mode: "dmc" as const,
+          colors: [{ source: { brand: "dmc" as const, code: "310" }, rgb: [0, 0, 0] as [number, number, number], name: "Black" }],
+        },
         brushSize: 7 as const,
         brushShape: "square" as const,
         shapeFill: "filled" as const,
@@ -213,12 +216,15 @@ describe("workspace-storage", () => {
     });
 
     it("keeps the set up palette across a reload, and reads a bad one as empty (G-087)", () => {
-      const set = { mode: "dmc" as const, colors: [{ code: "310", rgb: [0, 0, 0] as [number, number, number], name: "Black" }] };
+      const set = {
+        mode: "dmc" as const,
+        colors: [{ source: { brand: "dmc" as const, code: "310" }, rgb: [0, 0, 0] as [number, number, number], name: "Black" }],
+      };
       saveWorkspaceOptions({ ...DEFAULTS, paletteSetup: true, paletteSet: set });
       const back = loadWorkspaceOptions();
       expect(back.paletteSetup).toBe(true);
       expect(back.paletteSet.mode).toBe("dmc");
-      expect(back.paletteSet.colors.map((c) => c.code)).toEqual(["310"]);
+      expect(back.paletteSet.colors).toEqual([{ rgb: [0, 0, 0], name: "Black", source: { brand: "dmc", code: "310" } }]);
       // A thread the tables do not hold, a mode that does not exist, a flag that is no boolean: empty, off.
       window.localStorage.setItem(
         OPTIONS_KEY,

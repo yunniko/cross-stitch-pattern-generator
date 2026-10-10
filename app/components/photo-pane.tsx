@@ -171,7 +171,6 @@ export interface PhotoPaneProps {
 }
 
 /** A palette mode as the reader knows it. */
-const modeLabel = (mode: WorkspaceOptions["paletteMode"]) => (mode === "full" ? "Full range" : THREAD_BRANDS[mode].label);
 
 const SETUP_OPTIONS: SegmentOption<"auto" | "setup">[] = [
   { value: "auto", label: "Automatic", title: "The colors are chosen from the picture, as many as the Colors slider says" },
@@ -240,7 +239,6 @@ export function PhotoPane({
   const [sizeDraft, setSizeDraft] = useState<string | null>(null);
   const neutral = isNeutralAdjust(options.photoAdjust);
   // The palette mode asked for while colours are chosen in another, until the reader confirms that they go.
-  const [pendingMode, setPendingMode] = useState<WorkspaceOptions["paletteMode"] | null>(null);
   // Under the feature switches (G-102): the set-up palette and each brand are features.
   const setupOptions = useGatedOptions(SETUP_OPTIONS, (choice) => (choice === "setup" ? "generation.paletteSet" : null));
   const paletteOptions = useGatedOptions(PALETTE_OPTIONS, brandFeature);
@@ -295,19 +293,9 @@ export function PhotoPane({
   }
 
   function choosePaletteMode(mode: WorkspaceOptions["paletteMode"]) {
-    // Colours of one mode mean nothing in another, so changing the mode while setting up empties the set. With colours
-    // chosen that is asked first (Owner, 2026-10-04): the set cannot be brought back.
-    if (settingUp && options.paletteSet.mode !== mode && options.paletteSet.colors.length > 0) {
-      setPendingMode(mode);
-      return;
-    }
-    applyPaletteMode(mode);
-  }
-
-  function applyPaletteMode(mode: WorkspaceOptions["paletteMode"]) {
-    setPendingMode(null);
     onChange("paletteMode", mode);
-    if (settingUp && options.paletteSet.mode !== mode) onChange("paletteSet", { mode, colors: [] });
+    // Each chosen colour is its own thread (D397), so another mode keeps them: it changes only the catalogue to add from.
+    if (settingUp && options.paletteSet.mode !== mode) onChange("paletteSet", { ...options.paletteSet, mode });
   }
 
   function setCustom(value: number) {
@@ -618,33 +606,13 @@ export function PhotoPane({
             <SegmentedControl fill options={setupOptions} value={settingUp ? "setup" : "auto"} onChange={chooseSetup} />
           )}
           <SegmentedControl fill options={paletteOptions} value={options.paletteMode} onChange={choosePaletteMode} />
-          {settingUp && pendingMode !== null && pendingMode !== options.paletteMode && (
-            <div
-              role="alert"
-              data-testid="palette-mode-warning"
-              className="flex flex-col gap-2 rounded-lg border border-warning-edge bg-warning-deep/40 p-2.5"
-            >
-              <p className="text-[11px] leading-4 text-warning">
-                Switching to {modeLabel(pendingMode)} empties your {options.paletteSet.colors.length} chosen{" "}
-                {options.paletteSet.colors.length === 1 ? "colour" : "colours"}: they belong to {modeLabel(options.paletteSet.mode)}. Save
-                the palette first if you want it back.
-              </p>
-              <div className="flex gap-1.5">
-                <PillButton size="xs" onClick={() => applyPaletteMode(pendingMode)}>
-                  Switch and empty
-                </PillButton>
-                <PillButton size="xs" onClick={() => setPendingMode(null)}>
-                  Keep {modeLabel(options.paletteSet.mode)}
-                </PillButton>
-              </div>
-            </div>
-          )}
+
           {settingUp && (
             <PaletteSetup
               set={options.paletteSet}
               onChange={(set) => {
                 onChange("paletteSet", set);
-                // A set belongs to one palette mode: a loaded file or saved palette of another mode brings its mode with it.
+                // A loaded file or saved palette brings the mode it was made in, the catalogue its colours were added from.
                 if (set.mode !== options.paletteMode) onChange("paletteMode", set.mode);
               }}
               prediction={prediction}

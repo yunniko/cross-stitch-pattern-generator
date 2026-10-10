@@ -97,17 +97,12 @@ test("in a thread brand the colours are threads, found by code", async ({ page }
   await expect(cells.first()).toHaveAttribute("title", /310/);
   await expect(cells.first()).not.toContainText("310");
 
-  // Changing the palette mode empties the set: its threads mean nothing in another brand.
+  // Changing the palette mode keeps the set (G-131): the mode is the picker's, and a DMC thread is a colour of any chart.
   await page.getByRole("button", { name: "Anchor", exact: true }).click();
-  // With colours chosen the switch is asked first: keeping leaves everything, switching empties the set.
-  await expect(page.getByTestId("palette-mode-warning")).toContainText("empties your 1 chosen colour");
-  await page.getByRole("button", { name: "Keep DMC" }).click();
-  await expect(page.getByTestId("palette-set-count")).toHaveText("1");
-  await expect(page.getByRole("button", { name: "DMC", exact: true })).toHaveAttribute("aria-pressed", "true");
-  await page.getByRole("button", { name: "Anchor", exact: true }).click();
-  await page.getByRole("button", { name: "Switch and empty" }).click();
   await expect(page.getByRole("button", { name: "Anchor", exact: true })).toHaveAttribute("aria-pressed", "true");
-  await expect(page.getByTestId("palette-set-count")).toHaveText("0");
+  await expect(page.getByTestId("palette-set-count")).toHaveText("1");
+  await expect(cells.first()).toHaveAttribute("title", /310/);
+  await expect(page.getByLabel(/Search Anchor threads/)).toBeVisible();
 });
 
 test("palettes are saved by name, loaded and deleted", async ({ page }) => {
