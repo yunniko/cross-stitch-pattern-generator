@@ -182,6 +182,8 @@ test("a locked layer stays shown but takes no drawing, renaming, merging or dele
   await expect(page.getByTestId("autosave-status")).toHaveAttribute("data-status", "saved", { timeout: 10_000 });
   await page.reload();
   await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 15_000 });
+  // A reload keeps the chart but not the thread in hand.
+  await takeThread(page);
   await showLayers(page);
   await expect(layerLock(page, "Layer 1")).toHaveAttribute("aria-pressed", "true");
 
