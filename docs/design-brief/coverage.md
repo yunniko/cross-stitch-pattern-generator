@@ -545,4 +545,5 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | D400 | 02-photo-and-generation 05-colours-and-threads | the systems are data with a note each; Anchor matched as a plain list |
 | D401 | 05-colours-and-threads 10-features | the admin's thread systems, their files and their switches |
 | D402 | 05-colours-and-threads 09-limits-and-messages 10-features | a person's own thread systems: upload, "Yours", the account page, the switch and the limit |
+| D404 | 04-editing | a locked layer: shown, kept from drawing, renaming, merging and deleting; chart-wide edits apply |
 | D403 | 02-photo-and-generation | the same chart made again is the kept try; the current try follows the choice |

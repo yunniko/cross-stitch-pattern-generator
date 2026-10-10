@@ -27,6 +27,11 @@ export interface LayerHeader {
   name: string;
   /** A hidden layer is kept and saved, but draws nothing and counts nowhere. */
   visible: boolean;
+  /**
+   * A locked layer is shown as ever, but its stitches are not changed, nor is it renamed, deleted or merged, until it is
+   * unlocked (G-133, D404). Chart-wide edits (crop, move, colours) still apply to it. Absent means unlocked.
+   */
+  locked?: boolean;
 }
 
 /** One grid of stitches. `cells` and `kinds` are as `StitchPattern.cellPalette` and `cellKind`: an empty cell shows the layer below. */

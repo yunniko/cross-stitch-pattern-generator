@@ -4,7 +4,7 @@ import { MAX_LAYER_NAME, MAX_LAYERS, type ChartDocument, type Layer } from "./ty
 
 /**
  * What can be done to a document's layers (G-130, D390), each a new document: adding, deleting (one is always left),
- * showing and hiding, renaming, moving and merging them. No framework here; each is one undoable step in the editor's history.
+ * showing and hiding, locking, renaming, moving and merging them. No framework here; each is one undoable step in the editor's history.
  * The operations on the whole chart that every layer takes part in are the editor's (lib/editor/document-edit.ts).
  */
 
@@ -51,9 +51,15 @@ export function addLayer(
   return { document: withLayers(document, layers), layerId: id };
 }
 
+/** Refuses by name a change a locked layer does not take (D404). */
+function assertUnlocked(layer: Layer, change: string): void {
+  if (layer.locked) throw new Error(`${layer.name} is locked, so it can't be ${change}. Unlock it first.`);
+}
+
 /** The document without the layer. The last layer cannot be deleted: a chart always has one. */
 export function deleteLayer(document: ChartDocument, layerId: string): ChartDocument {
   const layer = layerById(document, layerId);
+  assertUnlocked(layer, "deleted");
   if (document.layers.length === 1) throw new Error("A chart always has at least one layer, so its last layer can't be deleted.");
   return withLayers(
     document,
@@ -70,12 +76,25 @@ export function setLayerVisible(document: ChartDocument, layerId: string, visibl
   );
 }
 
+/** Locks or unlocks a layer: locked, it is shown as ever but its stitches, name and place in a merge are kept (D404). */
+export function setLayerLocked(document: ChartDocument, layerId: string, locked: boolean): ChartDocument {
+  const layer = layerById(document, layerId);
+  if (!layer.locked === !locked) return document;
+  const { locked: _was, ...header } = layer;
+  void _was;
+  return withLayers(
+    document,
+    document.layers.map((candidate) => (candidate === layer ? (locked ? { ...header, locked: true } : header) : candidate))
+  );
+}
+
 /** The name as a layer takes it: trimmed and at most `MAX_LAYER_NAME` long. An empty one is refused by name. */
 export function renameLayer(document: ChartDocument, layerId: string, name: string): ChartDocument {
   const layer = layerById(document, layerId);
   const trimmed = name.trim().slice(0, MAX_LAYER_NAME);
   if (trimmed === "") throw new Error("A layer needs a name.");
   if (trimmed === layer.name) return document;
+  assertUnlocked(layer, "renamed");
   return withLayers(
     document,
     document.layers.map((candidate) => (candidate === layer ? { ...layer, name: trimmed } : candidate))
@@ -101,6 +120,8 @@ export function mergeLayers(document: ChartDocument, sourceId: string, targetId:
   const source = layerById(document, sourceId);
   const target = layerById(document, targetId);
   if (source === target) throw new Error("A layer can't be merged into itself.");
+  assertUnlocked(source, "merged");
+  assertUnlocked(target, "merged into");
   const sourceAbove = document.layers.indexOf(source) > document.layers.indexOf(target);
   const merged = layerKind(target).merge(target, source, sourceAbove, document);
   if (!merged) throw new Error(`The layer "${source.name}" can't be merged into "${target.name}": that kind of layer can't hold it.`);

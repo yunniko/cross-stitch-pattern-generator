@@ -9,9 +9,10 @@ import { DISABLED_ICON, GROUP_LABEL } from "./ui";
 
 /**
  * The Layers tab (G-130 M2): a chart's layers, top first. A press on a row makes its layer the one the tools work on; the eye
- * shows or hides it; a double-click (or F2) renames it. A row dragged and let go over another row's target rectangle is
+ * shows or hides it; the lock keeps it as it is (G-133, D404); a double-click (or F2) renames it. A row dragged and let go over another row's target rectangle is
  * merged into that layer; let go anywhere else, it moves there (`lib/editor/layer-drop.ts`). The buttons under the list do
- * the same to the active layer without a pointer: Add, Move up, Move down, Merge down and Delete.
+ * the same to the active layer without a pointer: Add, Move up, Move down, Merge down and Delete. A locked layer is not
+ * renamed, merged or deleted: those are greyed, with the note saying why, and a drop that would merge it does nothing.
  *
  * Every change but choosing the active layer is one undo step; that is the caller's, which hands each to the history.
  */
@@ -20,6 +21,7 @@ export interface LayerItem {
   id: string;
   name: string;
   visible: boolean;
+  locked: boolean;
 }
 
 export interface LayerActions {
@@ -27,6 +29,7 @@ export interface LayerActions {
   add: () => void;
   remove: (layerId: string) => void;
   setVisible: (layerId: string, visible: boolean) => void;
+  setLocked: (layerId: string, locked: boolean) => void;
   rename: (layerId: string, name: string) => void;
   /** To `index` in the document's order, bottom first. */
   move: (layerId: string, index: number) => void;
@@ -45,6 +48,9 @@ export interface LayersPaneProps {
 
 /** The note on the delete control of a chart's only layer. */
 export const LAST_LAYER_NOTE = "A chart always has at least one layer, so its only layer can't be deleted.";
+
+/** The note on the controls a locked layer does not take. */
+export const lockedLayerNote = (name: string) => `${name} is locked. Unlock it to rename, merge or delete it, or to draw on it.`;
 
 /** How far a press moves before it is a drag rather than a click. */
 const DRAG_THRESHOLD_PX = 4;
@@ -107,6 +113,7 @@ export function LayersPane({ layers, activeLayerId, maxLayers, actions }: Layers
   const renameOpen = useRef(false);
 
   function startRename(layer: LayerItem) {
+    if (layer.locked) return;
     renameOpen.current = true;
     setRenaming({ id: layer.id, draft: layer.name });
   }
@@ -121,8 +128,8 @@ export function LayersPane({ layers, activeLayerId, maxLayers, actions }: Layers
 
   function onRowPointerDown(e: PointerEvent<HTMLLIElement>, layer: LayerItem) {
     if (e.button !== 0 || renaming || count < 2) return;
-    // The eye and the merge target are pressed, not dragged.
-    if ((e.target as HTMLElement).closest("button[data-layer-eye], input")) return;
+    // The eye, the lock and the merge target are pressed, not dragged.
+    if ((e.target as HTMLElement).closest("button[data-layer-eye], button[data-layer-lock], input")) return;
     e.currentTarget.setPointerCapture(e.pointerId);
     setDrag({ id: layer.id, pointerId: e.pointerId, startY: e.clientY, started: false, drop: null });
   }
@@ -142,8 +149,10 @@ export function LayersPane({ layers, activeLayerId, maxLayers, actions }: Layers
       return;
     }
     const drop = layerDrop(measured(), drag.id, e.clientX, e.clientY);
-    if (drop?.type === "merge") actions.merge(drag.id, drop.targetId);
-    else if (drop?.type === "move") actions.move(drag.id, drop.index);
+    if (drop?.type === "merge") {
+      // A locked layer is merged neither into another nor into: the drop does nothing.
+      if (!isLocked(drag.id) && !isLocked(drop.targetId)) actions.merge(drag.id, drop.targetId);
+    } else if (drop?.type === "move") actions.move(drag.id, drop.index);
   }
 
   function onRowKeyDown(e: KeyboardEvent<HTMLLIElement>, layer: LayerItem) {
@@ -157,6 +166,7 @@ export function LayersPane({ layers, activeLayerId, maxLayers, actions }: Layers
     }
   }
 
+  const isLocked = (id: string) => layers.some((layer) => layer.id === id && layer.locked);
   const dragging = drag?.started ? drag : null;
   // Where a move would put the dragged row, as a gap among the other rows drawn top first.
   const moveGap = dragging?.drop?.type === "move" ? count - 1 - dragging.drop.index : null;
@@ -165,6 +175,9 @@ export function LayersPane({ layers, activeLayerId, maxLayers, actions }: Layers
   const lineAfterLast = moveGap !== null && moveGap === others.length;
 
   const active = layers[activeIndex];
+  const below = layers[activeIndex - 1];
+  const activeLocked = active?.locked === true;
+  const lockNote = activeLocked ? lockedLayerNote(active.name) : null;
   return (
     <div className="flex flex-1 flex-col gap-3 p-4" data-testid="layers-pane">
       <div className="flex items-center justify-between">
@@ -177,7 +190,8 @@ export function LayersPane({ layers, activeLayerId, maxLayers, actions }: Layers
         {shown.map((layer) => {
           const isActive = layer.id === activeLayerId;
           const isDragged = dragging?.id === layer.id;
-          const isTarget = dragging?.drop?.type === "merge" && dragging.drop.targetId === layer.id;
+          const mergeRefused = dragging !== null && (isLocked(dragging.id) || layer.locked);
+          const isTarget = dragging?.drop?.type === "merge" && dragging.drop.targetId === layer.id && !mergeRefused;
           return (
             <li
               key={layer.id}
@@ -187,6 +201,7 @@ export function LayersPane({ layers, activeLayerId, maxLayers, actions }: Layers
               }}
               data-layer-id={layer.id}
               data-active={isActive || undefined}
+              data-locked={layer.locked || undefined}
               aria-current={isActive || undefined}
               tabIndex={0}
               onPointerDown={(e) => onRowPointerDown(e, layer)}
@@ -230,7 +245,18 @@ export function LayersPane({ layers, activeLayerId, maxLayers, actions }: Layers
                   {layer.name}
                 </span>
               )}
-              {/* The merge target: shown on every row but the dragged one while a row is dragged. */}
+              <button
+                type="button"
+                data-layer-lock
+                aria-label={layer.locked ? `Unlock ${layer.name}` : `Lock ${layer.name}`}
+                aria-pressed={layer.locked}
+                title={layer.locked ? "Locked: shown, but kept as it is. Press to unlock." : "Lock: keep this layer as it is"}
+                onClick={() => actions.setLocked(layer.id, !layer.locked)}
+                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded hover:bg-control ${layer.locked ? "text-accent" : "text-faint"}`}
+              >
+                <SkinIcon name={layer.locked ? "lock" : "lock-open"} />
+              </button>
+              {/* The merge target: shown on every row but the dragged one while a row is dragged, unless a lock refuses the merge. */}
               <div
                 ref={(element) => {
                   if (element) targetRefs.current.set(layer.id, element);
@@ -239,7 +265,7 @@ export function LayersPane({ layers, activeLayerId, maxLayers, actions }: Layers
                 data-merge-target={layer.id}
                 aria-hidden="true"
                 className={`flex h-7 w-16 shrink-0 items-center justify-center rounded border border-dashed text-[11px] ${
-                  dragging && !isDragged
+                  dragging && !isDragged && !mergeRefused
                     ? isTarget
                       ? "border-accent bg-accent/20 text-ink"
                       : "border-muted text-muted"
@@ -270,18 +296,24 @@ export function LayersPane({ layers, activeLayerId, maxLayers, actions }: Layers
         <ToolbarButton
           icon="layer-merge-down"
           label="Merge down"
-          onClick={() => actions.merge(activeLayerId, layers[activeIndex - 1].id)}
-          disabled={activeIndex <= 0}
+          onClick={() => actions.merge(activeLayerId, below.id)}
+          disabled={activeIndex <= 0 || activeLocked || below?.locked === true}
+          title={lockNote ?? (below?.locked ? lockedLayerNote(below.name) : undefined)}
         />
         <span className="flex-1" />
         <ToolbarButton
           icon="delete"
           label="Delete layer"
           onClick={() => actions.remove(activeLayerId)}
-          disabled={count < 2}
-          title={count < 2 ? LAST_LAYER_NOTE : `Delete ${active?.name ?? "the layer"}`}
+          disabled={count < 2 || activeLocked}
+          title={count < 2 ? LAST_LAYER_NOTE : (lockNote ?? `Delete ${active?.name ?? "the layer"}`)}
         />
       </div>
+      {lockNote && (
+        <p className="text-[11px] leading-4 text-muted" data-testid="locked-layer-note">
+          {lockNote}
+        </p>
+      )}
       {count < 2 && (
         <p className="text-[11px] leading-4 text-muted" data-testid="last-layer-note">
           {LAST_LAYER_NOTE}

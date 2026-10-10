@@ -2,7 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import { pickTool, saveToFile } from "./helpers/app";
 import { EMPTY, WIDTH, at, blankChart, click, dragStitch, stitchPoint, takeEmpty, takeThread } from "./helpers/blank-chart";
-import { layerButton, layerRow, savedLayers, showLayers } from "./helpers/layers";
+import { chooseLayer, layerButton, layerLock, layerRow, layerRows, savedLayers, showLayers } from "./helpers/layers";
 import { selectionFinish } from "./helpers/selection";
 
 /**
@@ -137,4 +137,62 @@ test("a hidden active layer refuses drawing and says why; the picker and the bac
   const download = await saveToFile(page);
   const file = JSON.parse(await readFile((await download.path())!, "utf8")) as { backstitch?: unknown[] };
   expect(file.backstitch ?? []).toHaveLength(1);
+});
+
+test("a locked layer stays shown but takes no drawing, renaming, merging or deleting; the lock is saved and undone", async ({ page }) => {
+  // G-133, D404.
+  await twoLayers(page);
+  await layerLock(page, "Layer 1").click();
+  await expect(layerLock(page, "Layer 1")).toHaveAccessibleName("Unlock Layer 1");
+  await expect(layerLock(page, "Layer 1")).toHaveAttribute("aria-pressed", "true");
+  await chooseLayer(page, "Layer 1");
+  await expect(page.getByTestId("layer-note")).toHaveText("Layer 1 is locked: unlock it to draw on it.");
+  await expect(page.getByTestId("locked-layer-note")).toContainText("Layer 1 is locked.");
+
+  // The brush and the quick mirror change nothing; the layer is still shown.
+  await click(page, 5, 5);
+  await page.getByRole("button", { name: "Mirror left half", exact: true }).click();
+  expect(await stitchedPerLayer(page)).toEqual([[at(...BOTTOM)], []]);
+  const { layers } = await savedLayers(page);
+  expect(layers.map((layer) => [layer.visible, layer.locked === true])).toEqual([
+    [true, true],
+    [true, false],
+  ]);
+
+  // Not deleted, not renamed; Layer 2 is not merged down into it, by the button or by a drop.
+  await expect(layerButton(page, "Delete layer")).toBeDisabled();
+  await layerRow(page, "Layer 1").locator("[data-layer-name]").dblclick();
+  await expect(page.getByLabel("Layer name")).toHaveCount(0);
+  await chooseLayer(page, "Layer 2");
+  await expect(layerButton(page, "Merge down")).toBeDisabled();
+  // Dragged, Layer 2 is offered no merge box on the locked row, and let go there it merges nothing.
+  const from = (await layerRow(page, "Layer 2").locator("[data-layer-name]").boundingBox())!;
+  await page.mouse.move(from.x + 10, from.y + from.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(from.x + 10, from.y + from.height / 2 + 12, { steps: 3 });
+  const box = layerRow(page, "Layer 1").locator("[data-merge-target]");
+  await expect(box).toBeHidden();
+  const target = (await box.boundingBox())!;
+  await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, { steps: 6 });
+  await page.mouse.up();
+  await expect(layerRows(page)).toHaveCount(2);
+  expect(await stitchedPerLayer(page)).toEqual([[at(...BOTTOM)], []]);
+
+  // The lock comes back after a reload.
+  await expect(page.getByTestId("autosave-status")).toHaveAttribute("data-status", "saved", { timeout: 10_000 });
+  await page.reload();
+  await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 15_000 });
+  await showLayers(page);
+  await expect(layerLock(page, "Layer 1")).toHaveAttribute("aria-pressed", "true");
+
+  // Unlocked, it is drawn on again; Undo puts the lock back.
+  await layerLock(page, "Layer 1").click();
+  await chooseLayer(page, "Layer 1");
+  await expect(page.getByTestId("layer-note")).toHaveCount(0);
+  await pickTool(page, "Brush");
+  await click(page, 5, 5);
+  expect(await stitchedPerLayer(page)).toEqual([[at(...BOTTOM), at(5, 5)], []]);
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect(layerLock(page, "Layer 1")).toHaveAttribute("aria-pressed", "true");
 });

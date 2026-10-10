@@ -28,6 +28,10 @@ export const layerRow = (page: Page, name: string) =>
 export const layerButton = (page: Page, label: "Add layer" | "Move up" | "Move down" | "Merge down" | "Delete layer") =>
   page.getByRole("toolbar", { name: "Active layer" }).getByRole("button", { name: label, exact: true });
 
+/** The lock on the row of `name`: "Lock <name>" while unlocked, "Unlock <name>" while locked. */
+export const layerLock = (page: Page, name: string) =>
+  layerRow(page, name).getByRole("button", { name: new RegExp(`^(Lock|Unlock) ${name}$`) });
+
 /** The names as the list shows them, top first. */
 export async function expectLayers(page: Page, names: readonly string[], active: string): Promise<void> {
   await expect(layerRows(page).locator("[data-layer-name]")).toHaveText([...names]);
@@ -70,6 +74,8 @@ export async function dragLayer(page: Page, name: string, to: { onto: string } |
 export interface SavedLayer {
   name: string;
   visible: boolean;
+  /** Present, and true, only on a locked layer (D404). */
+  locked?: boolean;
   cells: number[];
 }
 

@@ -1,7 +1,8 @@
 /**
  * Whether the tool in hand may work on the active layer (G-130 M3, D392). Every tool works on the active layer only, and
  * each says so in its definition: the kinds of layer it can work on, and whether it changes the layer's own stitches. A
- * tool that changes stitches is refused on a hidden layer, where what it did could not be seen; one that names no kinds
+ * tool that changes stitches is refused on a hidden layer, where what it did could not be seen, and on a locked one (G-133,
+ * D404), which is kept as it is; one that names no kinds
  * (the view's tools, the colour picker, Move and Crop, which act on every layer) works whatever the active layer is.
  */
 
@@ -25,6 +26,8 @@ export interface ActiveLayerInfo {
   name: string;
   kind: string;
   visible: boolean;
+  /** Locked (D404): shown, but its stitches are not changed. */
+  locked?: boolean;
 }
 
 /** Why the tool cannot work on the layer now, in words for the person; null when it can. */
@@ -34,5 +37,6 @@ export function layerRefusal(tool: ToolLayerUse, layer: ActiveLayerInfo | null):
     return `${tool.label} doesn't work on ${layer.name}: it isn't a kind of layer ${tool.label} works on.`;
   }
   if (tool.drawsOnLayer && !layer.visible) return `${layer.name} is hidden: show it to draw on it.`;
+  if (tool.drawsOnLayer && layer.locked) return `${layer.name} is locked: unlock it to draw on it.`;
   return null;
 }

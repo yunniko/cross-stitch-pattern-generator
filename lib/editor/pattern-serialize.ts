@@ -111,6 +111,8 @@ export interface SerializedLayer {
   kind: string;
   name: string;
   visible: boolean;
+  /** Present, and true, only on a locked layer (D404). */
+  locked?: boolean;
   [field: string]: unknown;
 }
 
@@ -173,7 +175,15 @@ export function layeredFields(document: ChartDocument, symmetry: SymmetryAxes): 
 }
 
 export function serializeLayer(layer: Layer): SerializedLayer {
-  return { id: layer.id, kind: layer.kind, name: layer.name, visible: layer.visible, ...layerKind(layer).write(layer) };
+  return {
+    id: layer.id,
+    kind: layer.kind,
+    name: layer.name,
+    visible: layer.visible,
+    // Written only when set, so an unlocked layer is saved as before; a build without locks reads past it (D404).
+    ...(layer.locked ? { locked: true } : {}),
+    ...layerKind(layer).write(layer),
+  };
 }
 
 function flatFields(pattern: StitchPattern, symmetry: SymmetryAxes): SerializedPattern {
@@ -307,7 +317,13 @@ function readLayers(raw: unknown, width: number, height: number, paletteLength: 
     }
     // A name or visibility that cannot be read is not worth losing the chart over: the layer opens named by its place, and shown.
     const name = typeof fields.name === "string" ? fields.name.trim().slice(0, MAX_LAYER_NAME) : "";
-    const header = { id, kind, name: name === "" ? `Layer ${index + 1}` : name, visible: fields.visible !== false };
+    const header = {
+      id,
+      kind,
+      name: name === "" ? `Layer ${index + 1}` : name,
+      visible: fields.visible !== false,
+      ...(fields.locked === true ? { locked: true } : {}),
+    };
     return layerKind(header).read(fields, header, { width, height }, paletteLength);
   });
 }

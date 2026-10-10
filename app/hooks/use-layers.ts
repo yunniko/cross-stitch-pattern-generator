@@ -1,4 +1,4 @@
-import { addLayer, deleteLayer, mergeLayers, moveLayer, renameLayer, setLayerVisible } from "@/lib/document/layers";
+import { addLayer, deleteLayer, mergeLayers, moveLayer, renameLayer, setLayerLocked, setLayerVisible } from "@/lib/document/layers";
 import { MAX_LAYERS } from "@/lib/document/types";
 import { featureShown, featureUsable, lockedNote, type FeatureStates } from "@/lib/features/features";
 import type { LayersPaneProps } from "../components/layers-pane";
@@ -37,7 +37,7 @@ export function useLayers(history: EditorHistory, features: FeatureStates, piece
   const pane: LayersPaneProps | null =
     usable && document && activeLayerId
       ? {
-          layers: document.layers.map(({ id, name, visible }) => ({ id, name, visible })),
+          layers: document.layers.map(({ id, name, visible, locked }) => ({ id, name, visible, locked: locked === true })),
           activeLayerId,
           maxLayers: MAX_LAYERS,
           actions: {
@@ -65,6 +65,7 @@ export function useLayers(history: EditorHistory, features: FeatureStates, piece
                 if (layerId === activeLayerId && neighbour) history.setActiveLayer(neighbour.id);
               }),
             setVisible: (layerId, visible) => change(() => history.apply((current) => setLayerVisible(current, layerId, visible))),
+            setLocked: (layerId, locked) => change(() => history.apply((current) => setLayerLocked(current, layerId, locked))),
             rename: (layerId, name) => change(() => history.apply((current) => renameLayer(current, layerId, name))),
             move: (layerId, index) => change(() => history.apply((current) => moveLayer(current, layerId, index))),
             merge: (sourceId, targetId) =>

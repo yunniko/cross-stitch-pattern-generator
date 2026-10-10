@@ -10,9 +10,11 @@ import {
   mergeLayers,
   moveLayer,
   renameLayer,
+  setLayerLocked,
   setLayerVisible,
   usedColors,
 } from "@/lib/document/layers";
+import { layerRefusal } from "@/lib/editor/tool-layer";
 import { readChartUpload } from "@/lib/charts/saved-charts";
 import { FORMAT_VERSION, migrateToCurrent } from "@/lib/document/migrate";
 import { MAX_LAYER_NAME, MAX_LAYERS, type ChartDocument, type LayerHeader, type StitchLayer } from "@/lib/document/types";
@@ -380,6 +382,95 @@ describe("the file, format 8", () => {
     ]);
     expect(stitches(back!, 1)).toEqual([E, 2]);
     expect(Array.from(flatten(back!).cellPalette)).toEqual([E, 2]);
+  });
+});
+
+describe("a locked layer (G-133, D404)", () => {
+  const two = () =>
+    layered([
+      [0, 1],
+      [E, 2],
+    ]);
+  const locked = () => setLayerLocked(two(), "stitches", true);
+
+  it("is shown and counted as before; locking twice changes nothing, and unlocking leaves no trace", () => {
+    const document = locked();
+    expect(document.layers[0].locked).toBe(true);
+    expect(Array.from(flatten(document).cellPalette)).toEqual(Array.from(flatten(two()).cellPalette));
+    expect(setLayerLocked(document, "stitches", true)).toBe(document);
+    expect("locked" in setLayerLocked(document, "stitches", false).layers[0]).toBe(false);
+  });
+
+  it("refuses by name a change of its stitches, while its colours may still change in place", () => {
+    const document = locked();
+    const view = layerView(document, "stitches");
+    const painted = { ...view, cellPalette: Uint8Array.from([3, 1]) };
+    expect(() => withLayerView(document, "stitches", painted)).toThrow(`${BASE_LAYER_NAME} is locked, so its stitches can't be changed.`);
+    const recoloured = withLayerView(document, "stitches", {
+      ...view,
+      palette: view.palette.map((c, i) => (i === 0 ? { ...c, rgb: [1, 2, 3] } : c)),
+    });
+    expect(recoloured.palette[0].rgb).toEqual([1, 2, 3]);
+    expect(recoloured.layers[0].locked).toBe(true);
+  });
+
+  it("is not renamed, deleted, or merged either way; it can be hidden and moved", () => {
+    const document = locked();
+    expect(() => renameLayer(document, "stitches", "Border")).toThrow("is locked, so it can't be renamed");
+    expect(() => deleteLayer(document, "stitches")).toThrow("is locked, so it can't be deleted");
+    expect(() => mergeLayers(document, "stitches", "layer-2")).toThrow("is locked, so it can't be merged");
+    expect(() => mergeLayerDown(document, "layer-2")).toThrow("is locked, so it can't be merged into");
+    expect(setLayerVisible(document, "stitches", false).layers[0]).toMatchObject({ visible: false, locked: true });
+    expect(moveLayer(document, "stitches", 1).layers[1]).toMatchObject({ id: "stitches", locked: true });
+  });
+
+  it("takes part in the chart-wide edits: crop, move and colour merges", () => {
+    const document = locked();
+    const shifted = transformDocument(document, { type: "shift", dx: 1, dy: 0 });
+    expect(stitches(shifted, 0)).toEqual([1, 0]);
+    expect(shifted.layers[0].locked).toBe(true);
+    const merged = mergeColorsInDocument(document, 1, 0);
+    expect(stitches(merged, 0)).toEqual([0, 0]);
+    expect(merged.layers[0].locked).toBe(true);
+  });
+
+  it("refuses the drawing tools with a note naming it, and leaves the others be", () => {
+    const layer = { id: "stitches", name: "Border", kind: "stitches", visible: true, locked: true };
+    expect(layerRefusal({ label: "Brush", drawsOnLayer: true }, layer)).toBe("Border is locked: unlock it to draw on it.");
+    expect(layerRefusal({ label: "Pan" }, layer)).toBeNull();
+    expect(layerRefusal({ label: "Brush", drawsOnLayer: true }, { ...layer, locked: false })).toBeNull();
+  });
+
+  it("locking and unlocking are each one undo step", () => {
+    const start = two();
+    let history = commitDocument(startHistory(start), setLayerLocked(start, "stitches", true));
+    expect(history.present!.layers[0].locked).toBe(true);
+    history = undoHistory(history);
+    expect(history.present!.layers[0].locked).toBeFalsy();
+    history = redoHistory(history);
+    expect(history.present!.layers[0].locked).toBe(true);
+  });
+
+  it("is saved in the file and the autosave, and a chart of one locked layer is saved with its layer (format 8)", async () => {
+    const back = deserializeChart(serializeChart(locked()));
+    expect(back.layers.map((layer) => layer.locked === true)).toEqual([true, false]);
+    expect(JSON.parse(serializeChart(two())).layers[0]).not.toHaveProperty("locked");
+
+    const single = setLayerLocked(documentFromPattern(flat([0, 1])), "stitches", true);
+    const text = JSON.parse(serializeChart(single));
+    expect(text.formatVersion).toBe(FORMAT_VERSION);
+    expect(text.layers[0].locked).toBe(true);
+
+    const store = createProjectStore(createMemoryKeyValueStore());
+    await store.save(locked());
+    const { document: stored } = await store.load();
+    expect(stored!.layers[0].locked).toBe(true);
+  });
+
+  it("a file from a build before locks opens unlocked; a lock that is not `true` is no lock", () => {
+    const raw = JSON.parse(serializeChart(two()));
+    const back = deserializeChart(JSON.stringify({ ...raw, layers: [{ ...raw.layers[0], locked: "yes" }, raw.layers[1]] }));
+    expect(back.layers.every((layer) => !layer.locked)).toBe(true);
   });
 });
 

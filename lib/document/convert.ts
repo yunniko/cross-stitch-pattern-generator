@@ -49,13 +49,13 @@ export function asDocument(chart: ChartInput): ChartDocument {
 }
 
 /**
- * Whether the document is just a flat chart: one visible layer of stitches named as a chart made before layers names it.
+ * Whether the document is just a flat chart: one visible, unlocked layer of stitches named as a chart made before layers names it.
  * Such a document is saved as one (`FLAT_FORMAT_VERSION`), so a build from before layers still reads it.
  */
 export function isFlatDocument(document: ChartDocument): boolean {
   if (document.layers.length !== 1) return false;
   const [layer] = document.layers;
-  return isStitchLayer(layer) && layer.visible && layer.name === BASE_LAYER_NAME;
+  return isStitchLayer(layer) && layer.visible && !layer.locked && layer.name === BASE_LAYER_NAME;
 }
 
 /** The document with its properties changed (a name given to an opened chart, say), as a new one. */
@@ -198,11 +198,22 @@ export function layerView(document: ChartDocument, layerId: string): StitchPatte
   return view;
 }
 
+/** Two planes hold the same values; an absent kinds plane is all whole stitches. */
+function samePlane(a: Uint8Array | undefined, b: Uint8Array | undefined): boolean {
+  if (a === b) return true;
+  const left = a ?? new Uint8Array(b!.length);
+  const right = b ?? new Uint8Array(a!.length);
+  if (left.length !== right.length) return false;
+  for (let i = 0; i < left.length; i++) if (left[i] !== right[i]) return false;
+  return true;
+}
+
 /**
  * The document with `next`, an edited view of the layer, written back into it. With other layers beside it, the edit may not
  * change what they share in a way they would not follow: the chart's size, or a colour removed from the palette, which would
  * renumber their stitches. Those are made on the whole document (`lib/editor/document-edit.ts`), and one
- * reaching here is refused by name. Adding a colour or changing one in place is shared as it is.
+ * reaching here is refused by name. Adding a colour or changing one in place is shared as it is. A locked layer's
+ * stitches are not changed here: the tools are refused on it first (`tool-layer.ts`), and this is the guard behind them.
  */
 export function withLayerView(document: ChartDocument, layerId: string, next: StitchPattern): ChartDocument {
   if (views.get(document)?.get(layerId) === next) return document;
@@ -216,11 +227,15 @@ export function withLayerView(document: ChartDocument, layerId: string, next: St
       throw new Error("Removing a colour changes every layer, so it is made on the whole chart, not on one layer.");
     }
   }
+  if (layer.locked && (!samePlane(layer.cells, cellPalette) || !samePlane(layer.kinds, cellKind))) {
+    throw new Error(`${layer.name} is locked, so its stitches can't be changed. Unlock it first.`);
+  }
   const edited: StitchLayer = {
     id: layer.id,
     kind: "stitches",
     name: layer.name,
     visible: layer.visible,
+    ...(layer.locked ? { locked: true } : {}),
     cells: cellPalette,
     ...(cellKind ? { kinds: cellKind } : {}),
   };

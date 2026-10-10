@@ -94,7 +94,8 @@ function applyPlane(plane: Uint8Array, delta: PlaneDelta): Uint8Array {
   return next;
 }
 
-const sameHeader = (a: Layer, b: Layer) => a.id === b.id && a.kind === b.kind && a.name === b.name && a.visible === b.visible;
+const sameHeader = (a: Layer, b: Layer) =>
+  a.id === b.id && a.kind === b.kind && a.name === b.name && a.visible === b.visible && !a.locked === !b.locked;
 const sameLayerSet = (a: ChartDocument, b: ChartDocument) =>
   a.layers.length === b.layers.length && a.layers.every((layer, index) => sameHeader(layer, b.layers[index]));
 

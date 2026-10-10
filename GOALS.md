@@ -63,11 +63,13 @@ Outside both: G-111's comments follow G-112; G-097 comes after G-108, whose char
 - **Constraints:** none beyond the standing ones (release and deploy per the standing approval of 2026-09-13; e2e only in CI).
 
 **Milestones:**
-- [ ] M1 — Tries: duplicates not stored (same chart and same settings), the current try tracked by which one was chosen rather than by chart equality, "Continue in Edit" and its box removed. Unit tests on the rule in `lib/editor/tries.ts`; e2e for generating twice with the same settings, choosing between two same-chart tries, and the strip with many tries. Release note (fixed), brief updated.
-- [ ] M2 — Layer lock: the `locked` flag on a layer (document model, undo, the saved file without a format bump), a lock toggle in the Layers list, the refusal in the tool gate and in delete/merge/rename, the decision on chart-wide edits. Unit tests on the model, the gate and the file round trip; e2e for locking, being refused, unlocking, and a reload. Release note (new), brief updated.
+- [x] M1 — Tries: duplicates not stored (same chart and same settings), the current try tracked by which one was chosen rather than by chart equality, "Continue in Edit" and its box removed. Unit tests on the rule in `lib/editor/tries.ts`; e2e for generating twice with the same settings, choosing between two same-chart tries, and the strip with many tries. Release note (fixed), brief updated.
+- [x] M2 — Layer lock: the `locked` flag on a layer (document model, undo, the saved file without a format bump), a lock toggle in the Layers list, the refusal in the tool gate and in delete/merge/rename, the decision on chart-wide edits. Unit tests on the model, the gate and the file round trip; e2e for locking, being refused, unlocking, and a reload. Release note (new), brief updated.
 - [ ] M3 — Release and deploy (cross-stitch.craftodejnice.cz, standing approval): full checks, CI green, `npm run release`, deploy, live check of the chunks and `/whats-new`; HANDOVER regenerated.
 
 **Progress log** (newest first):
+- 2026-10-10 — M2 done (code; CI pending): `locked` on the layer header, `setLayerLocked`, refusals in rename/delete/merge and the tool gate, `withLayerView` guard, saved only when true (D404). Unit 1,962 (8 new layer, 5 new tries); 1 new e2e case.
+- 2026-10-10 — M1 done (aa72b33): `keepTry` and `currentTryId` in `lib/editor/tries.ts` (D403), strip without its Edit box; 2 new e2e cases, 3 specs moved to the Edit tab.
 - 2026-10-10 — Owner accepted the plan ("accept"): runs through all milestones, deploy included.
 - 2026-10-10 — goal written from the Owner's request; plan presented for acceptance.
 ### G-106 · Subscriptions, part 1: the billing core (contract, webhook, the subscription's state, what a person gets) — ACTIVE (accepted 2026-10-08)

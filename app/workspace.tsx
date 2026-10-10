@@ -208,10 +208,16 @@ export default function Workspace({ account }: WorkspaceProps) {
   const stampSaving = gatedAction("selection.save-stamp", features, () => {});
   // The tools (G-092): which is in hand, and the routing of the pointer and the keys to it. What each does is in its own
   // module under `app/tools/`; this is everything a tool is allowed to touch.
-  // The layer the tools work on, as the tools see it (G-130): its name, kind and visibility.
+  // The layer the tools work on, as the tools see it (G-130): its name, kind, visibility and lock (D404).
   const activeLayerHeader = history.document?.layers.find((layer) => layer.id === history.activeLayerId);
   const activeLayer = activeLayerHeader
-    ? { id: activeLayerHeader.id, name: activeLayerHeader.name, kind: activeLayerHeader.kind, visible: activeLayerHeader.visible }
+    ? {
+        id: activeLayerHeader.id,
+        name: activeLayerHeader.name,
+        kind: activeLayerHeader.kind,
+        visible: activeLayerHeader.visible,
+        locked: activeLayerHeader.locked === true,
+      }
     : null;
   const tools = useTools({
     frameRef,

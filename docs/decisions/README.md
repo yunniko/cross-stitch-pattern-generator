@@ -440,3 +440,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D401 — A thread system is a file of rows the admin keeps; its switch is made from its row — active
 - D402 — A person's own thread systems are rows they own under my- keys, one switch and one limit — active
 - D403 — A repeated try is the kept one; the current try follows the choice — active
+- D404 — A locked layer keeps its stitches, name and merges; chart-wide edits still apply — active
