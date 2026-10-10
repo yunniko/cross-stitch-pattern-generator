@@ -381,7 +381,7 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D343 — A link's token is random, stored as its SHA-256, bound to a purpose and an account, used once, and expires — active
 - D344 — An address must be confirmed only while sending is on — active
 - D345 — A password reset ends every session signed in before it — active
-- D346 — The account and admin areas draw their sidebars from declared section lists — active
+- D346 — The account and admin areas draw their sidebars from declared section lists — active (Profile's address superseded by D405)
 - D347 — Each export's usage event records the kind that was exported — active
 - D348 — Every admin change goes into one change log, and last seen is kept at the account recheck — active
 - D349 — An edited photo is sent as a lossless PNG of the browser's pixels; the sliders are applied, not sent — active
@@ -441,3 +441,5 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D402 — A person's own thread systems are rows they own under my- keys, one switch and one limit — active
 - D403 — A repeated try is the kept one; the current try follows the choice — active
 - D404 — A locked layer keeps its stitches, name and merges; chart-wide edits still apply — active
+- D405 — The account area opens on Charts at `/account`; Profile & sign-in moves to `/account/profile` — active
+- D406 — A deleted account's usage stays in the totals, untied from it; Active accounts counts existing accounts — active

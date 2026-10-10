@@ -12,18 +12,23 @@ export interface OverviewFigures {
   generations: { current: number; previous: number | null };
   exports: { current: number; previous: number | null };
   newAccounts: { current: number; previous: number | null };
-  /** Accounts that generated or exported in the range. */
+  /** Accounts that exist and generated or exported in the range. */
   activeAccounts: number;
 }
 
 const between = (from: Date | null, to?: Date) => (from ? { createdAt: to ? { gte: from, lt: to } : { gte: from } } : {});
 
+/**
+ * Joined to `User`: `UsageEvent.userId` is a plain column, so an id whose account is gone must not count (D406). Deleting
+ * an account clears its events' ids; the join keeps the figure right whatever a row holds.
+ */
 async function activeAccountsSince(from: Date | null): Promise<number> {
   const rows = from
-    ? await prisma.$queryRaw<
-        { n: bigint }[]
-      >`SELECT COUNT(DISTINCT "userId") AS n FROM "UsageEvent" WHERE "userId" IS NOT NULL AND "createdAt" >= ${from}`
-    : await prisma.$queryRaw<{ n: bigint }[]>`SELECT COUNT(DISTINCT "userId") AS n FROM "UsageEvent" WHERE "userId" IS NOT NULL`;
+    ? await prisma.$queryRaw<{ n: bigint }[]>`
+        SELECT COUNT(DISTINCT e."userId") AS n FROM "UsageEvent" e JOIN "User" u ON u."id" = e."userId"
+        WHERE e."createdAt" >= ${from}`
+    : await prisma.$queryRaw<{ n: bigint }[]>`
+        SELECT COUNT(DISTINCT e."userId") AS n FROM "UsageEvent" e JOIN "User" u ON u."id" = e."userId"`;
   return Number(rows[0]?.n ?? 0);
 }
 

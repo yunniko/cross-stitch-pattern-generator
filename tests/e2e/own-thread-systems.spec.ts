@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import { expectPhotoLoaded, FIXTURE, showWorkspace, waitForAutosave } from "./helpers/app";
-import { registerReader, uniqueEmail } from "./helpers/auth";
+import { deleteOwnAccount, registerReader, uniqueEmail } from "./helpers/auth";
 import { featuresDb, setUserFeatures } from "./helpers/features";
 
 /**
@@ -117,11 +117,7 @@ test("the count of systems is the person's limit, the switch refuses, and the sy
   await expect(page.getByTestId("own-systems-unavailable")).toBeVisible();
   await setUserFeatures(email, { "threads.custom": "on" });
 
-  await page.goto("/account");
-  await page.click('button:has-text("Delete account…")');
-  await page.fill("#confirmEmail", email);
-  await page.click('button:has-text("Delete my account")');
-  await expect(page).toHaveURL(/\/$/);
+  await deleteOwnAccount(page, email);
   const left = await featuresDb().query<{ n: number }>(`SELECT count(*)::int AS n FROM "ThreadSystem" WHERE "ownerId" = $1`, [userId]);
   expect(left.rows[0].n).toBe(0);
 });

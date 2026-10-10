@@ -183,7 +183,7 @@ Three **workspaces**, chosen in the bar above: **Photo** makes the chart from a 
   out exactly; content the app still can't show, such as French knots and fractional stitches, is listed
   after opening rather than silently dropped.
 - **Accounts are optional**: generating and exporting work exactly the same signed in or not. A reader who
-  registers gets a personal cabinet (`/account`) to rename, change their password or delete their account. An
+  registers gets an account area (`/account`) that opens on their saved charts, with a Profile & sign-in page to rename, change their password or delete their account. An
   admin role (`/admin/users`, `/admin/stats`) manages accounts and sees site-wide generation/export counts.
 - **Feature switches** (`/admin/features`): every feature of the editor, in groups, is On, Locked (shown greyed with
   a note, refused by the server) or Hidden (absent), for the whole site, for every guest or every signed-in account, for one

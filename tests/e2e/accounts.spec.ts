@@ -105,7 +105,7 @@ test("the personal cabinet: rename, change password, and delete the account", as
   await page.goto("/");
   await expect(page.locator('a[href="/account"]')).toHaveText("Cabinet Reader");
 
-  await page.goto("/account");
+  await page.goto("/account/profile");
   await page.fill("#name", "Renamed Reader");
   await page.click('button:has-text("Save name")');
   await expect(page.getByText("Saved.")).toBeVisible();
@@ -134,6 +134,7 @@ test("the personal cabinet: rename, change password, and delete the account", as
   await page.click('button[type="submit"]');
   await expect(page).toHaveURL(/\/account$/);
 
+  await page.goto("/account/profile");
   await page.click('button:has-text("Delete account…")');
   await page.fill("#confirmEmail", "not-my-email@example.com");
   await page.click('button:has-text("Delete my account")');

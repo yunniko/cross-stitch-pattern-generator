@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { registerReader, uniqueEmail } from "./helpers/auth";
+import { deleteOwnAccount, registerReader, uniqueEmail } from "./helpers/auth";
 import { featuresDb } from "./helpers/features";
 import { previewKey } from "../../lib/charts/saved-chart-link";
 
@@ -189,11 +189,7 @@ test("the space for saved charts is the person's limit; a save over it is refuse
   expect((await (await charts.list()).json()).allowed).toBe("unlimited");
 
   // The account deleted, its charts and its limit go with it.
-  await page.goto("/account");
-  await page.click('button:has-text("Delete account…")');
-  await page.fill("#confirmEmail", email);
-  await page.click('button:has-text("Delete my account")');
-  await expect(page).toHaveURL(/\/$/);
+  await deleteOwnAccount(page, email);
   const left = await featuresDb().query<{ n: number }>(
     `SELECT (SELECT count(*) FROM "SavedChart" WHERE "userId" = $1)::int + (SELECT count(*) FROM "UserLimit" WHERE "userId" = $1)::int AS n`,
     [userId]

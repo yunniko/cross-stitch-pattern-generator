@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { FIXTURE, openSmallChart, showWorkspace } from "./helpers/app";
-import { registerReader, uniqueEmail } from "./helpers/auth";
+import { deleteOwnAccount, registerReader, uniqueEmail } from "./helpers/auth";
 import { featuresDb, setUserFeatures } from "./helpers/features";
 
 /**
@@ -108,11 +108,7 @@ test("the count of palettes is the person's limit, the feature refuses by name, 
   expect(locked.status()).toBe(403);
   expect((await locked.json()).error).toBe("Palettes are not available to you.");
 
-  await page.goto("/account");
-  await page.click('button:has-text("Delete account…")');
-  await page.fill("#confirmEmail", email);
-  await page.click('button:has-text("Delete my account")');
-  await expect(page).toHaveURL(/\/$/);
+  await deleteOwnAccount(page, email);
   const left = await featuresDb().query<{ n: number }>(`SELECT count(*)::int AS n FROM "Palette" WHERE "userId" = $1`, [userId]);
   expect(left.rows[0].n).toBe(0);
 });

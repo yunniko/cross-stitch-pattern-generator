@@ -29,10 +29,11 @@ async function saveToAccount(page: Page, item: "Save" | "Save as copy" = "Save")
 test("the account lists its saved charts with the space used; one is renamed, one deleted, one opened and saved again", async ({
   page,
 }) => {
+  // Signing in lands on the account's Charts (D405); its first address still leads there.
   await registerReader(page, uniqueEmail("charts"));
-
-  await page.goto("/account/charts");
   await expect(page.getByTestId("saved-charts-empty")).toBeVisible();
+  await page.goto("/account/charts");
+  await expect(page).toHaveURL(/\/account$/);
   await expect(page.getByTestId("chart-space")).toHaveText("0 charts · 0 MB of 50 MB");
   await expect(chartsTab(page)).toHaveText("Charts0");
 
@@ -46,7 +47,7 @@ test("the account lists its saved charts with the space used; one is renamed, on
   // The editor is left for the account: the chart, and the saved chart it is, must be stored first.
   await waitForAutosave(page);
 
-  await page.goto("/account/charts");
+  await page.goto("/account");
   await expect(rows(page)).toHaveCount(2);
   await expect(page.getByTestId("chart-space")).toContainText(/^2 charts · [\d.]+ MB of 50 MB$/);
   await expect(chartsTab(page)).toHaveText("Charts2");
@@ -117,7 +118,7 @@ test("the account lists its saved charts with the space used; one is renamed, on
   expect(await savedCharts(page)).toEqual([expect.objectContaining({ id: first.id, version: first.version + 1 })]);
   // The list asks for the new version's preview.
   await waitForAutosave(page);
-  await page.goto("/account/charts");
+  await page.goto("/account");
   await expect(rows(page).first().getByTestId("saved-chart-preview")).toHaveAttribute("src", previewHref(first.id, first.version + 1));
 
   // The same chart asked for again while it is open: nothing to replace, nothing asked.
@@ -127,7 +128,7 @@ test("the account lists its saved charts with the space used; one is renamed, on
   await expect(page).toHaveURL(/\/$/);
 
   // New chart: the editor's start screen, which costs nothing; the open chart is still there to go back to.
-  await page.goto("/account/charts");
+  await page.goto("/account");
   await page.getByRole("link", { name: "New chart" }).click();
   await expect(page.getByRole("button", { name: /^Choose a photo/ })).toBeEnabled({ timeout: 30_000 });
   await expect(page).toHaveURL(/\/$/);

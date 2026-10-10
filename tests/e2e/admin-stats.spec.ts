@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
-import { signInAsAdmin } from "./helpers/auth";
+import { deleteOwnAccount, registerReader, signInAsAdmin, uniqueEmail } from "./helpers/auth";
 import { generateSmallPattern, showWorkspace, chooseExport } from "./helpers/app";
+import { featuresDb } from "./helpers/features";
 
 /**
  * G-075 M4: the admin stats page's counts are read after generating and exporting a known number of times,
@@ -83,3 +84,38 @@ test("an anonymous generation and export are still counted, with no userId", { t
   expect(after.generateToday - before.generateToday).toBe(1);
   expect(after.exportToday - before.exportToday).toBe(1);
 });
+
+test(
+  "Active accounts counts only accounts that exist; a deleted account's usage stays, untied from it",
+  { tag: "@alone" },
+  async ({ page, browser }) => {
+    // G-133 M4, D406. One use is written straight for a new reader, and one for an id that has no account.
+    const db = featuresDb();
+    const active = async () => {
+      await page.goto("/admin/overview?range=all");
+      return Number((await page.getByTestId("overview-active-accounts").locator("span").nth(1).textContent())!.replace(/\D/g, ""));
+    };
+    await signInAsAdmin(page);
+    const before = await active();
+
+    const reader = await (await browser.newContext()).newPage();
+    const email = uniqueEmail("active");
+    await registerReader(reader, email);
+    const { rows } = await db.query<{ id: string }>(`SELECT "id" FROM "User" WHERE "email" = $1`, [email]);
+    const stamp = `e2e_${Date.now().toString(36)}`;
+    await db.query(
+      `INSERT INTO "UsageEvent" ("id", "kind", "userId", "createdAt") VALUES ($1, 'GENERATE', $2, now()), ($3, 'GENERATE', $4, now())`,
+      [`${stamp}_reader`, rows[0].id, `${stamp}_gone`, `${stamp}_no_such_account`]
+    );
+    try {
+      expect(await active()).toBe(before + 1);
+
+      await deleteOwnAccount(reader, email);
+      expect(await active()).toBe(before);
+      const kept = await db.query<{ userId: string | null }>(`SELECT "userId" FROM "UsageEvent" WHERE "id" = $1`, [`${stamp}_reader`]);
+      expect(kept.rows).toEqual([{ userId: null }]);
+    } finally {
+      await db.query(`DELETE FROM "UsageEvent" WHERE "id" LIKE $1`, [`${stamp}_%`]);
+    }
+  }
+);

@@ -37,14 +37,16 @@ export function Figure({
   value,
   note,
   tone = "flat",
+  testId,
 }: {
   label: string;
   value: ReactNode;
   note?: ReactNode;
   tone?: keyof typeof NOTE_TONE;
+  testId?: string;
 }) {
   return (
-    <div className="flex flex-col gap-1.5 rounded-lg border border-line bg-surface px-3.5 py-3">
+    <div className="flex flex-col gap-1.5 rounded-lg border border-line bg-surface px-3.5 py-3" data-testid={testId}>
       <span className="text-[11px] font-medium tracking-[0.08em] text-muted uppercase">{label}</span>
       <span className="font-mono text-2xl font-medium text-ink">{value}</span>
       {note && <span className={`text-xs ${NOTE_TONE[tone]}`}>{note}</span>}

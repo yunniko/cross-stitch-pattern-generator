@@ -37,8 +37,11 @@ describe("the declared lists", () => {
     });
   }
 
-  it("Profile keeps /account, where signing in lands (D346)", () => {
-    expect(sectionAt(ACCOUNT_SECTIONS, "/account")?.id).toBe("profile");
+  it("the account area opens on Charts at /account, where signing in lands; Profile has its own address (D405)", () => {
+    expect(ACCOUNT_SECTIONS[0].id).toBe("charts");
+    expect(sectionAt(ACCOUNT_SECTIONS, "/account")?.id).toBe("charts");
+    expect(sectionAt(ACCOUNT_SECTIONS, "/account/profile")?.id).toBe("profile");
+    expect(sectionAt(ACCOUNT_SECTIONS, "/account/stamps")?.id).toBe("stamps");
   });
 });
 

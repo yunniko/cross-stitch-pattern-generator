@@ -34,7 +34,8 @@ export async function updateNameAction(_prev: AccountFormState, formData: FormDa
   if (err) return { fieldErrors: { name: err } };
 
   await prisma.user.update({ where: { id: userId }, data: { name: name || null } });
-  revalidatePath("/account");
+  // The header beside every account page shows the name too.
+  revalidatePath("/account", "layout");
   return { success: true };
 }
 
@@ -58,7 +59,8 @@ export async function changePasswordAction(_prev: AccountFormState, formData: Fo
 
 /**
  * Deletes the signed-in account and everything the schema cascades from it (`Account`, `Session`,
- * `Subscription`) in one statement, then signs out. Its subscriptions at the provider are ended first, and the
+ * `Subscription`), then signs out. Its generations and exports stay in the site's totals with no account (D406): in the
+ * same transaction their `UsageEvent.userId` is cleared, a plain column the delete does not cascade to. Its subscriptions at the provider are ended first, and the
  * account is kept if they cannot be (G-106, `lib/billing/account-end.ts`). The reader must type their own email first — a plain
  * "Are you sure?" is too easy to click through on an action this irreversible, and this needs no
  * confirmation dialog (never trigger a native `confirm()` -- see `lib/auth/validation.ts`'s neighbours for
@@ -80,7 +82,11 @@ export async function deleteAccountAction(_prev: AccountFormState, formData: For
   const ended = await endSubscriptionsBeforeDeletion(await billingGateway(), stored);
   if (!ended.ok) return { error: ended.error };
 
-  await prisma.user.delete({ where: { id: session.user.id } });
+  const userId = session.user.id;
+  await prisma.$transaction([
+    prisma.usageEvent.updateMany({ where: { userId }, data: { userId: null } }),
+    prisma.user.delete({ where: { id: userId } }),
+  ]);
   await signOut({ redirectTo: "/" });
   return {};
 }

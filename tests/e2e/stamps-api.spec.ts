@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { registerReader, uniqueEmail } from "./helpers/auth";
+import { deleteOwnAccount, registerReader, uniqueEmail } from "./helpers/auth";
 import { featuresDb, setUserFeatures } from "./helpers/features";
 import { previewKey } from "../../lib/charts/saved-chart-link";
 
@@ -151,11 +151,7 @@ test("the count of stamps is the person's limit, the feature refuses by name, an
   expect((await locked.json()).error).toBe("Stamps are not available to you.");
 
   // The account deleted, its stamps go with it.
-  await page.goto("/account");
-  await page.click('button:has-text("Delete account…")');
-  await page.fill("#confirmEmail", email);
-  await page.click('button:has-text("Delete my account")');
-  await expect(page).toHaveURL(/\/$/);
+  await deleteOwnAccount(page, email);
   const left = await featuresDb().query<{ n: number }>(`SELECT count(*)::int AS n FROM "Stamp" WHERE "userId" = $1`, [userId]);
   expect(left.rows[0].n).toBe(0);
 });

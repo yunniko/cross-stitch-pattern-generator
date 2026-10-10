@@ -1,6 +1,6 @@
 # D346 · The account and admin areas draw their sidebars from declared section lists
 
-Date: 2026-10-07 · Goal: G-107 M1 · Status: active (superseded by: —)
+Date: 2026-10-07 · Goal: G-107 M1 · Status: active (superseded by: D405, for Profile's address only)
 Context: both areas grow a page at a time, and each page needs a menu entry, an open-section mark and a guard.
 Decision: each area declares its sections once (`lib/account/sections.ts`, `lib/admin/sections.ts`); one header and one `SectionNav` render them, and `sectionAt` picks the open one by the longest matching address.
 Force: judgment — a new section becomes one entry, and only built sections are listed, so the menu cannot offer a page that does not exist.

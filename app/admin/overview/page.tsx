@@ -57,6 +57,7 @@ export default async function AdminOverviewPage({ searchParams }: { searchParams
         <Figure
           label="Active accounts"
           value={groupThousands(figures.activeAccounts)}
+          testId="overview-active-accounts"
           note={`generated or exported${range === "all" ? "" : `, ${rangeLabel.toLowerCase()}`}`}
         />
       </div>

@@ -75,3 +75,12 @@ export async function signInAsAdmin(page: Page): Promise<void> {
   await logIn(page, ADMIN_EMAIL, ADMIN_PASSWORD);
   await expect(page).toHaveURL(/\/account$/);
 }
+
+/** Deletes the signed-in reader's own account from Profile & sign-in, typing their email, and lands on the editor. */
+export async function deleteOwnAccount(page: Page, email: string): Promise<void> {
+  await page.goto("/account/profile");
+  await page.click('button:has-text("Delete account…")');
+  await page.fill("#confirmEmail", email);
+  await page.click('button:has-text("Delete my account")');
+  await expect(page).toHaveURL(/\/$/);
+}

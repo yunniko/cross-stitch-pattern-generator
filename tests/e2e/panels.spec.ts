@@ -11,11 +11,17 @@ test("the account area: its sections, the way back, and no Admin link for a read
   const email = uniqueEmail("panel");
   await registerReader(page, email, undefined, "Panel Reader");
 
-  await expect(page.getByRole("heading", { name: "Profile & sign-in" })).toBeVisible();
+  // The account area opens on Charts (D405); Profile & sign-in is a section of its own.
+  await expect(page.getByRole("heading", { name: "Charts", exact: true })).toBeVisible();
   await expect(panel.accountNav(page)).toBeVisible();
-  await expect(panel.current(page)).toHaveText("Profile & sign-in");
+  await expect(panel.current(page)).toHaveText(/^Charts/);
   await expect(panel.header(page)).toContainText("Panel Reader");
   await expect(panel.header(page).getByRole("link", { name: "Admin" })).toHaveCount(0);
+
+  await panel.accountNav(page).getByRole("link", { name: "Profile & sign-in" }).click();
+  await expect(page).toHaveURL(/\/account\/profile$/);
+  await expect(page.getByRole("heading", { name: "Profile & sign-in" })).toBeVisible();
+  await expect(panel.current(page)).toHaveText("Profile & sign-in");
 
   // Only what exists is listed: a password, nothing else.
   await expect(page.getByTestId("sign-in-methods").locator("li")).toHaveCount(1);
