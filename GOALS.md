@@ -263,6 +263,80 @@ Outside both: G-111's comments follow G-112; G-097 comes after G-108, whose char
 - **Constraints:** joins G-107's declared section list as one entry (D346); no placeholder before it is built.
 - **Acceptance criteria (draft):** a note written in the admin area appears in the editor's What's new; the existing notes carry over; never exercised live.
 
+### G-134 · Code health: process safety, dead code from the Rust move, shared scaffolding, oversized modules — DRAFT (2026-10-10)
+- **What:** the fixes for the findings of `docs/reviews/2026-10-10-code-health-review.md` (review letters A to D below refer to it).
+- **Why:** Owner, 2026-10-10: review for duplication, questionable decisions, temporary patches and antipatterns, and plan the fixes. One finding (A1) is a live defect in production.
+- **Acceptance criteria:**
+  1. A cancelled or timed-out job leaves no `cs-job` process behind, and a test proves it.
+  2. Every child the processor spawns has a deadline.
+  3. No production module is reachable only from tests.
+  4. Each duplicated block in review section C has one home.
+  5. No source file is over about 500 lines without a `Dnnn` saying why.
+  6. Behaviour is unchanged, apart from A1 to A12: the unit, e2e, Rust golden and cargo suites stay green with the same golden hashes, unless a change is named and justified (A9 may move one).
+- **Constraints:**
+  - Refactors are behaviour-preserving, because production users rely on the shipped output; the goldens (D107) are the proof.
+  - D291 is superseded by a new decision before `workspace.tsx` is restructured (STANDARDS: a reversal gets a new file).
+  - Deleting the TS export engine is reversible through git, and D221 already retired it.
+
+**Milestones** (proposed; the Owner accepts or changes them):
+- [ ] M1 — **Processor and server safety (A1 to A8, A11).**
+  - The processor spawns `cs-job` from the main thread under a semaphore of 3, with a per-child deadline and `kill`. This drops the worker-thread layer and its four-fold pattern serialisation.
+  - Predictions and previews go through the same `runChild`.
+  - Image dimensions are read from the header before decoding.
+  - Panic text is logged on the server; the browser gets a generic message.
+  - Export requests go on stdin, and `authorName` is capped.
+  - Admin bootstrap defaults to off and switches itself off once an admin exists.
+  - Registration P2002 is handled.
+  - Fake billing loads by dynamic import, the `FAKE_WEBHOOK_SECRET` default is dropped, and a CI step greps the production bundle for it.
+  - The quota give-back is retried.
+  - Verified by new unit tests (no child left after cancel or deadline), the full suite, and a stress run.
+  - **Deploy:** cross-stitch to its existing target.
+- [ ] M2 — **Dead code and stale text (B).**
+  - Delete the TS export engine and its specs: `a4-render`, `pdf-canvas-adapter`, `pattern-keeper-pdf`, `export-all`, `pdf-page-flush`, `export-backend`, `runExportJob`. The export types move into `export-kinds.ts`.
+  - Delete the two parity scripts and the unused generation code (keep `gridDimensionsFor` in its own module).
+  - Delete `cs-wasm` (D186 superseded) and the unreferenced scripts.
+  - Correct every "fall back to TypeScript" comment, D264's gutter, and the handover lines.
+  - Split the live-chart half out of `render.ts`.
+- [ ] M3 — **Server and client scaffolding (C, server part).**
+  - Add `lib/server/account-resource.ts` (refusal, feature and limit check, bounded JSON) for the four resources, and `proxyToProcessor` for the five routes.
+  - Add an `adminAction` wrapper, plus a test that every export of `lib/admin/*-actions.ts` uses it.
+  - Add `lib/env.ts`, which validates the environment at startup.
+  - Add a typed `apiJson` client helper with response types shared with the routes.
+  - Add a handover rule that the rate limits rely on nginx.
+- [ ] M4 — **Rust hygiene (A9, A10, C and D, Rust part).**
+  - Split `a4.rs` into `a4/` modules driven by one page plan. That plan also drives page counting and progress, replacing the three copies.
+  - Add helpers for the repeated drawing blocks, and reuse `symbol_text_color`.
+  - `from_editable_json` and `parse_color` return errors instead of panicking.
+  - Sorts use `total_cmp`, with the goldens checked.
+  - Add one `renumber_threads`, and split `plus.rs` into snap, prune and refill.
+  - Format version 7 gets a single source, and the duplicate Rust defaults are dropped or pinned.
+  - CI gains `cargo clippy -D warnings`, and the jsmath vectors fail when missing under CI.
+  - D223 is re-labelled `judgment`.
+- [ ] M5 — **Editor UI structure (C and D, UI part).**
+  - Write a decision superseding D291.
+  - Add an `afterPaletteRenumber` helper, then move the cross-owner handlers out of `workspace.tsx`.
+  - Split `use-chart-renderer.ts` into gesture previews and view/paint. Hover and dot kind become hook arguments.
+  - Add a `usePointerDrag` helper and use `capturePointer` everywhere.
+  - Add canvas and origin→cell helpers.
+  - Route silent catches to the error report, give every lint suppression a reason, and replace the `palette-setup` focus via `requestAnimationFrame` with a ref.
+- [ ] M6 — **Editor library cleanup (A12, C and D, lib part).**
+  - Split `oxs.ts` into read, write and report, with per-tag handlers.
+  - One hex, clamp and `luma`/`readableTextOn` helper.
+  - A `mustGet` named-error accessor in place of the unchecked `!`.
+  - A `kindsOrZeros` helper, and a type-safe layer-kind registry.
+  - Saved palettes tell absent from corrupt.
+  - Archive import reports every failed entry.
+  - Release v-next with a one-line internal note, since nothing is user-facing apart from M1's error text.
+  - **Deploy:** cross-stitch to its existing target.
+
+**To settle with the Owner at acceptance:**
+1. Should M1 drop the worker-thread layer (recommended, since it fixes A1 at the root), or only add a kill handle to it?
+2. Should the fake billing pages leave the production build entirely (a dev-only route group), or stay behind their runtime gate with a CI bundle check?
+3. Should M1 deploy on its own ahead of the rest (recommended: A1 is live)?
+
+**Progress log** (newest first):
+- 2026-10-10 — drafted from the code health review (`docs/reviews/2026-10-10-code-health-review.md`, at 244c56e). A1 was reproduced: a Node 22 worker's spawned child survives `worker.terminate()`.
+
 ### G-101 · A phone layout, and drawing by touch — DRAFT (2026-10-05, for later)
 - **What:** the editor usable on a phone: the regions G-095 builds (tools, panel, quick options, view controls, tries) rearranged for a narrow screen, and touch given a meaning on the chart (one finger draws or pans, a pinch zooms), with a visible control for everything a key does.
 - **Why:** asked by the Owner on 2026-10-05, who chose to keep it out of G-095.
