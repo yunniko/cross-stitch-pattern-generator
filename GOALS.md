@@ -68,6 +68,7 @@ Outside both: G-111's comments follow G-112; G-097 comes after G-108, whose char
 - [ ] M3 — Release and deploy (cross-stitch.craftodejnice.cz, standing approval): full checks, CI green, `npm run release`, deploy, live check of the chunks and `/whats-new`; HANDOVER regenerated.
 
 **Progress log** (newest first):
+- 2026-10-10 — M3: v0.27.0 cut (d9fb2d1, tag pushed) after CI green on e82e399 (e2e 701 and 40; flaky command-list and admin-stats, unrelated). M2's first CI run failed the new lock e2e (a reload drops the thread in hand; test fixed, e82e399). Deploy NOT done: the local deploy shell was stopped by Claude Code for low memory on this machine; the server's checkout is at d9fb2d1 but its build ended without recreating the containers, so production still runs cc26c0f, v0.26.0 (25 containers, MD5 matches). BLOCKED: rerunning the deploy waits for the Owner's word, since the tool asks that a command it stopped not be restarted unasked.
 - 2026-10-10 — M2 done (code; CI pending): `locked` on the layer header, `setLayerLocked`, refusals in rename/delete/merge and the tool gate, `withLayerView` guard, saved only when true (D404). Unit 1,962 (8 new layer, 5 new tries); 1 new e2e case.
 - 2026-10-10 — M1 done (aa72b33): `keepTry` and `currentTryId` in `lib/editor/tries.ts` (D403), strip without its Edit box; 2 new e2e cases, 3 specs moved to the Edit tab.
 - 2026-10-10 — Owner accepted the plan ("accept"): runs through all milestones, deploy included.
