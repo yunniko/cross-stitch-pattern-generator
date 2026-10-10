@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-10-10 at 60c3afe; production runs fabecc7, v0.25.0 (1,931 unit, cargo test all ok; CI on 60c3afe: e2e 695 and 39)
+Last verified: 2026-10-10 at fc46768; production runs fabecc7, v0.25.0 (1,939 unit, cargo test all ok, Rust goldens 74; CI on 2029f63: e2e 695 and 39)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab), live at
@@ -9,7 +9,7 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 ## Current state
 
-**G-132, thread systems as plugins — ACTIVE, M1 of 5 done, not deployed.** M1 (D399): a colour's system is an open string: a loaded system is stored by its id, any other kept as written (`threadSystem`, `isLoadedSystem` and `systemLabel` in `lib/threads/thread-brands.ts`); chart, stamp, palette file, account palette and OXS import keep it, exports print it, and the colour editor opens such a colour in the common colour picker. M2 moves the systems into a table.
+**G-132, thread systems as plugins — ACTIVE, M3 of 5 done, not deployed.** M1 (D399): a colour's system is an open string: a loaded system is stored by its id, any other kept as written (`threadSystem`, `isLoadedSystem` and `systemLabel` in `lib/threads/thread-brands.ts`); every format keeps it, exports print it, and the colour editor opens such a colour in the common colour picker. M2 (D400): the systems are `ThreadSystem` rows seeded by the migration; pages load them through `app/thread-systems/thread-systems-context.tsx`; the job, prediction and export routes replace whatever the browser sent with the table's (`lib/thread-systems/server.ts`); Rust has no list of its own; Anchor is a plain list. M3 (D401): `/admin/thread-systems` adds, edits, downloads and deletes site systems (`lib/admin/thread-system-actions.ts`, files read by `lib/thread-systems/thread-list-file.ts`); each system's switch `brand.<key>` is made from its row (`systemFeatures`). M4 (a person's own systems) is next.
 
 **G-131, palettes with thread system and number — signed off 2026-10-10, archived; deployed in v0.25.0.** M1 (D395): no chart is locked to one system; `threadBrand` only records the generation system. `threadIdentity` (`lib/threads/thread-brands.ts`) makes a typed system and number into `source`, keeping numbers no catalogue lists; `setColorThread` (`lib/editor/pattern-edit.ts`) sets it without changing the colour; the colour editor's System and Number fields are `app/components/thread-fields.tsx`; "+ Add" has the mode switch. M2 (D396): every key prints System, Number and Color name columns whatever the systems (`lib/threads/printed-thread.ts` and `Color::printed_thread` in Rust); OXS writes each colour's own system and number. M3 (D397): a set colour is `{rgb, name?, source?}`, the palette file is version 2 (`lib/editor/palette-set.ts`); save and load are `app/components/palette-library.tsx` on both pages; Append and Replace are `lib/editor/palette-load.ts` and `replacePaletteInDocument`. M4 (D398): saved palettes are the account's (`lib/palettes/`, `/api/palettes`), one list for both pages through `app/components/palette-account.tsx`; signed out, file only; the browser's old palettes move in by one request (`app/api/palettes/move/route.ts`).
 
@@ -156,7 +156,7 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
 - **Crisp mode** (`lib/crisp/`): a frozen evidence layer (D065) feeds weighted quantization, admissible-label unary
   costs in ICM and cleanup, repair after merges, and mode-aware finalization (D061–D072); it evaluates every cell
   (D132). Crisp+ (G-038) adds blurred-step evidence (D139), strip snapping (D140), pruning (D141), refill (D142).
-- **Threads** (`lib/threads/`): `thread-brands.ts` is the registry ("direct" matching for DMC and Cosmo, "dmc-equivalence" for Anchor); `brand-match.ts` snaps, provenance in `docs/*-colors-provenance.md`.
+- **Threads** (`lib/threads/`, `lib/thread-systems/`): the systems are table rows (D400); `thread-brands.ts` is the browser's registry of those loaded, `thread-system.ts` the pure rules for a list and a request, `server.ts` the table's reader for pages and routes. Provenance of the seeded three in `docs/*-colors-provenance.md`.
 - **Export** (`lib/export/`): `render.ts` holds the chart layout budget and the realistic preview, streamed a strip at
   a time from `stitch-texture.ts`'s tiles (D173). A4 page drawing takes a `ChartDrawingContext`, so one code path draws
   PNG and PDF pages (`pdf-canvas-adapter.ts`, D074, D126). `export-jobs.ts` runs every export on the processor, through

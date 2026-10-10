@@ -220,12 +220,14 @@ Outside both: G-111's comments follow G-112; G-097 comes after G-108, whose char
 
 **Milestones:**
 - [x] M1 — Any system string is kept: the system becomes an open string in types and parsers (chart, stamp, palette file, account palette, OXS import), exports print the stored string when the system is not loaded, and the colour editor and + Add open the common colour picker for such a colour. Still on the built-in lists.
-- [ ] M2 — Systems as data: the `ThreadSystem` table and migration seeded with DMC, Cosmo and Anchor (plain list); one server module and route give the systems a person can use; the browser reads them instead of the built-in lists; Rust takes the threads in the request and its compiled-in catalogues go (kept as test fixtures); Anchor's goldens re-pinned.
-- [ ] M3 — The admin's Thread systems page: list, add, edit, download, delete, switched per site, tier and person, logged.
+- [x] M2 — Systems as data: the `ThreadSystem` table and migration seeded with DMC, Cosmo and Anchor (plain list); one server module and route give the systems a person can use; the browser reads them instead of the built-in lists; Rust takes the threads in the request and its compiled-in catalogues go (kept as test fixtures); Anchor's goldens re-pinned.
+- [x] M3 — The admin's Thread systems page: list, add, edit, download, delete, switched per site, tier and person, logged.
 - [ ] M4 — A person's own systems: upload, list, rename, download, delete in the account and from the editor's system choice; used in generation and editing; the feature, limit and size cap; deleted with the account.
 - [ ] M5 — The brief and What's new, a QA pass on the flows, then release and deploy to cross-stitch.craftodejnice.cz (standing approval), with the seed checked live.
 
 **Progress log** (newest first):
+- 2026-10-10 — M3 done in code (D401, fc46768): `/admin/thread-systems` lists, adds from a file or typed list, edits, downloads and deletes site systems, logged under Thread systems; a system's switch is made from its row, and deleting it deletes its switch rows. Verified: 1,939 unit tests, tsc, eslint at 6, prettier, docs checks. CI on fc46768: e2e 694 passed, 1 failed (`panels.spec.ts` listed the admin sections without Thread systems), fixed in the check-in commit. Next: M4. M4.
+- 2026-10-10 — M2 done (D400, 2029f63): systems are `ThreadSystem` rows seeded by the migration; routes put the table's lists into each request; Rust holds no list; Anchor a plain list, its golden alone re-pinned. Verified: 1,926 unit tests, cargo test all ok, Rust goldens 74/74, CI e2e 695 and 39 passed.
 - 2026-10-10 — M1 done (D399, 60c3afe): the system is an open string in every type and parser; exports print the stored string; a colour of an unloaded system opens the common colour picker. Verified: 1,931 unit tests, cargo test all ok, CI e2e 695 and 39 passed. Next: M2.
 - 2026-10-10 — the Owner accepted the plan; no milestone marked for review.
 - 2026-10-10 — goal created from the Owner's request and planned; the Owner chose: Anchor as a plain list, a user's systems private to them, usable for generation and editing, gated like palettes (feature `threads.custom`, limit `threads.systems` 10).
