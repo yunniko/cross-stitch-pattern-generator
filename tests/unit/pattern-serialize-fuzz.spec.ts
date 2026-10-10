@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { deserializePattern, serializePattern } from "@/lib/editor/pattern-serialize";
 import { mulberry32 } from "@/lib/prng";
 import { drawChart, renderNavigatorPixels } from "@/lib/export/render";
-import { findThread } from "@/lib/threads/thread-brands";
+import { THREAD_CODE_MAX, findThread } from "@/lib/threads/thread-brands";
 import { EMPTY_CELL, MAX_COLORS, MAX_STITCHES, type StitchPattern } from "@/lib/types";
 import { makeRecordingContext } from "./helpers/recording-context";
 
@@ -63,8 +63,11 @@ const BAD_SOURCES: unknown[] = [
   { brand: "dmc" },
   { brand: "rainbow", code: "1" },
   { brand: "dmc", code: "" },
-  { brand: "dmc", code: "NOPE" },
+  { brand: "dmc", code: " " },
+  { brand: "dmc", code: "x".repeat(THREAD_CODE_MAX + 1) },
   { brand: "dmc", code: 310 },
+  // Kept since G-131 (D395): a number no catalogue lists, and one written in another case than the catalogue's.
+  { brand: "dmc", code: "NOPE" },
   { brand: "dmc", code: "b5200" },
 ];
 
@@ -215,15 +218,18 @@ function assertRenderable(pattern: StitchPattern): void {
     expect(index === EMPTY_CELL || index < pattern.palette.length).toBe(true);
   }
   if (pattern.threadBrand !== undefined) expect(["dmc", "cosmo", "anchor"]).toContain(pattern.threadBrand);
-  // Every kept thread identity resolves with its canonical code, and a lock means every color is that brand's thread (D122).
+  // Every kept thread is of a known system, with a trimmed number of 1 to THREAD_CODE_MAX characters, written as the
+  // catalogue writes it when the catalogue lists it (D395). The chart's own system limits nothing.
   for (const color of pattern.palette) {
     if (color.source === undefined) {
       expect("source" in color).toBe(false);
       continue;
     }
-    expect(findThread(color.source.brand, color.source.code)?.code).toBe(color.source.code);
+    expect(["dmc", "cosmo", "anchor"]).toContain(color.source.brand);
+    const { code } = color.source;
+    expect(code.length >= 1 && code.length <= THREAD_CODE_MAX && code === code.trim()).toBe(true);
+    expect(findThread(color.source.brand, code)?.code ?? code).toBe(code);
   }
-  if (pattern.threadBrand !== undefined) expect(pattern.palette.every((color) => color.source?.brand === pattern.threadBrand)).toBe(true);
   if (pattern.enhancementMode !== undefined) expect(["brighten", "auto", "vivid", "portrait"]).toContain(pattern.enhancementMode);
 
   // Every renderer must run clean on the accepted pattern.

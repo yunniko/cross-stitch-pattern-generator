@@ -5,7 +5,16 @@ import { floodFillDiagonal, labelRegions } from "../pipeline/regions";
 import { SYMBOL_SET } from "../color/symbols";
 import { kindBuffer, kindsAfterWholePainting, STITCH_WHOLE, tidyKinds } from "./stitch-kind";
 import { formatThreadName, THREAD_BRANDS, type ThreadBrand } from "../threads/thread-brands";
-import { type ChartFabric, EMPTY_CELL, MAX_COLORS, MAX_STITCHES, type PaletteColor, type RGB, type StitchPattern } from "../types";
+import {
+  type ChartFabric,
+  EMPTY_CELL,
+  MAX_COLORS,
+  MAX_STITCHES,
+  type PaletteColor,
+  type RGB,
+  type StitchPattern,
+  type ThreadSwatchRef,
+} from "../types";
 
 // `EMPTY_CELL` (255) is never counted against any real palette color and
 // must never be run through a palette-index remap (an out-of-bounds typed-
@@ -209,22 +218,7 @@ export function resizeCanvas(pattern: StitchPattern, delta: CanvasResizeDelta): 
   };
 }
 
-/**
- * A brand-locked pattern holds only that brand's threads (D122): a custom color (`brand` null) or another brand's thread
- * is refused here, whatever the UI offers.
- */
-function assertBrandAllowed(pattern: StitchPattern, brand: ThreadBrand | null): void {
-  const locked = pattern.threadBrand;
-  if (!locked || brand === locked) return;
-  const lockedLabel = THREAD_BRANDS[locked].label;
-  throw new Error(
-    brand
-      ? `This pattern uses only ${lockedLabel} threads, so a ${THREAD_BRANDS[brand].label} thread can't be used.`
-      : `This pattern uses only ${lockedLabel} threads, so a custom color can't be used.`
-  );
-}
-
-/** The palette entry without its thread identity: a manual RGB makes it a custom color. */
+/** The palette entry without its thread identity. */
 function withoutSource(color: PaletteColor): PaletteColor {
   const { source: _source, ...rest } = color;
   void _source;
@@ -232,12 +226,11 @@ function withoutSource(color: PaletteColor): PaletteColor {
 }
 
 /**
- * Changes an existing palette color's actual RGB. Symbol and name are left as-is -- a manual recolor shouldn't silently
- * rename the swatch out from under the user -- but the thread identity is dropped: it is now a custom color (D122).
+ * Changes an existing palette color's actual RGB. Symbol, name and thread are left as they are: the thread is the
+ * person's to set or clear (G-131, D395), as a typed number never changes the color, a changed color never drops it.
  */
 export function editColorRgb(pattern: StitchPattern, paletteIndex: number, rgb: RGB): StitchPattern {
-  assertBrandAllowed(pattern, null);
-  const palette = pattern.palette.map((color, i) => (i === paletteIndex ? { ...withoutSource(color), rgb } : color));
+  const palette = pattern.palette.map((color, i) => (i === paletteIndex ? { ...color, rgb } : color));
   return { ...pattern, palette };
 }
 
@@ -250,7 +243,6 @@ export function restoreColor(
   paletteIndex: number,
   snapshot: Pick<PaletteColor, "rgb" | "name" | "source">
 ): StitchPattern {
-  assertBrandAllowed(pattern, snapshot.source?.brand ?? null);
   const palette = pattern.palette.map((color, i) => {
     if (i !== paletteIndex) return color;
     const restored = { ...withoutSource(color), rgb: snapshot.rgb, name: snapshot.name };
@@ -265,14 +257,9 @@ export function restoreColor(
  * D92), renaming it `"CODE - Name"` to match -- unlike `editColorRgb`,
  * which deliberately leaves the name alone for an arbitrary hex edit,
  * picking a named thread is picking a specific identity, so the name
- * should follow it. Does not touch `threadBrand`: that field means "every
- * color in this palette is matched to this brand" (set only by
- * `applyBrandPalette` at generation time) -- converting a single color in
- * an otherwise free-form palette doesn't make the whole pattern a brand-
- * matched one.
+ * should follow it. Any brand's thread may go in any chart (G-131).
  */
 export function editColorToBrandColor(pattern: StitchPattern, paletteIndex: number, code: string, brand: ThreadBrand): StitchPattern {
-  assertBrandAllowed(pattern, brand);
   const thread = THREAD_BRANDS[brand].colors.find((c) => c.code === code);
   if (!thread) throw new Error(`"${code}" isn't a recognized ${THREAD_BRANDS[brand].label} color code.`);
   const palette = pattern.palette.map((color, i) =>
@@ -288,8 +275,7 @@ export function editColorToBrandColor(pattern: StitchPattern, paletteIndex: numb
  * bug (HANDOVER.md D9), it's the normal, expected state here right after
  * adding one.
  */
-export function addColor(pattern: StitchPattern, rgb: RGB): StitchPattern {
-  assertBrandAllowed(pattern, null);
+export function addColor(pattern: StitchPattern, rgb: RGB, identity: { name?: string; source?: ThreadSwatchRef } = {}): StitchPattern {
   if (pattern.palette.length >= MAX_COLORS) {
     throw new Error(`Cannot add another color -- already at the maximum of ${MAX_COLORS}.`);
   }
@@ -302,7 +288,15 @@ export function addColor(pattern: StitchPattern, rgb: RGB): StitchPattern {
     rgb,
     pattern.palette.map((c) => c.name)
   );
-  const newColor: PaletteColor = { index: pattern.palette.length, rgb, symbol, name, count: 0 };
+  const newColor: PaletteColor = {
+    index: pattern.palette.length,
+    rgb,
+    symbol,
+    // A name brought with the colour (a stamp's, a palette's) is kept unless another colour already has it.
+    name: identity.name && !pattern.palette.some((c) => c.name === identity.name) ? identity.name : name,
+    count: 0,
+    ...(identity.source ? { source: identity.source } : {}),
+  };
 
   return { ...pattern, palette: [...pattern.palette, newColor] };
 }
@@ -310,14 +304,11 @@ export function addColor(pattern: StitchPattern, rgb: RGB): StitchPattern {
 /**
  * Adds a brand-new color from a real thread brand's line, by code (G-016,
  * generalized from DMC-only in G-029 M1, HANDOVER.md D92) -- the "+ Add"
- * counterpart to `addColor` for a `threadBrand`-matched pattern, where
- * every color must stay a real, buyable thread rather than an arbitrary
- * RGB. Named `"CODE - Name"` like every other color `applyBrandPalette`
+ * counterpart to `addColor` for a thread picked from a catalogue. Named `"CODE - Name"` like every other color `applyBrandPalette`
  * produces, so the two stay indistinguishable in the legend. Starts at
  * zero stitches, same as `addColor`.
  */
 export function addBrandColor(pattern: StitchPattern, code: string, brand: ThreadBrand): StitchPattern {
-  assertBrandAllowed(pattern, brand);
   if (pattern.palette.length >= MAX_COLORS) {
     throw new Error(`Cannot add another color -- already at the maximum of ${MAX_COLORS}.`);
   }
@@ -369,7 +360,26 @@ export function renameColor(pattern: StitchPattern, paletteIndex: number, name: 
   return { ...pattern, palette };
 }
 
-/** Renames the pattern itself -- distinct from `renameColor`, which renames one palette entry. Drives every downloadable's filename. */
+/**
+ * Sets the thread a color is, by system and number typed or chosen by hand (G-131), or clears it with null. The color itself
+ * never changes (Owner, 2026-10-10). A name that begins with the old number ("310 - Black") follows the new one, since it
+ * would otherwise print a number the color no longer has; any other name is the person's and stays.
+ */
+export function setColorThread(pattern: StitchPattern, paletteIndex: number, thread: ThreadSwatchRef | null): StitchPattern {
+  const color = pattern.palette[paletteIndex];
+  if (!color) throw new Error(`No color at index ${paletteIndex}.`);
+  if (color.source?.brand === thread?.brand && color.source?.code === thread?.code) return pattern;
+  const old = color.source?.code;
+  const followed =
+    thread && old !== undefined && (color.name === old || color.name.startsWith(`${old} - `))
+      ? thread.code + color.name.slice(old.length)
+      : color.name;
+  // Names are unique within a chart: a name another colour already has is not taken.
+  const renamed = pattern.palette.some((c, i) => i !== paletteIndex && c.name === followed) ? color.name : followed;
+  const next = thread ? { ...withoutSource(color), name: renamed, source: thread } : withoutSource(color);
+  return { ...pattern, palette: pattern.palette.map((c, i) => (i === paletteIndex ? next : c)) };
+}
+
 /**
  * The chart on another fabric (G-094, D290): its count, or the unit its size is shown in. The stitches do not change, only
  * what size they come to. The same chart when nothing differs, so choosing the value already chosen is not an undo step.
@@ -379,6 +389,7 @@ export function setFabric(pattern: StitchPattern, fabric: ChartFabric): StitchPa
   return { ...pattern, fabric: { count: fabric.count, unit: fabric.unit } };
 }
 
+/** Renames the pattern itself -- distinct from `renameColor`, which renames one palette entry. Drives every downloadable's filename. */
 export function renamePattern(pattern: StitchPattern, name: string): StitchPattern {
   const trimmed = name.trim();
   if (trimmed === "") return pattern;

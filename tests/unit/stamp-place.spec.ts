@@ -5,8 +5,8 @@ import { EMPTY_CELL, MAX_COLORS, type PaletteColor, type StitchPattern } from "@
 
 /**
  * G-119 M4: a stamp placed in a chart. Its threads are found in the chart's palette by brand and code, or by colour for a
- * custom one; the ones the chart lacks are added at the end; a brand-matched chart, a full palette and a chart smaller than
- * the stamp refuse it whole.
+ * custom one; the ones the chart lacks are added at the end; a full palette and a chart smaller than the stamp refuse it
+ * whole. Any chart takes any system's threads (G-131).
  */
 
 const E = EMPTY_CELL;
@@ -98,20 +98,13 @@ describe("placing a stamp", () => {
     expect(placed.pattern).toBe(original);
   });
 
-  it("is refused whole by a chart of one brand when it brings a custom colour or another brand's thread", () => {
-    const dmcOnly = chart([red], { threadBrand: "dmc" });
-    expect(placeStamp(dmcOnly, stamp(), { x: 0, y: 0 })).toEqual({
-      error: "This chart uses only DMC threads, and the stamp has the custom colour “Ink”, so it was not placed.",
-    });
-    const anchorOnly = chart([], { threadBrand: "anchor" });
-    expect(placeStamp(anchorOnly, stamp(), { x: 0, y: 0 })).toEqual({
-      error: "This chart uses only Anchor threads, and the stamp has DMC “321 - Red”, so it was not placed.",
-    });
-    // A DMC chart takes a stamp of DMC threads alone.
-    const onlyRed: StampContents = {
-      pattern: { ...stamp().pattern, palette: [red], cellPalette: Uint8Array.from([0, 0, E, E, E, E]), backstitch: undefined },
-    };
-    expect("piece" in placeStamp(chart([], { threadBrand: "dmc" }), onlyRed, { x: 0, y: 0 })).toBe(true);
+  it("is placed in a chart generated in another system, its threads keeping their own (G-131)", () => {
+    const placed = placeStamp(chart([], { threadBrand: "anchor" }), stamp(), { x: 0, y: 0 });
+    if ("error" in placed) throw new Error(placed.error);
+    expect(placed.pattern.palette.map(({ name, source }) => ({ name, source }))).toEqual([
+      { name: "321 - Red", source: { brand: "dmc", code: "321" } },
+      { name: "Ink", source: undefined },
+    ]);
   });
 
   it("is refused whole when the palette has no room for the threads it lacks", () => {

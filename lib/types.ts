@@ -75,7 +75,10 @@ export function formatColorCount(count: number): string {
   return `${count.toLocaleString("en-US")} ${count === 1 ? "color" : "colors"}`;
 }
 
-/** A catalogue thread a palette color was taken from, by brand and canonical table code (G-033, D122). Immutable: replace it, never mutate it. */
+/**
+ * The thread a palette color is, by system (brand) and number (G-033, D122). Picked from a catalogue, the number is the table's;
+ * typed by hand (G-131), it may be a number no catalogue here lists (`threadIdentity`). Immutable: replace it, never mutate it.
+ */
 export interface ThreadSwatchRef {
   readonly brand: ThreadBrand;
   readonly code: string;
@@ -90,7 +93,7 @@ export interface PaletteColor {
   name: string;
   /** Number of stitches using this color. */
   count: number;
-  /** The thread this color was picked from; absent for a custom color. Its RGB need not equal the table's (Anchor carries DMC RGB). */
+  /** The thread this color is; absent for a color with no thread. Its RGB need not equal the table's (Anchor carries DMC RGB, and a typed number never changes the color). */
   source?: ThreadSwatchRef;
 }
 
@@ -162,7 +165,10 @@ export interface StitchPattern {
   name?: string;
   /** Absent for a pattern with no associated photo, such as one saved before G-012. */
   sourceImage?: SourceImageRef;
-  /** Set when every palette color is a real thread of this brand; drives "+ Add" and the A4 thread section (D92). */
+  /**
+   * The brand a chart was generated in (D92), kept for what it tells: the thread picker opens on it. It no longer limits the
+   * chart (G-131): any color may be any system's thread, or none.
+   */
   threadBrand?: ThreadBrand;
   /** The set of colours the Owner chose for the generation of this chart, kept with it (G-087); absent on a chart made without one. */
   generationPalette?: GenerationPalette;

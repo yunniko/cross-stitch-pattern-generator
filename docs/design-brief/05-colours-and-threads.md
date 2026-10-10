@@ -4,7 +4,7 @@ The list of a chart's colours and everything done to them. Sources: `app/compone
 
 ## What a colour is
 
-A palette entry has: a **colour** (RGB), a **name** (unique within the chart), a **one-character symbol** (unique within the chart), how many stitches use it, and optionally the **thread** it is (brand and code). A chart holds **0 to 100** colours; an empty palette is legal only while nothing is stitched. The **empty stitch** is not a palette entry and is never counted.
+A palette entry has: a **colour** (RGB), a **name** (unique within the chart), a **one-character symbol** (unique within the chart), how many stitches use it, and optionally the **thread** it is (system and number). A chart holds **0 to 100** colours; an empty palette is legal only while nothing is stitched. The **empty stitch** is not a palette entry and is never counted.
 
 **Names.** In a free chart each colour gets a unique everyday colour name chosen from a large list by nearest perceived colour. In a thread chart the name is "*code* – *name*" (DMC), or just the code (Cosmo, Anchor, which have no published names).
 
@@ -18,7 +18,7 @@ A palette entry has: a **colour** (RGB), a **name** (unique within the chart), a
 | **Cosmo** | 500 | Code only | From an open dataset |
 | **Anchor** | 355 | Code only | Derived: each is the documented Anchor equivalent of the nearest DMC thread; the colour shown is the DMC colour; the derivation is disclosed wherever Anchor is chosen |
 
-A chart is either **free** (colours are any RGB) or **brand-locked** (every colour is a real thread of one brand, recorded as the chart's brand). A chart generated in a brand mode is brand-locked. A colour's thread identity is remembered by brand and code, so it survives later changes to the thread tables.
+Any colour of any chart may be a thread of any system, or no thread at all: a chart is never locked to one system. A chart generated in a thread system remembers that system, which only decides where "+ Add" and the colour editor first open. A colour's thread is remembered by system and number, so it survives later changes to the thread tables. A number may also be typed by hand (below), and one that no table lists is kept as typed; a typed number never changes the colour.
 
 ## The thread list
 
@@ -43,8 +43,9 @@ Shown for a chart; "No threads yet" with none.
 | | |
 |---|---|
 | **Control** | "+ Add" above the list; unavailable with no chart |
-| **Free chart** | Opens a colour choice (default `#808080`) with Add and Cancel; adds the colour with a generated name and the first unused symbol |
-| **Brand chart** | Opens the thread choice for the chart's brand (all of its threads as swatches, with search by code or name); choosing one adds that thread; Cancel |
+| **Mode** | A choice among **Full range**, **DMC**, **Cosmo**, **Anchor** (the brands under their feature switches), opening on the chart's generation system, or Full range for a chart made in none; the Anchor derivation note shows with Anchor |
+| **Full range** | A colour choice (default `#808080`) with Add and Cancel; adds the colour with a generated name and the first unused symbol |
+| **A brand** | The brand's threads as swatches, with search by code or name; choosing one adds that thread; Cancel |
 | **Refusals** | "Cannot add another color -- already at the maximum of 100." and "No unused symbol available." |
 | **A chart with no colours** | The list says: "This chart has no colors yet. Press "+ Add" to pick the first one, then click it and paint on the picture." |
 
@@ -54,10 +55,12 @@ Opens from a colour's swatch; picks apply at once and it stays open until **Done
 
 | Control | Kind and values | Available when | Effects |
 |---|---|---|---|
-| **Mode** | Choice among **Full range**, **DMC**, **Cosmo**, **Anchor** | A free chart. A brand chart shows a notice instead: "This pattern is in *Brand* mode -- pick a real *Brand* thread color." plus the Anchor derivation note | Opens on the colour's own mode: a colour that is a thread opens on its brand with its swatch marked and centred in view |
-| **Colour area** (Full range) | A colour choice, applied live while dragging | Full range | Changes the RGB only; the name is left alone |
-| **Thread grid** (brands) | Every thread of the brand as a swatch, ten across, with a search box (matches code or name, ignoring case; "No colors match that search.") | Brand mode | Choosing a thread changes the colour to it and renames it "*code* – *name*"; choosing the thread it already is changes nothing. In a free chart it does not make the chart brand-locked |
+| **Mode** | Choice among **Full range**, **DMC**, **Cosmo**, **Anchor** | Always; with Anchor, the Anchor derivation note | Opens on the colour's own system: a colour that is a thread opens on its brand with its swatch marked and centred in view; any other on the chart's generation system, or Full range |
+| **Colour area** (Full range) | A colour choice, applied live while dragging | Full range | Changes the RGB only; the name and the thread number are left alone |
+| **Thread grid** (brands) | Every thread of the brand as a swatch, ten across, with a search box (matches code or name, ignoring case; "No colors match that search.") | Brand mode | Choosing a thread changes the colour to it and renames it "*code* – *name*"; choosing the thread it already is changes nothing |
 | **Comparison text** | Text | Brand mode | Pointing at or focusing a swatch shows its name and how much lighter or darker, and more or less saturated, it is than the current colour, in percentage points ("*n*% lighter", "*n*% less saturated"); with none the line reads "Hover or focus a swatch to compare it with the current color on screen." |
+| **System** | A choice of **None**, **DMC**, **Cosmo**, **Anchor** | Always | None says the colour is no particular thread and clears its number; a brand with a number already typed sets the thread at once |
+| **Number** | Text, up to 20 characters | A system is chosen ("Choose a system" otherwise) | Enter or leaving it sets the thread. A number a table lists is written as the table writes it; any other is kept as typed; empty clears the thread. The colour never changes. A name that begins with the old number ("310 - Black") follows the new one unless another colour already has that name |
 | **Done / Cancel** | Actions | | |
 
 ## Symbol choice

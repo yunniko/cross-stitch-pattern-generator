@@ -201,7 +201,7 @@ Outside both: G-111's comments follow G-112; G-097 comes after G-108, whose char
 - 2026-10-08 — Owner accepted the plan ("you can go ahead with 109, 106 and 126 - 128"), to run after G-109 in the order G-106, G-126, G-127, G-128. Items (1) to (6) are the Owner's and wait on them. JulAI's part starts after G-127: the pages take the Owner's text, so they are built with the missing text named as missing, and the launch checklist as a script.
 - 2026-10-08 — drafted from G-106's constraints at the Owner's request.
 
-### G-131 · Palettes: thread number and system on every colour, no brand lock, saved to the account, loaded into a chart — ACTIVE (planned 2026-10-10, awaiting acceptance)
+### G-131 · Palettes: thread number and system on every colour, no brand lock, saved to the account, loaded into a chart — ACTIVE (accepted 2026-10-10)
 - **What (Owner, 2026-10-10):**
   - Every colour carries its own thread **system** (DMC, Anchor, Cosmo, or none) and **number**, editable by hand wherever the whole palette is edited (the Edit colours and Set up palette), beside the name.
   - A chart is no longer locked to one brand: threads of several systems sit in one chart.
@@ -221,13 +221,15 @@ Outside both: G-111's comments follow G-112; G-097 comes after G-108, whose char
 - **Constraints:** the architecture rules in docs/architecture.md (the account part goes through the same server pattern as stamps, lib/stamps/server.ts; the export columns are built in the Rust exporter that production runs, with the TypeScript twin kept identical); release notes for users only; no DB dump before the migration (Owner, 2026-10-08).
 
 **Milestones:**
-- [ ] M1 — Thread identity per colour, and the lock removed: system and number on each colour (type, editable file); hand-editing fields in Edit's colours and in Set up palette; the brand refusals removed from editing and stamps.
+- [x] M1 — Thread identity per colour, and the lock removed: system and number on each colour (type, editable file); hand-editing fields in Edit's colours and in Set up palette; the brand refusals removed from editing and stamps.
 - [ ] M2 — Exports with one set of thread columns (System, Number) in the Rust exporter and its TypeScript twin, including the divergence between them in when codes print; OXS per colour.
 - [ ] M3 — Palette file version 2 (system, number, name per colour; version 1 still loads), save and load on the Edit page as on generation, and loading into the chart by Append or Replace with the mapping above.
 - [ ] M4 — Palettes in the account: table and migration, routes, feature and limit, the saved list on both pages, the one-time move of browser palettes.
 - [ ] M5 — The brief and What's new, a QA pass on the flows, then release and deploy to cross-stitch.craftodejnice.cz (standing approval).
 
 **Progress log** (newest first):
+- 2026-10-10 — M1 done (D395): the lock removed from editing, "+ Add", stamps and file loading; System and Number fields in the colour editor; a recolour keeps the thread. Hand-editing in Set up palette moves to M3 with the palette file v2 it writes. Verified: tsc, eslint (6 old warnings), prettier, docs-lint, brief and release-note checks; vitest 1,901/1,901; e2e for typed numbers and mixed systems in CI.
+- 2026-10-10 — the Owner accepted the plan; no milestone marked for review.
 - 2026-10-10 — goal created from the Owner's request and planned; the Owner chose: Replace maps by same thread else nearest (merges allowed), account-only saved list with a one-time move from the browser, typed numbers never change the colour, gating like stamps. "Pattern ... append or replace" read as the palette loaded into the chart.
 ### G-108 · Charts saved to an account, a gallery, and who can see each (private by default) — DRAFT (part 2; part 1 signed off 2026-10-08)
 - **Part 1 (saving to the account, the account's Charts, previews) — DONE, Owner sign-off 2026-10-08;** archived in `docs/goals-archive/G-101-to-G-110.md`. Deployed in v0.15.0, v0.16.0 and v0.17.0.

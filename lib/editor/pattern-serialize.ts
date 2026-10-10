@@ -5,7 +5,7 @@ import { DITHER_MODES, type DitherMode } from "../pipeline/dither";
 import { isValidDitherTexture, type DitherTexture } from "../pipeline/dither-hand-drawn";
 import { isEnhancementModeId, type EnhancementModeId } from "./legacy-enhancement";
 import { readSavedAdjust, type PhotoAdjust } from "../pipeline/photo-adjust";
-import { findThread, THREAD_BRAND_IDS, type ThreadBrand } from "../threads/thread-brands";
+import { THREAD_BRAND_IDS, threadIdentity, type ThreadBrand } from "../threads/thread-brands";
 import { FLAT_FORMAT_VERSION, FORMAT_VERSION, migrateToCurrent } from "../document/migrate";
 import { asDocument, flatten, isFlatDocument, newRevision, type ChartInput } from "../document/convert";
 import { isLayerKind, layerKind } from "../document/layer-kinds";
@@ -352,9 +352,8 @@ export function deserializeChartData(data: unknown): ChartDocument {
 
   // Thread identity (D122): every colour names its thread, or is a custom one. A file from before that was given its
   // sources by the migration step.
-  let threadBrand = resolveThreadBrand(d);
-  // A lock means every color is that brand's thread; when that can't be established, the lock goes and the sources stay.
-  if (threadBrand && entries.some((entry) => entry.source?.brand !== threadBrand)) threadBrand = undefined;
+  // The brand the chart was generated in, kept as it is: it no longer limits the colours (G-131).
+  const threadBrand = resolveThreadBrand(d);
 
   // The counts are of the visible chart, which `flatten` makes; a document's own palette does not keep them.
   const palette: PaletteColor[] = entries.map((c, i) => {
@@ -421,10 +420,8 @@ function isByte(value: unknown): value is number {
 function parseSource(value: unknown): ThreadSwatchRef | undefined {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
   const { brand, code } = value as Record<string, unknown>;
-  if (typeof brand !== "string" || !(THREAD_BRAND_IDS as string[]).includes(brand)) return undefined;
-  if (typeof code !== "string" || code.trim() === "") return undefined;
-  const thread = findThread(brand as ThreadBrand, code.trim());
-  return thread ? { brand: brand as ThreadBrand, code: thread.code } : undefined;
+  // A number no catalogue lists is kept (G-131): it was typed by the person, for a thread they own.
+  return typeof brand === "string" && typeof code === "string" ? (threadIdentity(brand, code) ?? undefined) : undefined;
 }
 
 function validatePaletteEntry(entry: unknown): { rgb: RGB; symbol: string; name: string; source?: ThreadSwatchRef } {

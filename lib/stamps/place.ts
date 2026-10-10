@@ -1,6 +1,5 @@
-import { addBrandColor, addColor, renameColor } from "@/lib/editor/pattern-edit";
+import { addColor } from "@/lib/editor/pattern-edit";
 import { letteringStart } from "@/lib/editor/text-selection";
-import { THREAD_BRANDS } from "@/lib/threads/thread-brands";
 import { EMPTY_CELL, MAX_COLORS, type FloatingSelection, type PaletteColor, type StitchPattern } from "@/lib/types";
 import type { StampContents } from "./stamp";
 
@@ -8,9 +7,9 @@ import type { StampContents } from "./stamp";
  * Placing a stamp in a chart (G-119 M4): its threads found in the chart's palette, the ones the chart lacks added to it,
  * and the stamp made a piece in hand at the corner of the part of the chart in view, as lettering arrives. Pure.
  *
- * A thread is the same thread when it is the same brand's same code, or, for a custom colour, the same colour. A chart
- * matched to one brand takes no other brand's thread and no custom colour, as its "+ Add" refuses them; a palette with no
- * room for the threads it lacks refuses the stamp whole, so nothing is added for a stamp that is not placed.
+ * A thread is the same thread when it is the same brand's same code, or, for a colour with no thread, the same colour. Any
+ * brand's thread goes in any chart (G-131). A palette with no room for the threads it lacks refuses the stamp whole, so nothing
+ * is added for a stamp that is not placed.
  */
 
 export type StampPlacement = { pattern: StitchPattern; piece: FloatingSelection } | { error: string };
@@ -18,16 +17,6 @@ export type StampPlacement = { pattern: StitchPattern; piece: FloatingSelection 
 function sameThread(stamp: PaletteColor, chart: PaletteColor): boolean {
   if (stamp.source) return chart.source?.brand === stamp.source.brand && chart.source.code === stamp.source.code;
   return !chart.source && chart.rgb.every((value, i) => value === stamp.rgb[i]);
-}
-
-/** Why a chart matched to one brand cannot take a thread, or null when it can. */
-function brandRefusal(chart: StitchPattern, color: PaletteColor): string | null {
-  const locked = chart.threadBrand;
-  if (!locked || color.source?.brand === locked) return null;
-  const label = THREAD_BRANDS[locked].label;
-  return color.source
-    ? `This chart uses only ${label} threads, and the stamp has ${THREAD_BRANDS[color.source.brand].label} “${color.name}”, so it was not placed.`
-    : `This chart uses only ${label} threads, and the stamp has the custom colour “${color.name}”, so it was not placed.`;
 }
 
 export function placeStamp(chart: StitchPattern, stamp: StampContents, viewCorner: { x: number; y: number }): StampPlacement {
@@ -39,10 +28,6 @@ export function placeStamp(chart: StitchPattern, stamp: StampContents, viewCorne
 
   const found = piece.palette.map((color) => chart.palette.findIndex((other) => sameThread(color, other)));
   const lacking = piece.palette.filter((_, i) => found[i] === -1);
-  for (const color of lacking) {
-    const refusal = brandRefusal(chart, color);
-    if (refusal) return { error: refusal };
-  }
   const room = MAX_COLORS - chart.palette.length;
   if (lacking.length > room)
     return {
@@ -55,10 +40,9 @@ export function placeStamp(chart: StitchPattern, stamp: StampContents, viewCorne
   for (let i = 0; i < piece.palette.length; i++) {
     if (index[i] !== -1) continue;
     const color = piece.palette[i];
-    pattern = color.source ? addBrandColor(pattern, color.source.code, color.source.brand) : addColor(pattern, color.rgb);
+    // The colour comes as the stamp has it: its colour, its thread and its name, unless the chart already has that name.
+    pattern = addColor(pattern, color.rgb, { name: color.name, ...(color.source ? { source: color.source } : {}) });
     index[i] = pattern.palette.length - 1;
-    // A custom colour keeps the stamp's name for it, unless the chart already has a colour of that name.
-    if (!color.source && !pattern.palette.some((other) => other.name === color.name)) pattern = renameColor(pattern, index[i], color.name);
   }
 
   const cells = piece.cellPalette.map((value) => (value === EMPTY_CELL ? EMPTY_CELL : index[value]));

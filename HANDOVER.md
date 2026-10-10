@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-10-10 at c19d6a1; production runs c19d6a1, v0.24.0 (1,892 unit; CI on 64275f9: e2e 684 and 39)
+Last verified: 2026-10-10 at the G-131 M1 commit on 8134c78; production runs c19d6a1, v0.24.0 (1,901 unit; CI on 64275f9: e2e 684 and 39)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab), live at
@@ -8,6 +8,8 @@ standalone Owner project (not svc-lab), live at
 goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 ## Current state
+
+**G-131, palettes with thread system and number — ACTIVE, M1 of 5 done, not deployed.** M1 (D395): no chart is locked to one system; `threadBrand` only records the generation system. `threadIdentity` (`lib/threads/thread-brands.ts`) makes a typed system and number into `source`, keeping numbers no catalogue lists; `setColorThread` (`lib/editor/pattern-edit.ts`) sets it without changing the colour; the colour editor's System and Number fields are `app/components/thread-fields.tsx`; "+ Add" has the mode switch. Next: M2 (one set of thread columns in every export, Rust and the TypeScript twin), M3 (palette file v2, Edit-page save and load, Append and Replace; Set up palette's hand-edited numbers land there), M4 (palettes in the account), M5 (release).
 
 **G-130, layers — DONE (Owner sign-off 2026-10-09), deployed in v0.23.0, archived.** M1 (D390): a chart is `ChartDocument.layers`, bottom first, at most 32; each layer's kind is declared once in `lib/document/layer-kinds.ts` (the stitch kind in `stitch-kind.ts`); `lib/document/layers.ts` adds, deletes (one always left), shows, hides, moves, merges (the upper stitch wins) and renames; `flatten` composes the visible layers, `layerView`/`withLayerView` give the tools the active layer as a `StitchPattern`. Chart-wide edits (crop, move, palette) go through `lib/editor/document-edit.ts`. One layer saves as format 7 exactly as before; several as format 8 (`serializeChart`). `EditorHistory` (`app/hooks/use-document-history.ts`) holds `activeLayerId`; choosing it is no undo step. M2 (D391): the `edit.layers` feature, the Layers tab (`app/components/layers-pane.tsx`, `app/hooks/use-layers.ts`), drop rule `lib/editor/layer-drop.ts`; `tests/e2e/layers-tab.spec.ts`. M3 (D392): tool previews are composed among the layers by `lib/document/layer-stack.ts`; each tool declares `layerKinds` and `drawsOnLayer`, and `lib/editor/tool-layer.ts` refuses it, with a note, on another kind or a hidden layer; `tests/e2e/layers-tools.spec.ts`. M4 (D393): the thread list and every export read `history.composite`; Export all's editable entry is replaced in the page for a chart of several layers (`lib/export/bundle-editable.ts`), so the server and Rust stay layer-blind; `tests/e2e/layers-exports.spec.ts`.
 
@@ -289,12 +291,11 @@ which the Pattern Keeper PDF shares and calls with backstitch switched off.)
 - Code e2e specs load in Node takes symmetry types from `lib/editor/symmetry-axes.ts`, not `symmetry.ts` (G-037).
 - Screen drawing = frozen pre-G-036 drawing with band grid lines (photos ±16, outlines ±1),
   per `tests/e2e/chart-viewport-parity.spec.ts`; exports keep stroked grid lines (D135).
-- Brand-aware UI reads `pattern.threadBrand`. A new brand needs data, a
+- `pattern.threadBrand` is only where pickers first open. A new brand needs data, a
   provenance doc, a registry entry, and the inline union in `lib/types.ts`
   widened (D093).
-- A color's thread identity is its immutable `source` (brand and code), never
-  its name or RGB. A brand lock means every color has a source of that brand;
-  OXS thread numbers and printed codes come from `source` (D122).
+- A color's thread identity is its `source` (system and number), never its name or RGB; it may hold a number no
+  catalogue lists, and nothing refuses a thread for its system (Owner, D395). OXS numbers and printed codes come from `source` (D122).
 - Anchor uses code pairs from an unlicensed table under an Owner judgment call; read `docs/anchor-colors-provenance.md` first (D094).
 - Don't strip the embedded photo from saved files without asking (D028).
 - E2E acts on `getByTestId("chart-frame")` and reads pixels from `main canvas` inside

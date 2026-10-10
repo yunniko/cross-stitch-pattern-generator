@@ -180,3 +180,41 @@ test("a color picked from the DMC tab reopens on DMC with its swatch marked, als
   await expect(page.getByRole("button", { name: `Edit ${name}`, exact: true })).toBeVisible();
   await reopenAndCheck();
 });
+
+test("a thread number typed for a colour is kept with the chart and leaves the colour as it was (G-131)", async ({ page }) => {
+  await generate(page, "Full range");
+  const name = await openFirstEditor(page);
+  const swatch = page.getByRole("button", { name: `Edit ${name}`, exact: true });
+  const colour = await swatch.getAttribute("style");
+  let panel = editorPanel(page);
+  await expect(panel.getByLabel("Thread number")).toBeDisabled();
+  await panel.getByLabel("Thread system").selectOption("dmc");
+  await panel.getByLabel("Thread number").fill("X-77");
+  await panel.getByLabel("Thread number").press("Enter");
+  await panel.getByRole("button", { name: "Done" }).click();
+  expect(await swatch.getAttribute("style")).toBe(colour);
+
+  const download = await saveToFile(page);
+  await page.getByLabel("Open pattern file").setInputFiles((await download.path())!);
+  await expect(page.getByRole("button", { name: "Undo", exact: true })).toBeDisabled();
+  await swatch.click();
+  panel = editorPanel(page);
+  await expect(panel.getByLabel("Thread system")).toHaveValue("dmc");
+  await expect(panel.getByLabel("Thread number")).toHaveValue("X-77");
+});
+
+test("a chart generated in DMC takes another system's thread from + Add (G-131)", async ({ page }) => {
+  await generate(page, "DMC");
+  const before = await editButtons(page).count();
+  await page.getByRole("button", { name: "+ Add" }).click();
+  const adding = page.getByTestId("add-color-panel");
+  await expect(adding.getByRole("button", { name: "DMC", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await adding.getByRole("button", { name: "Cosmo", exact: true }).click();
+  const choice = adding.getByTestId("swatch-grid").getByRole("button").nth(5);
+  const code = legendNameOf((await choice.getAttribute("aria-label"))!);
+  await choice.click();
+  await expect(editButtons(page)).toHaveCount(before + 1);
+  await page.getByRole("button", { name: `Edit ${code}`, exact: true }).click();
+  await expect(editorPanel(page).getByLabel("Thread system")).toHaveValue("cosmo");
+  await expect(editorPanel(page).getByLabel("Thread number")).toHaveValue(code);
+});

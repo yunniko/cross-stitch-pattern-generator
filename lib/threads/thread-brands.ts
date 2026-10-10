@@ -43,6 +43,21 @@ export function findThread(brand: ThreadBrand, code: string): ThreadColor | unde
   return colors.find((c) => c.code === code) ?? colors.find((c) => c.code.toLowerCase() === wanted);
 }
 
+/** The longest thread number kept (G-131): longer than any catalogue's, short enough for a printed key's column. */
+export const THREAD_CODE_MAX = 20;
+
+/**
+ * A colour's thread as someone typed or chose it (G-131): its system and number. A number the catalogue knows is stored as
+ * the catalogue writes it (so "b5200" is "B5200"); any other is kept as typed, trimmed, since people own threads no
+ * catalogue here lists. Null when the number is blank, too long, or the system is not one of ours.
+ */
+export function threadIdentity(brand: string, code: string): { brand: ThreadBrand; code: string } | null {
+  if (!(THREAD_BRAND_IDS as string[]).includes(brand)) return null;
+  const typed = code.trim();
+  if (typed === "" || typed.length > THREAD_CODE_MAX) return null;
+  return { brand: brand as ThreadBrand, code: findThread(brand as ThreadBrand, typed)?.code ?? typed };
+}
+
 /** "CODE - Name", or just the code for a brand with no names (never "352 - "). */
 export function formatThreadName(thread: ThreadColor): string {
   return thread.name ? `${thread.code} - ${thread.name}` : thread.code;

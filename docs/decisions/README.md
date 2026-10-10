@@ -431,3 +431,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D392 — Tools work on the active layer, drawn among the others; each tool declares the kinds of layer it works on — active
 - D393 — Counts and exports draw the visible layers' top stitches; Export all's editable entry is replaced in the page — active
 - D394 — A cut piece, or a copy taken to another layer, is pasted in place — active
+- D395 — A colour's thread is the person's: any system in any chart, typed numbers kept, a recolour keeps it — active

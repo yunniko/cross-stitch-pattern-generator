@@ -90,7 +90,7 @@ test("a blank chart paints after adding a color, and survives saving and reopeni
   const errors = collectErrors(page);
   await createBlankChart(page, 30, 20);
 
-  // A blank chart is locked to no brand, so "+ Add" opens the free color picker with its own Add button.
+  // A blank chart was made in no thread system, so "+ Add" opens on the free color picker with its own Add button.
   await page.getByRole("button", { name: "+ Add" }).click();
   await page.getByRole("button", { name: "Add", exact: true }).click();
   await expect(page.getByTestId("legend-color-row")).toHaveCount(1);

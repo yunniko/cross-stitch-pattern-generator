@@ -93,7 +93,7 @@ describe("a file of an earlier version", () => {
     expect(resave(saved)).toBe(saved);
   });
 
-  it("with a colour that is not one of its brand's: the colour stays custom and the chart is no longer locked to the brand", () => {
+  it("with a colour that is not one of its brand's: the colour stays custom and the chart keeps its brand, which locks nothing (D395)", () => {
     const old = {
       formatVersion: 6,
       width: 3,
@@ -107,7 +107,7 @@ describe("a file of an earlier version", () => {
       ],
     };
     const pattern = deserializePattern(JSON.stringify(old));
-    expect(pattern.threadBrand).toBeUndefined();
+    expect(pattern.threadBrand).toBe("dmc");
     expect(pattern.palette[0].source).toEqual({ brand: "dmc", code: dmc[0].code });
     expect(pattern.palette[1].source).toBeUndefined();
   });

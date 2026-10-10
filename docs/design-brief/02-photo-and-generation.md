@@ -71,7 +71,7 @@ Every chart a Generate makes is kept as a **try**, so an earlier result is gone 
 | **Purpose** | Whether the chart's colours are free, or real threads of a brand |
 | **Kind of value** | Choice of four: **Full range** (whatever colours the picture needs), **DMC**, **Cosmo**, **Anchor** |
 | **Default** | Full range |
-| **Meaning** | A brand mode snaps every colour to a real thread of that brand, so similar shades may merge into one; each colour is then named by thread code (and name where the brand publishes names: DMC does, Cosmo and Anchor do not). Anchor is derived from the nearest DMC equivalents, and says so. A chart records its brand |
+| **Meaning** | A brand mode snaps every colour to a real thread of that brand, so similar shades may merge into one; each colour is then named by thread code (and name where the brand publishes names: DMC does, Cosmo and Anchor do not). Anchor is derived from the nearest DMC equivalents, and says so. A chart records its brand, which does not limit the colours it may take later (`05`) |
 | **Changes** | While choosing colours by hand, choosing another mode empties the chosen set (threads of one brand mean nothing in another). With colours chosen this is asked first: "Switching to *mode* empties your *n* chosen colours: they belong to *mode*. Save the palette first if you want it back.", with the choices "Switch and empty" and "Keep *mode*". The recommendation is asked again |
 
 ## Automatic or Set up palette
@@ -198,4 +198,4 @@ Traced lines run corner to corner, at most three stitches long each.
 
 ## What a chart records of its generation
 
-The photo, the thread brand (when every colour is a thread of one brand), Crisp or Crisp+ (Standard is recorded as nothing), the dither pattern and, when not the default, its texture, Vivid, the photo-adjustment values (when not all zero), the set of chosen colours with whether the chart was made from it, and the backstitch lines and strokes as ordinary backstitch. Not recorded: size (it is the chart's own size), colour count, algorithm, the line and stroke switches and values, and the recommendation. A chart made before the five photo-enhancement modes were removed keeps its mode label, shown nowhere and written nowhere.
+The photo, the thread brand the chart was generated in, Crisp or Crisp+ (Standard is recorded as nothing), the dither pattern and, when not the default, its texture, Vivid, the photo-adjustment values (when not all zero), the set of chosen colours with whether the chart was made from it, and the backstitch lines and strokes as ordinary backstitch. Not recorded: size (it is the chart's own size), colour count, algorithm, the line and stroke switches and values, and the recommendation. A chart made before the five photo-enhancement modes were removed keeps its mode label, shown nowhere and written nowhere.

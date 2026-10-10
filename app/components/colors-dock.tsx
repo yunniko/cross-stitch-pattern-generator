@@ -11,12 +11,14 @@ import {
   renameColor,
   restoreColor,
   setColorSymbol,
+  setColorThread,
 } from "@/lib/editor/pattern-edit";
 import { THREAD_BRANDS, THREAD_BRAND_IDS, formatThreadName, type ThreadBrand, type ThreadColor } from "@/lib/threads/thread-brands";
 import type { PaletteColor, RGB, StitchPattern } from "@/lib/types";
 import { DISMISS_RETARGET_ATTRIBUTE, useDismissOnOutsidePointer } from "../hooks/use-dismiss-on-outside-pointer";
 import { useLatest } from "../hooks/use-latest";
 import { ThreadRows, threadsSummary } from "./threads-pane";
+import { ThreadFields } from "./thread-fields";
 import { PillButton, SegmentedControl } from "./ui";
 import { SkinIcon } from "../skin/skin";
 import { useGatedOptions } from "../features/features-context";
@@ -33,14 +35,10 @@ function filterBrandColors(query: string, brand: ThreadBrand): readonly ThreadCo
   return colors.filter((c) => c.code.toLowerCase().includes(q) || c.name.toLowerCase().includes(q));
 }
 
-function BrandNotice({ brand }: { brand: ThreadBrand }) {
+/** Anchor's colours are derived, and says so wherever its threads are chosen (G-029 AC4). */
+function DerivationNote({ brand }: { brand: ThreadBrand }) {
   const { label, derivationNote } = THREAD_BRANDS[brand];
-  return (
-    <p className="text-xs text-muted">
-      This pattern is in {label} mode -- pick a real {label} thread color.
-      {derivationNote && ` (${derivationNote}.)`}
-    </p>
-  );
+  return derivationNote ? <p className="text-xs text-muted">{`${label} colors are ${derivationNote}.`}</p> : null;
 }
 
 interface BrandColorPickerProps {
@@ -221,6 +219,7 @@ export function ColorsDock({
   const [addingColor, setAddingColor] = useState(false);
   const [addColorDraftHex, setAddColorDraftHex] = useState("#808080");
   const [addBrandQuery, setAddBrandQuery] = useState("");
+  const [addMode, setAddMode] = useState<"full" | ThreadBrand>("full");
   const [renamingIndex, setRenamingIndex] = useState<number | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
   const [editingSymbolIndex, setEditingSymbolIndex] = useState<number | null>(null);
@@ -328,8 +327,8 @@ export function ColorsDock({
   }
 
   function commitAddBrandColor(code: string) {
-    if (!pattern?.threadBrand) return;
-    onChange(addBrandColor(pattern, code, pattern.threadBrand));
+    if (!pattern || addMode === "full") return;
+    onChange(addBrandColor(pattern, code, addMode));
     setAddingColor(false);
     setAddBrandQuery("");
   }
@@ -387,11 +386,9 @@ export function ColorsDock({
     const brandMode = editing.mode === "full" ? null : editing.mode;
     return (
       <div ref={editorPanelRef} role="dialog" aria-label={`Edit color ${current.name}`} className={PANEL}>
-        {pattern.threadBrand ? (
-          <BrandNotice brand={pattern.threadBrand} />
-        ) : (
-          <SegmentedControl className="self-start" options={modeOptions} value={editing.mode} onChange={changeMode} />
-        )}
+        {/* Any system's thread may be any colour of any chart (G-131): the chart's own system only opens the editor on it. */}
+        <SegmentedControl className="self-start" options={modeOptions} value={editing.mode} onChange={changeMode} />
+        {brandMode && <DerivationNote brand={brandMode} />}
 
         {brandMode ? (
           <BrandColorPicker
@@ -408,6 +405,14 @@ export function ColorsDock({
             <HexColorPicker color={editing.draftHex ?? rgbToHex(current.rgb)} onChange={changeDraft} />
           </div>
         )}
+
+        <ThreadFields
+          source={current.source}
+          onCommit={(thread) => {
+            const next = setColorThread(pattern, editing.index, thread);
+            if (next !== pattern) onChange(next);
+          }}
+        />
 
         <p className="text-xs text-muted">
           Picks apply right away. Done keeps this color; Cancel returns it to how it was when you opened the editor.
@@ -433,6 +438,9 @@ export function ColorsDock({
           onClick={() => {
             setAddColorDraftHex("#808080");
             setAddBrandQuery("");
+            setAddMode(
+              modeOptions.some((option) => option.value === pattern?.threadBrand && !option.disabled) ? pattern!.threadBrand! : "full"
+            );
             setAddingColor(true);
           }}
           disabled={!pattern}
@@ -508,32 +516,44 @@ export function ColorsDock({
         />
       )}
 
-      {addingColor && pattern?.threadBrand && (
-        <div className={PANEL}>
-          <BrandNotice brand={pattern.threadBrand} />
-          <BrandColorPicker
-            brand={pattern.threadBrand}
-            query={addBrandQuery}
-            onQueryChange={setAddBrandQuery}
-            onPick={commitAddBrandColor}
+      {addingColor && (
+        <div className={PANEL} data-testid="add-color-panel">
+          <SegmentedControl
+            className="self-start"
+            options={modeOptions}
+            value={addMode}
+            onChange={(mode) => {
+              setAddMode(mode);
+              setAddBrandQuery("");
+            }}
           />
-          <PillButton size="md" onClick={() => setAddingColor(false)} className="self-start">
-            Cancel
-          </PillButton>
-        </div>
-      )}
-
-      {addingColor && !pattern?.threadBrand && (
-        <div className={PANEL}>
-          <HexColorPicker color={addColorDraftHex} onChange={setAddColorDraftHex} />
-          <div className="flex gap-2">
-            <PillButton variant="primary" size="md" onClick={commitAddColor}>
-              Add
-            </PillButton>
-            <PillButton size="md" onClick={() => setAddingColor(false)}>
-              Cancel
-            </PillButton>
-          </div>
+          {addMode !== "full" ? (
+            <>
+              <DerivationNote brand={addMode} />
+              <BrandColorPicker
+                key={addMode}
+                brand={addMode}
+                query={addBrandQuery}
+                onQueryChange={setAddBrandQuery}
+                onPick={commitAddBrandColor}
+              />
+              <PillButton size="md" onClick={() => setAddingColor(false)} className="self-start">
+                Cancel
+              </PillButton>
+            </>
+          ) : (
+            <>
+              <HexColorPicker color={addColorDraftHex} onChange={setAddColorDraftHex} />
+              <div className="flex gap-2">
+                <PillButton variant="primary" size="md" onClick={commitAddColor}>
+                  Add
+                </PillButton>
+                <PillButton size="md" onClick={() => setAddingColor(false)}>
+                  Cancel
+                </PillButton>
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>
