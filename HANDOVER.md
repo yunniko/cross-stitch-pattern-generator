@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-10-10 at fabecc7; production runs fabecc7, v0.25.0 (1,922 unit, cargo test all ok; CI on 40a964d: e2e 694 and 38, 1 flaky)
+Last verified: 2026-10-10 at 60c3afe; production runs fabecc7, v0.25.0 (1,931 unit, cargo test all ok; CI on 60c3afe: e2e 695 and 39)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab), live at
@@ -8,6 +8,8 @@ standalone Owner project (not svc-lab), live at
 goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 ## Current state
+
+**G-132, thread systems as plugins — ACTIVE, M1 of 5 done, not deployed.** M1 (D399): a colour's system is an open string: a loaded system is stored by its id, any other kept as written (`threadSystem`, `isLoadedSystem` and `systemLabel` in `lib/threads/thread-brands.ts`); chart, stamp, palette file, account palette and OXS import keep it, exports print it, and the colour editor opens such a colour in the common colour picker. M2 moves the systems into a table.
 
 **G-131, palettes with thread system and number — signed off 2026-10-10, archived; deployed in v0.25.0.** M1 (D395): no chart is locked to one system; `threadBrand` only records the generation system. `threadIdentity` (`lib/threads/thread-brands.ts`) makes a typed system and number into `source`, keeping numbers no catalogue lists; `setColorThread` (`lib/editor/pattern-edit.ts`) sets it without changing the colour; the colour editor's System and Number fields are `app/components/thread-fields.tsx`; "+ Add" has the mode switch. M2 (D396): every key prints System, Number and Color name columns whatever the systems (`lib/threads/printed-thread.ts` and `Color::printed_thread` in Rust); OXS writes each colour's own system and number. M3 (D397): a set colour is `{rgb, name?, source?}`, the palette file is version 2 (`lib/editor/palette-set.ts`); save and load are `app/components/palette-library.tsx` on both pages; Append and Replace are `lib/editor/palette-load.ts` and `replacePaletteInDocument`. M4 (D398): saved palettes are the account's (`lib/palettes/`, `/api/palettes`), one list for both pages through `app/components/palette-account.tsx`; signed out, file only; the browser's old palettes move in by one request (`app/api/palettes/move/route.ts`).
 

@@ -219,13 +219,14 @@ Outside both: G-111's comments follow G-112; G-097 comes after G-108, whose char
 - **Constraints:** docs/architecture.md (the account part through the same server pattern as stamps and palettes; the exporter that production runs is Rust); a plugin is data only, because running uploaded code would be a security hole; release notes for users only; no DB dump before the migration (Owner, 2026-10-08); thread sources keep their recorded licences (`docs/*-colors-provenance.md`).
 
 **Milestones:**
-- [ ] M1 — Any system string is kept: the system becomes an open string in types and parsers (chart, stamp, palette file, account palette, OXS import), exports print the stored string when the system is not loaded, and the colour editor and + Add open the common colour picker for such a colour. Still on the built-in lists.
+- [x] M1 — Any system string is kept: the system becomes an open string in types and parsers (chart, stamp, palette file, account palette, OXS import), exports print the stored string when the system is not loaded, and the colour editor and + Add open the common colour picker for such a colour. Still on the built-in lists.
 - [ ] M2 — Systems as data: the `ThreadSystem` table and migration seeded with DMC, Cosmo and Anchor (plain list); one server module and route give the systems a person can use; the browser reads them instead of the built-in lists; Rust takes the threads in the request and its compiled-in catalogues go (kept as test fixtures); Anchor's goldens re-pinned.
 - [ ] M3 — The admin's Thread systems page: list, add, edit, download, delete, switched per site, tier and person, logged.
 - [ ] M4 — A person's own systems: upload, list, rename, download, delete in the account and from the editor's system choice; used in generation and editing; the feature, limit and size cap; deleted with the account.
 - [ ] M5 — The brief and What's new, a QA pass on the flows, then release and deploy to cross-stitch.craftodejnice.cz (standing approval), with the seed checked live.
 
 **Progress log** (newest first):
+- 2026-10-10 — M1 done (D399, 60c3afe): the system is an open string in every type and parser; exports print the stored string; a colour of an unloaded system opens the common colour picker. Verified: 1,931 unit tests, cargo test all ok, CI e2e 695 and 39 passed. Next: M2.
 - 2026-10-10 — the Owner accepted the plan; no milestone marked for review.
 - 2026-10-10 — goal created from the Owner's request and planned; the Owner chose: Anchor as a plain list, a user's systems private to them, usable for generation and editing, gated like palettes (feature `threads.custom`, limit `threads.systems` 10).
 
