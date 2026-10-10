@@ -11,6 +11,7 @@ Values come from the code (constants in `lib/types.ts`, `processor/job-protocol.
 | Colours asked of a generation | 2 to 100 | While a recommendation is known the upper end is lowered to it (never below 2); see `02` |
 | Colours chosen by hand for a generation | 1 to 100 | One palette mode per set |
 | Saved palettes | 100 by default (the admin's limit "Palettes kept"), names up to 60 characters | With the account, one per name; signed out, as a file only |
+| Thread systems of one's own | 10 by default (the admin's limit "Thread systems kept"), up to 2,000 threads each, a file up to 512 KB | Signed in only; "You keep 10 thread systems, as many as your account allows. Delete one to upload another." |
 | Photo for generating | JPEG, PNG or WebP; up to 25 MB; up to 50 million pixels | Refused while arriving (size) or before decoding (pixels) |
 | Pixel-art image to import | PNG, GIF, WebP or BMP | Imported exactly; refused, not repaired, if it cannot be one stitch per pixel |
 | Files that can be opened | `.json` (editable file), `.zip` and `.cspzip` (bundle of exports), `.oxs` | A file of another kind is refused with a message |

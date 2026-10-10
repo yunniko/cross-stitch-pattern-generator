@@ -21,7 +21,8 @@ export async function POST(req: Request): Promise<Response> {
   if (refused) return refused;
 
   // Photo's work (G-103, D314): refused by the workspace's name when Photo is off for this person.
-  const states = await featureStatesFor((await auth())?.user?.id ?? null);
+  const userId = (await auth())?.user?.id ?? null;
+  const states = await featureStatesFor(userId);
   const refusal = workspaceRefusal("/api/predictions", states);
   if (refusal) return NextResponse.json({ error: refusal }, { status: 403 });
 
@@ -31,7 +32,7 @@ export async function POST(req: Request): Promise<Response> {
   }
 
   // The thread systems it names, from the table and never from the browser (G-132, D400).
-  const forwarded = await withThreadSystems(body, async (b) => ({ threadSystems: await requestSystemsFor(b, states) }));
+  const forwarded = await withThreadSystems(body, async (b) => ({ threadSystems: await requestSystemsFor(b, states, userId) }));
 
   try {
     const upstream = await fetch(processorUrl("/predictions"), {

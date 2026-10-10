@@ -3,7 +3,8 @@
 import { useMemo, useState, useTransition, type ChangeEvent } from "react";
 import { PillButton } from "@/app/components/ui";
 import { createThreadSystemAction, deleteThreadSystemAction, updateThreadSystemAction } from "@/lib/admin/thread-system-actions";
-import { readThreadList, THREAD_FILE_MAX_BYTES, threadListCsv, threadSystemJson } from "@/lib/thread-systems/thread-list-file";
+import { downloadThreadSystem } from "@/app/thread-systems/thread-system-download";
+import { readThreadList, THREAD_FILE_MAX_BYTES, threadListCsv } from "@/lib/thread-systems/thread-list-file";
 import { SYSTEM_KEY_MAX, SYSTEM_LABEL_MAX, SYSTEM_TEXT_MAX, type ThreadRow } from "@/lib/thread-systems/thread-system";
 
 /**
@@ -22,15 +23,6 @@ export interface ThreadSystemRow {
 }
 
 const FIELD = "w-full rounded-md border border-control-line bg-control px-2.5 py-1.5 text-[13px] text-ink outline-none focus:border-accent";
-
-function download(text: string, filename: string, type: string) {
-  const url = URL.createObjectURL(new Blob([text], { type }));
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  link.click();
-  URL.revokeObjectURL(url);
-}
 
 export function ThreadSystemsEditor({ systems }: { systems: ThreadSystemRow[] }) {
   const [adding, setAdding] = useState(false);
@@ -59,7 +51,6 @@ function SystemCard({ system }: { system: ThreadSystemRow }) {
   const [confirming, setConfirming] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const details = { label: system.label, note: system.note, source: system.source, licence: system.licence };
 
   if (editing) return <SystemForm mode="edit" system={system} onDone={() => setEditing(false)} />;
 
@@ -107,20 +98,10 @@ function SystemCard({ system }: { system: ThreadSystemRow }) {
         <PillButton type="button" size="sm" variant="outline" onClick={() => setEditing(true)}>
           Edit
         </PillButton>
-        <PillButton
-          type="button"
-          size="sm"
-          variant="outline"
-          onClick={() => download(threadListCsv(system.threads), `${system.key}.csv`, "text/csv")}
-        >
+        <PillButton type="button" size="sm" variant="outline" onClick={() => downloadThreadSystem(system, "csv")}>
           Download CSV
         </PillButton>
-        <PillButton
-          type="button"
-          size="sm"
-          variant="outline"
-          onClick={() => download(threadSystemJson(details, system.threads), `${system.key}.json`, "application/json")}
-        >
+        <PillButton type="button" size="sm" variant="outline" onClick={() => downloadThreadSystem(system, "json")}>
           Download JSON
         </PillButton>
         {confirming ? (

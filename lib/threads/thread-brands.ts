@@ -17,6 +17,8 @@ export interface ThreadSystemInfo {
   note?: string;
   /** The threads in the list's order, which is the order a picker shows them. */
   colors: readonly ThreadColor[];
+  /** Set for one of the person's own systems (G-132 M4), which the editor offers apart from the site's. */
+  own?: true;
 }
 
 let loaded: readonly ThreadSystemInfo[] = [];

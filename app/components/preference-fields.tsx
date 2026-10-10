@@ -13,6 +13,7 @@ import { TexturePicker } from "./texture-picker";
 import { SegmentedControl } from "./ui";
 import { useGatedOptions } from "../features/features-context";
 import { brandFeature } from "../features/registry";
+import { OwnSystemChoice } from "../thread-systems/own-system-choice";
 
 /**
  * The preferences themselves (G-095, D299), drawn wherever they are edited: the editor's Preferences dialog and the
@@ -59,7 +60,10 @@ export function PreferenceFields({ options, pattern, onChange }: PreferenceField
   // Under the feature switches (G-102): each system is a feature. The systems are the table's (G-132).
   const systems = useThreadSystems();
   const paletteOptions = useGatedOptions(
-    [{ value: "full" as const, label: "Full range" }, ...systems.map((system) => ({ value: system.id, label: system.label }))],
+    [
+      { value: "full" as const, label: "Full range" },
+      ...systems.filter((system) => !system.own).map((system) => ({ value: system.id, label: system.label })),
+    ],
     brandFeature
   );
 
@@ -108,6 +112,7 @@ export function PreferenceFields({ options, pattern, onChange }: PreferenceField
               value={options.defaultPaletteMode}
               onChange={(mode) => onChange("defaultPaletteMode", mode)}
             />
+            <OwnSystemChoice value={options.defaultPaletteMode} onChoose={(mode) => onChange("defaultPaletteMode", mode)} />
           </div>
         </div>
       </section>

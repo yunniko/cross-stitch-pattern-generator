@@ -1,3 +1,4 @@
+import { systemFeature } from "../thread-systems/thread-system";
 import { declaredFeatureId, type FeatureDeclaration } from "./features";
 
 /**
@@ -16,5 +17,5 @@ export const commandFeature = (command: Declared): string | null => declaredFeat
 export const generationSettingFeature = (setting: Declared): string | null =>
   declaredFeatureId(`generation.${setting.id}`, setting.feature);
 
-/** The feature a palette mode is: a brand's own, or none for the full range. */
-export const brandFeature = (mode: string): string | null => (mode === "full" ? null : `brand.${mode}`);
+/** The feature a palette mode is: its system's switch (G-132), or none for the full range. */
+export const brandFeature = (mode: string): string | null => (mode === "full" ? null : systemFeature(mode));

@@ -16,6 +16,20 @@ export interface RequestSystem {
   threads: ThreadRow[];
 }
 
+/**
+ * A person's own systems' keys begin so, and a site system's never does, so a chart's system names one or the other
+ * (G-132 M4, D402). An own key is unique among its owner's systems only.
+ */
+export const OWN_KEY_PREFIX = "my-";
+
+/** The feature a person's own systems are under, all of them alike (Owner, G-132: gated as palettes are). */
+export const OWN_SYSTEMS_FEATURE = "threads.custom";
+
+/** The switch a system is used under: a site system's own `brand.<key>`, or the one switch of a person's own systems. */
+export function systemFeature(key: string): string {
+  return key.startsWith(OWN_KEY_PREFIX) ? OWN_SYSTEMS_FEATURE : `brand.${key}`;
+}
+
 /** The group the systems' switches are listed under in the admin's feature lists. */
 export const THREAD_BRANDS_GROUP = "Thread brands";
 
@@ -33,7 +47,7 @@ export function systemFeatures(systems: readonly { key: string; label: string }[
  */
 export function systemRefusal(body: Record<string, unknown>, states: FeatureStates, labels: ReadonlyMap<string, string>): string | null {
   const mode = body.paletteMode;
-  if (typeof mode !== "string" || mode === "full" || featureUsable(states, `brand.${mode}`)) return null;
+  if (typeof mode !== "string" || mode === "full" || featureUsable(states, systemFeature(mode))) return null;
   return lockedNote(labels.get(mode) ?? mode);
 }
 
@@ -52,6 +66,7 @@ export function systemKeyRefusal(key: unknown): string | null {
   if (typeof key !== "string" || !new RegExp(`^[a-z0-9][a-z0-9-]{0,${SYSTEM_KEY_MAX - 1}}$`).test(key) || key === "full") {
     return `A key is 1 to ${SYSTEM_KEY_MAX} lower-case letters, digits and hyphens, and not "full".`;
   }
+  if (key.startsWith(OWN_KEY_PREFIX)) return `A key beginning "${OWN_KEY_PREFIX}" is a person's own system's.`;
   return null;
 }
 

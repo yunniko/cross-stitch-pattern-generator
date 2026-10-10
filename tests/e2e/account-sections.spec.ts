@@ -18,6 +18,7 @@ test("a new account: the sections in order, Free with nothing used, and no invoi
   await expect(panel.accountNav(page).getByRole("link")).toHaveText([
     "Charts0",
     "Stamps0",
+    "Thread systems",
     "Plan",
     "Usage",
     "Preferences",

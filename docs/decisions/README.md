@@ -438,3 +438,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D399 — A thread's system is any name; one not loaded here is kept as written and edited in the common picker — active
 - D400 — Thread systems are table rows the server hands the pipeline; Anchor is a plain list — active
 - D401 — A thread system is a file of rows the admin keeps; its switch is made from its row — active
+- D402 — A person's own thread systems are rows they own under my- keys, one switch and one limit — active

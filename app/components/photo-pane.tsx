@@ -20,6 +20,7 @@ import { TextureEditor } from "./texture-editor";
 import { GROUP_LABEL, InlineError, PillButton, SegmentedControl, Slider, type SegmentOption } from "./ui";
 import { useGatedOptions } from "../features/features-context";
 import { brandFeature } from "../features/registry";
+import { OwnSystemChoice } from "../thread-systems/own-system-choice";
 import { useThreadSystems } from "../thread-systems/thread-systems-context";
 import { FeatureGate } from "./feature-gate";
 
@@ -50,19 +51,24 @@ const ALGORITHM_OPTIONS: SegmentOption<WorkspaceOptions["generationMode"]>[] = [
   },
 ];
 
-/** "Full range" and each thread system the person may use (G-132), with what a system's note says of its colours. */
+/**
+ * "Full range" and each site thread system the person may use (G-132), with what a system's note says of its colours. A
+ * person's own systems are offered apart, by `OwnSystemChoice`.
+ */
 function paletteChoices(systems: readonly ThreadSystemInfo[]): SegmentOption<WorkspaceOptions["paletteMode"]>[] {
   const naming =
     'colors are named "code - name" (or just the code, for a brand with no published names) and similar shades may merge into one';
   return [
     { value: "full", label: "Full range", title: "Whatever colors the chosen algorithm finds" },
-    ...systems.map(({ id, label, note }) => ({
-      value: id,
-      label,
-      title: note
-        ? `Snaps the palette to ${label} thread colors -- ${naming}. ${note}`
-        : `Snaps the palette to real, buyable ${label} thread colors -- ${naming}`,
-    })),
+    ...systems
+      .filter((system) => !system.own)
+      .map(({ id, label, note }) => ({
+        value: id,
+        label,
+        title: note
+          ? `Snaps the palette to ${label} thread colors -- ${naming}. ${note}`
+          : `Snaps the palette to real, buyable ${label} thread colors -- ${naming}`,
+      })),
   ];
 }
 
@@ -608,6 +614,7 @@ export function PhotoPane({
             <SegmentedControl fill options={setupOptions} value={settingUp ? "setup" : "auto"} onChange={chooseSetup} />
           )}
           <SegmentedControl fill options={paletteOptions} value={options.paletteMode} onChange={choosePaletteMode} />
+          <OwnSystemChoice value={options.paletteMode} onChoose={choosePaletteMode} upload />
 
           {settingUp && (
             <PaletteSetup

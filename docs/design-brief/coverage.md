@@ -543,3 +543,4 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | D399 | 05-colours-and-threads 08-exports-and-files | any system name kept; a colour of one not loaded opens in the common colour picker |
 | D400 | 02-photo-and-generation 05-colours-and-threads | the systems are data with a note each; Anchor matched as a plain list |
 | D401 | 05-colours-and-threads 10-features | the admin's thread systems, their files and their switches |
+| D402 | 05-colours-and-threads 09-limits-and-messages 10-features | a person's own thread systems: upload, "Yours", the account page, the switch and the limit |

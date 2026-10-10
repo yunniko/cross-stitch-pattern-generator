@@ -14,7 +14,8 @@ import { AccountPreferences } from "./account-preferences";
 export default async function AccountPreferencesPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
-  const [features, systems] = await Promise.all([featureStatesFor(session.user.id), threadSystemsFor()]);
+  const features = await featureStatesFor(session.user.id);
+  const systems = await threadSystemsFor(session.user.id, features);
 
   return (
     <div className="flex max-w-[640px] flex-col gap-5">

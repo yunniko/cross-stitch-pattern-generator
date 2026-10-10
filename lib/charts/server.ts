@@ -256,7 +256,7 @@ export async function listCharts(userId: string): Promise<{ charts: SavedChartCa
       },
     }),
     limitsFor(userId),
-    systemLabelsFor(),
+    systemLabelsFor(userId),
   ]);
   const names = new Map(labels);
   return {

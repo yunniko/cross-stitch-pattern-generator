@@ -2,6 +2,7 @@ import { CANVAS_TEXTURE_OFF } from "../export/canvas-texture-catalog";
 import { DEFAULT_STITCH_TEXTURE } from "../export/stitch-texture-catalog";
 import { DEFAULT_OPTIONS, type WorkspaceOptions } from "../editor/workspace-storage";
 import { ditherFeature } from "../pipeline/dither";
+import { brandFeature } from "./declare";
 import { featureUsable, type FeatureStates } from "./features";
 
 /**
@@ -18,8 +19,8 @@ export function optionsInForce(options: WorkspaceOptions, states: FeatureStates)
   if (!usable(`texture.stitch.${options.stitchTexture}`)) inForce.stitchTexture = DEFAULT_STITCH_TEXTURE;
   if (options.canvasTexture !== CANVAS_TEXTURE_OFF && !usable(`texture.canvas.${options.canvasTexture}`))
     inForce.canvasTexture = CANVAS_TEXTURE_OFF;
-  if (options.paletteMode !== "full" && !usable(`brand.${options.paletteMode}`)) inForce.paletteMode = "full";
-  if (options.defaultPaletteMode !== "full" && !usable(`brand.${options.defaultPaletteMode}`)) inForce.defaultPaletteMode = "full";
+  if (!usable(brandFeature(options.paletteMode))) inForce.paletteMode = "full";
+  if (!usable(brandFeature(options.defaultPaletteMode))) inForce.defaultPaletteMode = "full";
   if (!usable("generation.ditherMode") || !usable(ditherFeature(options.ditherMode))) inForce.ditherMode = "off";
   if (!usable("generation.edgeMode")) inForce.edgeMode = DEFAULT_OPTIONS.edgeMode;
   if (!usable("generation.vivid")) inForce.vivid = DEFAULT_OPTIONS.vivid;

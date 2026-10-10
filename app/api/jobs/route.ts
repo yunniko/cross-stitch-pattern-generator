@@ -40,11 +40,11 @@ export async function POST(req: Request): Promise<Response> {
   const refusal =
     workspaceRefusal("/api/jobs", states) ??
     generationRefusal(parsed, states) ??
-    systemRefusal(parsed, states, new Map(await systemLabelsFor()));
+    systemRefusal(parsed, states, new Map(await systemLabelsFor(userId)));
   if (refusal) return NextResponse.json({ error: refusal }, { status: 403 });
 
   // The thread systems it names, from the table and never from the browser (G-132, D400).
-  const forwarded = await withThreadSystems(body, async (b) => ({ threadSystems: await requestSystemsFor(b, states) }));
+  const forwarded = await withThreadSystems(body, async (b) => ({ threadSystems: await requestSystemsFor(b, states, userId) }));
 
   // The counted limits (G-109, D364): checked and counted before the processor is asked, given back if it refuses.
   const quota = await quotaForRoute("GENERATE", userId, null);

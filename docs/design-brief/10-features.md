@@ -29,7 +29,7 @@ The list is derived from what the editor has, so a new tool, export kind, genera
 | Chart | Quick mirrors (the four as one), Symmetry axes (the four as one), Transparency lock | |
 | Views | Stitched view, Photo under the pattern (with its slider, and keys 4 and 5) | Color, Black & white, Symbols, the zoom |
 | Exports | A4 pages, PDF for Pattern Keeper, Full chart PNG, Realistic preview PNG, Pixel art PNG, Editable pattern, OXS chart, Palette file, Export all | Save to file in the bar above (the editable file by another road) |
-| Saving | Save to an account (Save and Save as copy, as one), Stamps (Save as stamp, and Add stamp) | |
+| Saving | Save to an account (Save and Save as copy, as one), Stamps (Save as stamp, and Add stamp), Thread systems of your own (keeping them, and generating and editing in them) | |
 | Generation | Choice of algorithm, Crisp edges, Dithering (as a whole), Vivid colour detail, Backstitch from lines (with "also in photographs" and the sensitivity), Set up palette, Texture strokes (with the density), Photo adjustment | The size, the colour count, the palette mode itself |
 | Dither patterns | Clustered dots, Rings, Lines (the four directions as one), Bayer 4×4, Bayer 8×8, Blue noise, Floyd–Steinberg, Atkinson, Hand-drawn (with its texture editing) | Off |
 | Textures | Classic, Pixel, Cell outline, Cell outline shaded, Cross 2 stitch textures; Natural linen and Counted canvas cloths | The plain canvas colour |
@@ -80,6 +80,7 @@ Every admin page refuses a visitor (to the sign-in) and a signed-in reader (to t
 | A thread system's key | 1 to 30 lower-case letters, digits and hyphens, starting with a letter or digit; not "full"; unique among the site's |
 | A thread system's name; its note, source and licence | 1 to 40 characters; up to 500 each, optional |
 | A thread system's list | 1 to 2,000 threads, each number listed once (in any case); a file up to 512 KB |
+| A person's own thread system | The same name and list; its key made from its name, "my-" first, numbered when the person keeps one so already, fixed at upload |
 | Changes shown | 30 |
 | How long a browser keeps its states | 300 seconds unless set; 5 to 86,400 |
 | The note on a locked feature | "*Name* is not available to you." |

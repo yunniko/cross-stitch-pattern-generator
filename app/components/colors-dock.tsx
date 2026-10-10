@@ -26,6 +26,7 @@ import { DISMISS_RETARGET_ATTRIBUTE, useDismissOnOutsidePointer } from "../hooks
 import { useLatest } from "../hooks/use-latest";
 import { ThreadRows, threadsSummary } from "./threads-pane";
 import { useThreadSystems } from "../thread-systems/thread-systems-context";
+import { OwnSystemChoice } from "../thread-systems/own-system-choice";
 import { ThreadFields } from "./thread-fields";
 import { PaletteLibrary } from "./palette-library";
 import { appendPalette, missingColors } from "@/lib/editor/palette-load";
@@ -246,8 +247,12 @@ export function ColorsDock({
   const [paletteNote, setPaletteNote] = useState<string | null>(null);
   // Under the feature switches (G-102): each system is a feature. The systems are the table's (G-132).
   const systems = useThreadSystems();
+  // A person's own systems are chosen apart (G-132 M4), from `OwnSystemChoice`.
   const modeOptions = useGatedOptions(
-    [{ value: "full" as const, label: "Full range" }, ...systems.map((system) => ({ value: system.id, label: system.label }))],
+    [
+      { value: "full" as const, label: "Full range" },
+      ...systems.filter((system) => !system.own).map((system) => ({ value: system.id, label: system.label })),
+    ],
     brandFeature
   );
   const editorPanelRef = useRef<HTMLDivElement>(null);
@@ -470,6 +475,7 @@ export function ColorsDock({
       <div ref={editorPanelRef} role="dialog" aria-label={`Edit color ${current.name}`} className={PANEL}>
         {/* Any system's thread may be any colour of any chart (G-131): the chart's own system only opens the editor on it. */}
         <SegmentedControl className="self-start" options={modeOptions} value={editing.mode} onChange={changeMode} />
+        <OwnSystemChoice value={editing.mode} onChoose={changeMode} />
         {brandMode && <SystemNote brand={brandMode} />}
 
         {brandMode ? (
@@ -534,7 +540,10 @@ export function ColorsDock({
               setAddColorDraftHex("#808080");
               setAddBrandQuery("");
               setAddMode(
-                modeOptions.some((option) => option.value === pattern?.threadBrand && !option.disabled) ? pattern!.threadBrand! : "full"
+                modeOptions.some((option) => option.value === pattern?.threadBrand && !option.disabled) ||
+                  systems.some((system) => system.own && system.id === pattern?.threadBrand)
+                  ? pattern!.threadBrand!
+                  : "full"
               );
               setAddingColor(true);
             }}
@@ -620,6 +629,13 @@ export function ColorsDock({
             options={modeOptions}
             value={addMode}
             onChange={(mode) => {
+              setAddMode(mode);
+              setAddBrandQuery("");
+            }}
+          />
+          <OwnSystemChoice
+            value={addMode}
+            onChoose={(mode) => {
               setAddMode(mode);
               setAddBrandQuery("");
             }}

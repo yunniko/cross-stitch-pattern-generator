@@ -36,6 +36,8 @@ const SHARED_COMMAND_FEATURES: Record<string, { label: string; group: string }> 
   "stamps.account": { label: "Stamps", group: "Saving" },
   // The id the palette routes check (`PALETTES_FEATURE`), for the saved palettes on both pages (G-131); not a command.
   "palettes.account": { label: "Palettes in the account", group: "Saving" },
+  // The id the own thread system routes check (`OWN_SYSTEMS_FEATURE`, G-132 M4): every system a person uploads.
+  "threads.custom": { label: "Thread systems of your own", group: "Saving" },
   // The id the Plan section and Checkout check (`BUYING_FEATURE`, G-106 M3); hidden in production until G-128 (D372).
   "billing.buy": { label: "Buying a plan", group: "Account" },
   // Not a command: the Layers tab is its one control. Off, a chart's layers stay as they are and the tools still use them.

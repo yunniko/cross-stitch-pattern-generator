@@ -47,7 +47,7 @@ export async function POST(req: Request): Promise<Response> {
   if (refusal) return NextResponse.json({ error: refusal }, { status: 403 });
 
   // The names the systems are printed by, from the table (G-132, D400).
-  const forwarded = await withThreadSystems(body, async () => ({ systemLabels: await systemLabelsFor() }));
+  const forwarded = await withThreadSystems(body, async () => ({ systemLabels: await systemLabelsFor(userId) }));
 
   // The counted limits (G-109, D364): checked and counted before the processor is asked, given back if it refuses.
   const quota = await quotaForRoute("EXPORT", userId, typeof parsed.kind === "string" ? parsed.kind : null);

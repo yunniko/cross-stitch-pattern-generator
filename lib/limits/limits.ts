@@ -30,7 +30,7 @@ export interface Limit {
   label: string;
   /** What the admin is told about it, one sentence. */
   note: string;
-  unit: "MB" | "stamps" | "palettes" | "generations" | "exports";
+  unit: "MB" | "stamps" | "palettes" | "systems" | "generations" | "exports";
   /** Set for a counted limit (G-109); absent for a size. */
   counted?: Counted;
   /** The site's value while the admin has set none. */
@@ -63,6 +63,15 @@ export const ACCOUNT_LIMITS: readonly Limit[] = [
     unit: "palettes",
     siteDefault: 100,
     max: 1_000_000,
+  },
+  {
+    // Each may list up to 2,000 threads, so the default is small (Owner, G-132).
+    id: "threads.systems",
+    label: "Thread systems kept",
+    note: "The thread systems a person uploads to their account may number up to this many.",
+    unit: "systems",
+    siteDefault: 10,
+    max: 1_000,
   },
   // The counted limits (G-109) default to unlimited: a limit the admin has not set does not apply (Owner, 2026-10-08).
   {

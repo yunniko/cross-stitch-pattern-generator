@@ -10,14 +10,33 @@ import { loadThreadSystems, type ThreadSystemInfo } from "@/lib/threads/thread-b
  * up outside a component; the server never does, since its module is shared by everyone's requests.
  */
 const ThreadSystemsContext = createContext<readonly ThreadSystemInfo[]>([]);
+const MayAddContext = createContext(false);
 
-export function ThreadSystemsProvider({ systems, children }: { systems: readonly ThreadSystemInfo[]; children: ReactNode }) {
+export function ThreadSystemsProvider({
+  systems,
+  mayAdd = false,
+  children,
+}: {
+  systems: readonly ThreadSystemInfo[];
+  /** Whether the person may upload a system of their own (G-132 M4): signed in, with the switch on. */
+  mayAdd?: boolean;
+  children: ReactNode;
+}) {
   // In render, not an effect: the children's first render already looks threads up. Loading the same list again is a no-op.
   if (typeof window !== "undefined") loadThreadSystems(systems);
-  return <ThreadSystemsContext.Provider value={systems}>{children}</ThreadSystemsContext.Provider>;
+  return (
+    <ThreadSystemsContext.Provider value={systems}>
+      <MayAddContext.Provider value={mayAdd}>{children}</MayAddContext.Provider>
+    </ThreadSystemsContext.Provider>
+  );
 }
 
-/** The systems the person may use, in the order offered. */
+/** Whether the person may upload a system of their own. */
+export function useMayAddThreadSystem(): boolean {
+  return useContext(MayAddContext);
+}
+
+/** The systems the person may use, in the order offered: the site's, then their own (`own`). */
 export function useThreadSystems(): readonly ThreadSystemInfo[] {
   return useContext(ThreadSystemsContext);
 }
