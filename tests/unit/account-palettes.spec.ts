@@ -2,11 +2,15 @@ import { describe, expect, it } from "vitest";
 import { featureById } from "@/app/features/registry";
 import { limitById } from "@/lib/limits/limits";
 import {
+  MOVE_MAX_PALETTES,
   PALETTE_COUNT_LIMIT,
+  PALETTE_NAME_MAX,
   PALETTES_FEATURE,
+  freeName,
   paletteCountRefusal,
   paletteData,
   paletteName,
+  readPaletteMove,
   readPaletteUpload,
   storedPalette,
 } from "@/lib/palettes/palette";
@@ -61,5 +65,26 @@ describe("a palette kept with the account", () => {
 
   it("is a feature of the Saving group the admin can switch", () => {
     expect(featureById(PALETTES_FEATURE)).toMatchObject({ label: "Palettes in the account", group: "Saving" });
+  });
+});
+
+describe("moving the browser's palettes", () => {
+  it("gives a name taken a number, still within the name's length", () => {
+    expect(freeName("Sea", new Set())).toBe("Sea");
+    expect(freeName("Sea", new Set(["Sea", "Sea (2)"]))).toBe("Sea (3)");
+    const long = "x".repeat(PALETTE_NAME_MAX);
+    const free = freeName(long, new Set([long]));
+    expect(free).toHaveLength(PALETTE_NAME_MAX);
+    expect(free.endsWith(" (2)")).toBe(true);
+  });
+
+  it("reads the palettes in order and refuses an empty, oversized or unreadable move", () => {
+    const one = { name: "Moss", mode: "full", colors: [{ rgb: [1, 2, 3] }] };
+    const read = readPaletteMove({ palettes: [one, { ...one, name: "Fern" }] });
+    expect("palettes" in read && read.palettes.map((p) => p.name)).toEqual(["Moss", "Fern"]);
+    expect(readPaletteMove({ palettes: [] })).toHaveProperty("error");
+    expect(readPaletteMove({ palettes: Array(MOVE_MAX_PALETTES + 1).fill(one) })).toHaveProperty("error");
+    expect(readPaletteMove({ palettes: [one, { name: "Bad", mode: "full", colors: [] }] })).toHaveProperty("error");
+    expect(readPaletteMove(null)).toHaveProperty("error");
   });
 });

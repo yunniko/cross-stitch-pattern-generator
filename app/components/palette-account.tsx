@@ -70,16 +70,6 @@ async function sendPalette(name: string, set: PaletteSet): Promise<{ palette: Ac
   }
 }
 
-/** A name not among `taken`: the name itself, else with " (2)", " (3)"… */
-function freeName(name: string, taken: ReadonlySet<string>): string {
-  if (!taken.has(name)) return name;
-  for (let n = 2; ; n++) {
-    const suffix = ` (${n})`;
-    const candidate = name.slice(0, 60 - suffix.length) + suffix;
-    if (!taken.has(candidate)) return candidate;
-  }
-}
-
 export function PaletteAccountProvider({ signedIn, children }: { signedIn: boolean; children: ReactNode }) {
   const feature = useFeature(PALETTES_FEATURE);
   const usable = signedIn && feature.usable;
@@ -133,26 +123,31 @@ export function PaletteAccountProvider({ signedIn, children }: { signedIn: boole
     [palettes]
   );
 
-  // Moves the browser's palettes one by one, a name the account keeps already taking a number; what is left after a
-  // refusal stays in the browser, offered again next visit.
+  // Moves the browser's palettes in one request, the server giving a name the account keeps already a number; what is
+  // left after a refusal stays in the browser, offered again next visit.
   const moveBrowserPalettes = useCallback(async () => {
-    const taken = new Set((palettes ?? []).map((p) => p.name));
-    const left = [...browserPalettes];
-    const moved: AccountPalette[] = [];
+    let moved: AccountPalette[] = [];
     let refusal: string | null = null;
-    while (left.length > 0) {
-      const next = left[0];
-      const name = freeName(next.name, taken);
-      const sent = await sendPalette(name, next.set);
-      if ("error" in sent) {
-        refusal = sent.error;
-        break;
-      }
-      taken.add(name);
-      moved.push(sent.palette);
-      left.shift();
+    try {
+      const response = await fetch("/api/palettes/move", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ palettes: browserPalettes.map((p) => ({ name: p.name, ...setData(p.set) })) }),
+      });
+      const body = (await response.json().catch(() => null)) as {
+        moved?: AccountPalette[];
+        refusal?: string | null;
+        error?: string;
+      } | null;
+      if (response.ok && body?.moved) {
+        moved = body.moved;
+        refusal = body.refusal ?? null;
+      } else refusal = body?.error ?? "The palettes were not moved. Try again in a moment.";
+    } catch {
+      refusal = "Couldn't reach the server, so the palettes were not moved. Check your connection and try again.";
     }
-    setPalettes((list) => [...moved.reverse(), ...(list ?? [])]);
+    const left = browserPalettes.slice(moved.length);
+    setPalettes((list) => [...[...moved].reverse(), ...(list ?? [])]);
     writeSavedPalettes(left);
     setBrowserPalettes(left);
     if (left.length === 0) markOffered();
@@ -160,7 +155,7 @@ export function PaletteAccountProvider({ signedIn, children }: { signedIn: boole
     return refusal
       ? `Moved ${count} into your account; ${left.length} stayed in this browser. ${refusal}`
       : `Moved ${count} into your account.`;
-  }, [palettes, browserPalettes]);
+  }, [browserPalettes]);
 
   const declineMove = useCallback(() => {
     markOffered();

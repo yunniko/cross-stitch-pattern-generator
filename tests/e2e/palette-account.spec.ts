@@ -18,6 +18,8 @@ function api(page: Page) {
     save: (body: unknown) => page.request.post("/api/palettes", { data: body, headers: { origin, "content-type": "application/json" } }),
     rename: (id: string, name: string) => page.request.patch(`/api/palettes/${id}`, { data: { name }, headers: { origin } }),
     remove: (id: string) => page.request.delete(`/api/palettes/${id}`, { headers: { origin } }),
+    move: (palettes: unknown[]) =>
+      page.request.post("/api/palettes/move", { data: { palettes }, headers: { origin, "content-type": "application/json" } }),
   };
 }
 
@@ -96,6 +98,10 @@ test("the count of palettes is the person's limit, the feature refuses by name, 
   expect(await refused.json()).toMatchObject({ reason: "limit", error: expect.stringContaining("You keep 1 palette, as many as") });
   // Saving over the one kept is no more palettes.
   expect((await palettes.save({ name: "One", ...sea })).status()).toBe(200);
+  // A move stops at the limit and says why.
+  const move = await palettes.move([{ name: "Moved", ...sea }]);
+  expect(move.status()).toBe(200);
+  expect(await move.json()).toMatchObject({ moved: [], refusal: expect.stringContaining("You keep 1 palette") });
 
   await setUserFeatures(email, { "palettes.account": "locked" });
   const locked = await palettes.save({ name: "One", ...sea });

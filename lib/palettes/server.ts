@@ -8,12 +8,15 @@ import { limitValue, type LimitValue } from "@/lib/limits/limits";
 import type { PaletteSet } from "@/lib/editor/palette-set";
 import { prisma } from "@/lib/prisma";
 import {
+  MOVE_MAX_PALETTES,
   PALETTE_COUNT_LIMIT,
   PALETTE_MAX_BYTES,
   PALETTES_FEATURE,
+  freeName,
   paletteCountRefusal,
   paletteData,
   paletteName,
+  readPaletteMove,
   readPaletteUpload,
   storedPalette,
   type AccountPalette,
@@ -43,22 +46,30 @@ export async function requirePalettes(): Promise<{ userId: string; allowed: Limi
   return { userId, allowed: limitValue(await limitsFor(userId), PALETTE_COUNT_LIMIT) };
 }
 
-/** The body of a save, refused when too large or not a palette. */
-export async function readPaletteBody(req: Request): Promise<{ name: string; set: PaletteSet }> {
+/** A body as JSON, refused when larger than `maxBytes` or not JSON. */
+async function readJson(req: Request, maxBytes: number): Promise<unknown> {
   const declared = Number(req.headers.get("content-length"));
-  const text = Number.isFinite(declared) && declared > PALETTE_MAX_BYTES ? null : await req.text();
-  if (text === null || new TextEncoder().encode(text).byteLength > PALETTE_MAX_BYTES) {
-    throw new Refused(413, "That palette is too large to keep.");
-  }
-  let data: unknown;
+  const text = Number.isFinite(declared) && declared > maxBytes ? null : await req.text();
+  if (text === null || new TextEncoder().encode(text).byteLength > maxBytes) throw new Refused(413, "That is too large to keep.");
   try {
-    data = JSON.parse(text);
+    return JSON.parse(text);
   } catch {
     throw new Refused(400, "That is not a palette.");
   }
-  const read = readPaletteUpload(data);
+}
+
+/** The body of a save, refused when too large or not a palette. */
+export async function readPaletteBody(req: Request): Promise<{ name: string; set: PaletteSet }> {
+  const read = readPaletteUpload(await readJson(req, PALETTE_MAX_BYTES));
   if ("error" in read) throw new Refused(422, read.error);
   return read;
+}
+
+/** The body of a move from the browser, refused when too large or not palettes. */
+export async function readMoveBody(req: Request): Promise<Array<{ name: string; set: PaletteSet }>> {
+  const read = readPaletteMove(await readJson(req, MOVE_MAX_PALETTES * PALETTE_MAX_BYTES));
+  if ("error" in read) throw new Refused(422, read.error);
+  return read.palettes;
 }
 
 const ROW = { id: true, name: true, data: true, updatedAt: true } as const;
@@ -90,6 +101,31 @@ export async function savePalette(
     if (refusal) throw new Refused(403, refusal, { reason: "limit" });
     const row = await tx.palette.create({ data: { userId, name: body.name, data, colors }, select: ROW });
     return { palette: palette(row)!, replaced: false };
+  });
+}
+
+/**
+ * Keeps the browser's palettes in order, in one transaction: a name the account keeps already takes a number, and the move
+ * stops at the person's limit. Answers those kept and, when some were not, why.
+ */
+export async function movePalettes(
+  userId: string,
+  allowed: LimitValue,
+  list: Array<{ name: string; set: PaletteSet }>
+): Promise<{ moved: AccountPalette[]; refusal: string | null }> {
+  return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT 1 FROM "User" WHERE "id" = ${userId} FOR UPDATE`;
+    const taken = new Set((await tx.palette.findMany({ where: { userId }, select: { name: true } })).map((p) => p.name));
+    const moved: AccountPalette[] = [];
+    for (const { name, set } of list) {
+      const refusal = paletteCountRefusal(taken.size, allowed);
+      if (refusal) return { moved, refusal };
+      const kept = freeName(name, taken);
+      taken.add(kept);
+      const row = await tx.palette.create({ data: { userId, name: kept, data: paletteData(set), colors: set.colors.length }, select: ROW });
+      moved.push(palette(row)!);
+    }
+    return { moved, refusal: null };
   });
 }
 
