@@ -1495,5 +1495,10 @@ mod code_column_tests {
             color("310", Some(("dmc", "310"))),
         ];
         assert_eq!(p.thread_systems(), vec!["DMC", "Anchor"]);
+        // A system not loaded comes after the loaded ones, as the chart stores it (G-132).
+        p.palette
+            .insert(0, color("0210", Some(("Madeira", "0210"))));
+        assert_eq!(p.thread_systems(), vec!["DMC", "Anchor", "Madeira"]);
+        assert_eq!(p.palette[0].printed_thread().0, "Madeira");
     }
 }

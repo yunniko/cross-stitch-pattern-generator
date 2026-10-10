@@ -18,7 +18,7 @@ A palette entry has: a **colour** (RGB), a **name** (unique within the chart), a
 | **Cosmo** | 500 | Code only | From an open dataset |
 | **Anchor** | 355 | Code only | Derived: each is the documented Anchor equivalent of the nearest DMC thread; the colour shown is the DMC colour; the derivation is disclosed wherever Anchor is chosen |
 
-Any colour of any chart may be a thread of any system, or no thread at all: a chart is never locked to one system. A chart generated in a thread system remembers that system, which only decides where "+ Add" and the colour editor first open. A colour's thread is remembered by system and number, so it survives later changes to the thread tables. A number may also be typed by hand (below), and one that no table lists is kept as typed; a typed number never changes the colour.
+Any colour of any chart may be a thread of any system, or no thread at all: a chart is never locked to one system. A chart generated in a thread system remembers that system, which only decides where "+ Add" and the colour editor first open. A colour's thread is remembered by system and number, so it survives later changes to the thread tables. A number may also be typed by hand (below), and one that no table lists is kept as typed; a typed number never changes the colour. A system this site does not have (a file from another app, or a system since removed) is kept as the file names it ("Madeira"), up to 40 characters: the colour, its name, its system and its number all stay, and every export prints that name.
 
 ## The thread list
 
@@ -65,11 +65,11 @@ Opens from a colour's swatch; picks apply at once and it stays open until **Done
 
 | Control | Kind and values | Available when | Effects |
 |---|---|---|---|
-| **Mode** | Choice among **Full range**, **DMC**, **Cosmo**, **Anchor** | Always; with Anchor, the Anchor derivation note | Opens on the colour's own system: a colour that is a thread opens on its brand with its swatch marked and centred in view; any other on the chart's generation system, or Full range |
+| **Mode** | Choice among **Full range**, **DMC**, **Cosmo**, **Anchor** | Always; with Anchor, the Anchor derivation note | Opens on the colour's own system: a colour that is a thread opens on its brand with its swatch marked and centred in view; a thread of a system this site does not have opens on Full range; any other colour on the chart's generation system, or Full range |
 | **Colour area** (Full range) | A colour choice, applied live while dragging | Full range | Changes the RGB only; the name and the thread number are left alone |
 | **Thread grid** (brands) | Every thread of the brand as a swatch, ten across, with a search box (matches code or name, ignoring case; "No colors match that search.") | Brand mode | Choosing a thread changes the colour to it and renames it "*code* – *name*"; choosing the thread it already is changes nothing |
 | **Comparison text** | Text | Brand mode | Pointing at or focusing a swatch shows its name and how much lighter or darker, and more or less saturated, it is than the current colour, in percentage points ("*n*% lighter", "*n*% less saturated"); with none the line reads "Hover or focus a swatch to compare it with the current color on screen." |
-| **System** | A choice of **None**, **DMC**, **Cosmo**, **Anchor** | Always | None says the colour is no particular thread and clears its number; a brand with a number already typed sets the thread at once |
+| **System** | A choice of **None**, **DMC**, **Cosmo**, **Anchor** | Always | None says the colour is no particular thread and clears its number; a brand with a number already typed sets the thread at once. A colour's own system this site does not have is offered too, under its own name |
 | **Number** | Text, up to 20 characters | A system is chosen ("Choose a system" otherwise) | Enter or leaving it sets the thread. A number a table lists is written as the table writes it; any other is kept as typed; empty clears the thread. The colour never changes. A name that begins with the old number ("310 - Black") follows the new one unless another colour already has that name |
 | **Done / Cancel** | Actions | | |
 

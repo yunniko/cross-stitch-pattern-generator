@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { addColor, editColorRgb, setColorThread } from "@/lib/editor/pattern-edit";
 import { deserializePattern, serializePattern } from "@/lib/editor/pattern-serialize";
-import { THREAD_CODE_MAX, threadIdentity } from "@/lib/threads/thread-brands";
+import { THREAD_CODE_MAX, THREAD_SYSTEM_MAX, systemLabel, threadIdentity, threadSystem } from "@/lib/threads/thread-brands";
 import type { PaletteColor, StitchPattern } from "@/lib/types";
 
 /**
@@ -29,10 +29,34 @@ describe("threadIdentity", () => {
     expect(threadIdentity("anchor", "9999x")).toEqual({ brand: "anchor", code: "9999x" });
   });
 
-  it("is null for a blank or overlong number, or a system that is not one of ours", () => {
+  it("is null for a blank or overlong number or system", () => {
     expect(threadIdentity("dmc", "  ")).toBeNull();
     expect(threadIdentity("dmc", "1".repeat(THREAD_CODE_MAX + 1))).toBeNull();
-    expect(threadIdentity("madeira", "310")).toBeNull();
+    expect(threadIdentity(" ", "310")).toBeNull();
+    expect(threadIdentity("x".repeat(THREAD_SYSTEM_MAX + 1), "310")).toBeNull();
+  });
+
+  it("keeps a system not loaded here as written, with its number as typed (G-132)", () => {
+    expect(threadIdentity(" Madeira ", " 0210 ")).toEqual({ brand: "Madeira", code: "0210" });
+    expect(threadIdentity("DMC", "b5200")).toEqual({ brand: "dmc", code: "B5200" });
+  });
+});
+
+describe("threadSystem", () => {
+  it("writes a loaded system by its id, matched by id or name in any case, and any other as written", () => {
+    expect(threadSystem("DMC")).toBe("dmc");
+    expect(threadSystem("Cosmo")).toBe("cosmo");
+    expect(threadSystem("  Madeira  ")).toBe("Madeira");
+    expect(threadSystem("Sullivans Floss")).toBe("Sullivans Floss");
+  });
+
+  it("is null for a blank, overlong or control-holding name, or the full range", () => {
+    for (const bad of ["", "   ", "x".repeat(THREAD_SYSTEM_MAX + 1), "Mad\u0000eira", "full", "FULL"]) expect(threadSystem(bad)).toBeNull();
+  });
+
+  it("labels a loaded system by its name and any other by the system itself", () => {
+    expect(systemLabel("anchor")).toBe("Anchor");
+    expect(systemLabel("Madeira")).toBe("Madeira");
   });
 });
 

@@ -13,7 +13,14 @@ import {
   setColorSymbol,
   setColorThread,
 } from "@/lib/editor/pattern-edit";
-import { THREAD_BRANDS, THREAD_BRAND_IDS, formatThreadName, type ThreadBrand, type ThreadColor } from "@/lib/threads/thread-brands";
+import {
+  THREAD_BRANDS,
+  THREAD_BRAND_IDS,
+  formatThreadName,
+  isLoadedSystem,
+  type ThreadBrand,
+  type ThreadColor,
+} from "@/lib/threads/thread-brands";
 import { MAX_COLORS, type PaletteColor, type RGB, type StitchPattern } from "@/lib/types";
 import { DISMISS_RETARGET_ATTRIBUTE, useDismissOnOutsidePointer } from "../hooks/use-dismiss-on-outside-pointer";
 import { useLatest } from "../hooks/use-latest";
@@ -278,7 +285,8 @@ export function ColorsDock({
     setEditor({
       index,
       initial: { rgb: color.rgb, name: color.name, source: color.source },
-      mode: color.source?.brand ?? pattern.threadBrand ?? "full",
+      // A system not loaded here has no list to pick from: its colour opens in the common picker (G-132).
+      mode: color.source ? (isLoadedSystem(color.source.brand) ? color.source.brand : "full") : (pattern.threadBrand ?? "full"),
       query: "",
       draftHex: null,
       paletteLength: pattern.palette.length,

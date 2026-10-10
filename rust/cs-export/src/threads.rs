@@ -48,12 +48,12 @@ pub fn find_thread(brand: &str, code: &str) -> Option<&'static Thread> {
     })
 }
 
-/// `THREAD_BRANDS[brand].label`.
-pub fn brand_label(brand: &str) -> &'static str {
+/// `systemLabel`: a loaded system's label, else the system as the chart stores it (G-132).
+pub fn brand_label(brand: &str) -> &str {
     match brand {
         "dmc" => "DMC",
         "cosmo" => "Cosmo",
         "anchor" => "Anchor",
-        _ => "",
+        other => other,
     }
 }

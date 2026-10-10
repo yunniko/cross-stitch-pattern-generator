@@ -474,7 +474,16 @@ describe("helpers", () => {
     expect(parseThreadNumber("DMC    943")).toEqual({ brand: "dmc", code: "943" });
     expect(parseThreadNumber("anchor 403")).toEqual({ brand: "anchor", code: "403" });
     expect(parseThreadNumber("DMC B5200")).toEqual({ brand: "dmc", code: "B5200" });
-    expect(parseThreadNumber("Madeira 2400")).toBeNull();
+    expect(parseThreadNumber("DMC310")).toEqual({ brand: "dmc", code: "310" });
     expect(parseThreadNumber("cloth")).toBeNull();
+    expect(parseThreadNumber("310")).toBeNull();
+  });
+
+  it("keeps a thread number of a system not loaded here, its name separated from a number with a digit (G-132)", () => {
+    expect(parseThreadNumber("Madeira 2400")).toEqual({ brand: "Madeira", code: "2400" });
+    expect(parseThreadNumber("Sullivans Floss  45010")).toEqual({ brand: "Sullivans Floss", code: "45010" });
+    expect(parseThreadNumber("Madeira")).toBeNull();
+    expect(parseThreadNumber("Light blue")).toBeNull();
+    expect(parseThreadNumber("Madeira2400")).toBeNull();
   });
 });

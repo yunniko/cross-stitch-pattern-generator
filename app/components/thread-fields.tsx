@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { THREAD_BRANDS, THREAD_BRAND_IDS, THREAD_CODE_MAX, threadIdentity, type ThreadBrand } from "@/lib/threads/thread-brands";
+import { THREAD_BRANDS, THREAD_BRAND_IDS, THREAD_CODE_MAX, systemLabel, threadIdentity } from "@/lib/threads/thread-brands";
 import type { ThreadSwatchRef } from "@/lib/types";
 import { useGatedOptions } from "../features/features-context";
 import { brandFeature } from "../features/registry";
@@ -23,14 +23,14 @@ export function ThreadFields({ source, onCommit }: ThreadFieldsProps) {
 }
 
 function ThreadFieldsDraft({ source, onCommit }: ThreadFieldsProps) {
-  const [system, setSystem] = useState<ThreadBrand | "">(source?.brand ?? "");
+  const [system, setSystem] = useState<string>(source?.brand ?? "");
   const [number, setNumber] = useState(source?.code ?? "");
   const systems = useGatedOptions(
     THREAD_BRAND_IDS.map((brand) => ({ value: brand, label: THREAD_BRANDS[brand].label })),
     brandFeature
   );
 
-  function commit(nextSystem: ThreadBrand | "", nextNumber: string) {
+  function commit(nextSystem: string, nextNumber: string) {
     const thread = nextSystem === "" || nextNumber.trim() === "" ? null : threadIdentity(nextSystem, nextNumber);
     if (thread?.brand === source?.brand && thread?.code === source?.code) {
       setNumber(source?.code ?? ""); // a number only trimmed or recased to the one already there
@@ -49,7 +49,7 @@ function ThreadFieldsDraft({ source, onCommit }: ThreadFieldsProps) {
           aria-label="Thread system"
           value={system}
           onChange={(e) => {
-            const next = e.target.value as ThreadBrand | "";
+            const next = e.target.value;
             setSystem(next);
             commit(next, number);
           }}
@@ -61,9 +61,9 @@ function ThreadFieldsDraft({ source, onCommit }: ThreadFieldsProps) {
               {option.label}
             </option>
           ))}
-          {/* A system now hidden or locked still names the thread this colour already is. */}
+          {/* A system now hidden or locked, or not loaded here at all (G-132), still names the thread this colour already is. */}
           {source && !systems.some((option) => option.value === source.brand) && (
-            <option value={source.brand}>{THREAD_BRANDS[source.brand].label}</option>
+            <option value={source.brand}>{systemLabel(source.brand)}</option>
           )}
         </select>
       </label>

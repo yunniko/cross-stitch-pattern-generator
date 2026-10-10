@@ -141,7 +141,10 @@ fn a_thread_brand_gives_the_lines_a_thread_of_that_brand() {
     assert!(!pattern.backstitch.is_empty());
     assert_eq!(pattern.thread_brand, Some("dmc"));
     let thread = &pattern.palette[pattern.backstitch[0].palette_index];
-    assert_eq!(thread.source.as_ref().map(|s| s.brand), Some("dmc"));
+    assert_eq!(
+        thread.source.as_ref().map(|s| s.brand.as_str()),
+        Some("dmc")
+    );
     assert!(luminance(thread.rgb) < 80.0);
 }
 

@@ -201,7 +201,7 @@ Outside both: G-111's comments follow G-112; G-097 comes after G-108, whose char
 - 2026-10-08 — Owner accepted the plan ("you can go ahead with 109, 106 and 126 - 128"), to run after G-109 in the order G-106, G-126, G-127, G-128. Items (1) to (6) are the Owner's and wait on them. JulAI's part starts after G-127: the pages take the Owner's text, so they are built with the missing text named as missing, and the launch checklist as a script.
 - 2026-10-08 — drafted from G-106's constraints at the Owner's request.
 
-### G-132 · Thread systems as plugins: managed in the admin, uploaded by users, and never needed to open a chart — DRAFT (planned 2026-10-10, awaiting acceptance)
+### G-132 · Thread systems as plugins: managed in the admin, uploaded by users, and never needed to open a chart — ACTIVE (accepted 2026-10-10)
 - **What (Owner, 2026-10-10):**
   - A thread system (DMC, Anchor, Cosmo, and any later one) is a plugin: a data package of a name and its threads (number, name, colour), not code. The three built in today become plugins.
   - The admin adds, edits and deletes site systems in the admin area.
@@ -226,7 +226,10 @@ Outside both: G-111's comments follow G-112; G-097 comes after G-108, whose char
 - [ ] M5 — The brief and What's new, a QA pass on the flows, then release and deploy to cross-stitch.craftodejnice.cz (standing approval), with the seed checked live.
 
 **Progress log** (newest first):
-- 2026-10-10 — goal created from the Owner's request and planned; the Owner chose: Anchor as a plain list, a user's systems private to them, usable for generation and editing, gated like palettes (feature `threads.custom`, limit `threads.systems` 10).### G-108 · Charts saved to an account, a gallery, and who can see each (private by default) — DRAFT (part 2; part 1 signed off 2026-10-08)
+- 2026-10-10 — the Owner accepted the plan; no milestone marked for review.
+- 2026-10-10 — goal created from the Owner's request and planned; the Owner chose: Anchor as a plain list, a user's systems private to them, usable for generation and editing, gated like palettes (feature `threads.custom`, limit `threads.systems` 10).
+
+### G-108 · Charts saved to an account, a gallery, and who can see each (private by default) — DRAFT (part 2; part 1 signed off 2026-10-08)
 - **Part 1 (saving to the account, the account's Charts, previews) — DONE, Owner sign-off 2026-10-08;** archived in `docs/goals-archive/G-101-to-G-110.md`. Deployed in v0.15.0, v0.16.0 and v0.17.0.
 - **Part 2 (later, not in this plan):** unlisted and public visibility, the gallery and its moderation (G-111).
 - **What:** asked by the Owner, 2026-10-06. A signed-in person saves a chart to their account (the versioned document of G-094, with its photo if they choose) and reopens it from any browser; their charts are listed with previews. Each chart has a visibility: **private** (the default), unlisted (anyone with the link), or public (in a gallery). The gallery shows public charts with previews; the owner can change visibility or delete at any time. Account settings hold the defaults.

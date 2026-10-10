@@ -435,3 +435,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D396 — Every key prints System and Number columns, filled from each colour's own thread; the Pattern Keeper PDF re-pinned — active
 - D397 — A palette colour carries its own colour, name and thread; a set's mode only chooses what is offered — active
 - D398 — Saved palettes live in the account, one per name, limited by count; signed out, a file only — active
+- D399 — A thread's system is any name; one not loaded here is kept as written and edited in the common picker — active

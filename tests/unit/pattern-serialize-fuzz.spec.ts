@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { deserializePattern, serializePattern } from "@/lib/editor/pattern-serialize";
 import { mulberry32 } from "@/lib/prng";
 import { drawChart, renderNavigatorPixels } from "@/lib/export/render";
-import { THREAD_CODE_MAX, findThread } from "@/lib/threads/thread-brands";
+import { THREAD_CODE_MAX, findThread, threadSystem } from "@/lib/threads/thread-brands";
 import { EMPTY_CELL, MAX_COLORS, MAX_STITCHES, type StitchPattern } from "@/lib/types";
 import { makeRecordingContext } from "./helpers/recording-context";
 
@@ -54,6 +54,7 @@ const VALID_SOURCES = [
   { brand: "dmc", code: "310" },
   { brand: "cosmo", code: "600" },
   { brand: "anchor", code: "403" },
+  { brand: "Madeira", code: "0210" },
 ];
 const BAD_SOURCES: unknown[] = [
   null,
@@ -61,7 +62,9 @@ const BAD_SOURCES: unknown[] = [
   [],
   {},
   { brand: "dmc" },
-  { brand: "rainbow", code: "1" },
+  { brand: "", code: "1" },
+  { brand: "full", code: "1" },
+  { brand: "x".repeat(41), code: "1" },
   { brand: "dmc", code: "" },
   { brand: "dmc", code: " " },
   { brand: "dmc", code: "x".repeat(THREAD_CODE_MAX + 1) },
@@ -218,14 +221,14 @@ function assertRenderable(pattern: StitchPattern): void {
     expect(index === EMPTY_CELL || index < pattern.palette.length).toBe(true);
   }
   if (pattern.threadBrand !== undefined) expect(["dmc", "cosmo", "anchor"]).toContain(pattern.threadBrand);
-  // Every kept thread is of a known system, with a trimmed number of 1 to THREAD_CODE_MAX characters, written as the
+  // Every kept thread is of a system as `threadSystem` writes it (a loaded one by id, any other kept, G-132), with a trimmed number of 1 to THREAD_CODE_MAX characters, written as the
   // catalogue writes it when the catalogue lists it (D395). The chart's own system limits nothing.
   for (const color of pattern.palette) {
     if (color.source === undefined) {
       expect("source" in color).toBe(false);
       continue;
     }
-    expect(["dmc", "cosmo", "anchor"]).toContain(color.source.brand);
+    expect(threadSystem(color.source.brand)).toBe(color.source.brand);
     const { code } = color.source;
     expect(code.length >= 1 && code.length <= THREAD_CODE_MAX && code === code.trim()).toBe(true);
     expect(findThread(color.source.brand, code)?.code ?? code).toBe(code);

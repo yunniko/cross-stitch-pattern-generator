@@ -108,10 +108,25 @@ describe("the palette file", () => {
     expect(parsePaletteFile(custom)).toEqual({ set: { mode: "full", colors: [{ rgb: [1, 2, 3] }] } });
   });
 
+  it("keeps a thread of a system not loaded here, and writes it back as it read it (G-132)", () => {
+    const text = JSON.stringify({
+      format: "cross-stitch-palette",
+      version: 2,
+      mode: "full",
+      colors: [{ rgb: [1, 2, 3], name: "Rose", system: "Madeira", number: "0210" }],
+    });
+    const read = parsePaletteFile(text);
+    expect("set" in read && read.set.colors).toEqual([{ rgb: [1, 2, 3], name: "Rose", source: { brand: "Madeira", code: "0210" } }]);
+    if (!("set" in read)) return;
+    expect(setRequest(read.set).colors).toEqual([{ rgb: [1, 2, 3], name: "Rose", system: "Madeira", number: "0210" }]);
+    expect(parsePaletteFile(paletteFileText(read.set, "Mine"))).toEqual({ set: read.set, name: "Mine" });
+  });
+
   it("refuses what is not a palette, with a reason", () => {
     const v2 = (colors: unknown[]) => JSON.stringify({ format: "cross-stitch-palette", version: 2, mode: "full", colors });
     expect(parsePaletteFile(v2([{ rgb: [1, 2, 3], system: "dmc" }]))).toHaveProperty("error");
-    expect(parsePaletteFile(v2([{ rgb: [1, 2, 3], system: "sparkle", number: "1" }]))).toHaveProperty("error");
+    expect(parsePaletteFile(v2([{ rgb: [1, 2, 3], system: " ", number: "1" }]))).toHaveProperty("error");
+    expect(parsePaletteFile(v2([{ rgb: [1, 2, 3], system: "full", number: "1" }]))).toHaveProperty("error");
     expect(parsePaletteFile(v2([{ system: "dmc", number: "310" }]))).toHaveProperty("error");
     expect(parsePaletteFile("not json")).toHaveProperty("error");
     expect(parsePaletteFile(JSON.stringify({ format: "something-else" }))).toHaveProperty("error");

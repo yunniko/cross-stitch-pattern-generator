@@ -1,6 +1,6 @@
 import { clipLines, dedupeLines } from "./backstitch";
 import { symbolsFor } from "../color/symbols";
-import { findThread, formatThreadName, THREAD_BRANDS, type ThreadBrand } from "../threads/thread-brands";
+import { findThread, formatThreadName, isLoadedSystem, systemLabel, threadIdentity, type ThreadBrand } from "../threads/thread-brands";
 import {
   EMPTY_CELL,
   MAX_COLORS,
@@ -518,11 +518,19 @@ interface ResolvedColor {
   source?: ThreadSwatchRef;
 }
 
-/** "DMC 310", "DMC    943", "Anchor 403", "cosmo 2500" → brand and code. */
-export function parseThreadNumber(number: string): { brand: ThreadBrand; code: string } | null {
-  const match = /^(dmc|anchor|cosmo)\s*([A-Za-z0-9][\w.-]*)$/i.exec(number.trim());
-  if (!match) return null;
-  return { brand: match[1].toLowerCase() as ThreadBrand, code: match[2] };
+/**
+ * "DMC 310", "DMC    943", "Anchor 403", "cosmo 2500" → brand and code; a loaded system's name may touch its number
+ * ("DMC310"). Any other system's name, separated from a number holding a digit ("Madeira 1001"), is kept as written
+ * (G-132), as the exporter writes it.
+ */
+export function parseThreadNumber(number: string): { brand: string; code: string } | null {
+  const trimmed = number.trim();
+  const loaded = /^(dmc|anchor|cosmo)\s*([A-Za-z0-9][\w.-]*)$/i.exec(trimmed);
+  if (loaded) return { brand: loaded[1].toLowerCase(), code: loaded[2] };
+  const other = /^([A-Za-z][^\d\s]*(?:\s+[A-Za-z][^\d\s]*)*)\s+([A-Za-z0-9][\w.-]*)$/.exec(trimmed);
+  if (!other || !/\d/.test(other[2])) return null;
+  const identity = threadIdentity(other[1], other[2]);
+  return identity && { brand: identity.brand, code: identity.code };
 }
 
 /**
@@ -534,11 +542,18 @@ function resolveColors(items: PaletteItem[], report: OxsImportReport): ResolvedC
   const identities = items.map((item) => {
     if (item.blended) return null;
     const parsed = parseThreadNumber(item.number);
-    const thread = parsed ? findThread(parsed.brand, parsed.code) : undefined;
-    return parsed && thread ? { brand: parsed.brand, thread } : null;
+    if (!parsed) return null;
+    const listed = findThread(parsed.brand, parsed.code);
+    // A number no list here holds is still the thread (G-131, G-132): kept with its system, under the file's own name less
+    // the number it begins with, as this exporter writes it ("0210 - Rose").
+    const own = item.name === item.number || item.name === parsed.code ? "" : item.name;
+    const name = own.startsWith(`${parsed.code} - `) ? own.slice(parsed.code.length + 3) : own;
+    return { brand: parsed.brand, thread: listed ?? { code: parsed.code, name, rgb: item.rgb! }, listed: listed !== undefined };
   });
-  const brand = identities[0]?.brand;
-  const allOneBrand = brand !== undefined && identities.every((identity) => identity !== null && identity.brand === brand);
+  const first = identities[0];
+  const brand = first && isLoadedSystem(first.brand) ? first.brand : undefined;
+  const allOneBrand =
+    brand !== undefined && identities.every((identity) => identity !== null && identity.listed && identity.brand === brand);
 
   const resolved: ResolvedColor[] = [];
   if (allOneBrand) {
@@ -570,7 +585,7 @@ function resolveColors(items: PaletteItem[], report: OxsImportReport): ResolvedC
     let base: string;
     if (identity) {
       const detail = identity.thread.name || item.name;
-      base = `${THREAD_BRANDS[identity.brand].label} ${identity.thread.code}${detail ? ` - ${detail}` : ""}`;
+      base = `${systemLabel(identity.brand)} ${identity.thread.code}${detail ? ` - ${detail}` : ""}`;
     } else if (item.number && item.name && !item.name.includes(item.number)) {
       base = `${item.number} - ${item.name}`;
     } else {
@@ -650,7 +665,7 @@ export function serializeOxsParts(pattern: StitchPattern, options: OxsExportOpti
     lines.push(
       "<palette_item" +
         attribute("index", i + 1) +
-        attribute("number", color.source ? `${THREAD_BRANDS[color.source.brand].label} ${thread?.code ?? color.source.code}` : "") +
+        attribute("number", color.source ? `${systemLabel(color.source.brand)} ${thread?.code ?? color.source.code}` : "") +
         attribute("name", thread ? thread.name || thread.code : color.name) +
         attribute("color", hex) +
         attribute("printcolor", hex) +

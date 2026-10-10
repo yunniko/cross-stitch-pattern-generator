@@ -261,7 +261,7 @@ pub fn apply_brand_palette(
                 name: thread_name(code, name),
                 count: *count,
                 source: Some(crate::pattern::ThreadSource {
-                    brand: brand.id(),
+                    brand: brand.id().to_string(),
                     code: code.clone(),
                 }),
             }

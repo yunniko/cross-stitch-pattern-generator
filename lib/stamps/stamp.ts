@@ -1,6 +1,7 @@
 import { previewKey } from "@/lib/charts/saved-chart-link";
 import { parsePatternDocument, serializePattern } from "@/lib/editor/pattern-serialize";
 import { BYTES_PER_MB, type LimitValue } from "@/lib/limits/limits";
+import { isLoadedSystem } from "@/lib/threads/thread-brands";
 import { EMPTY_CELL, type BackstitchLine, type FloatingSelection, type PaletteColor, type StitchPattern } from "@/lib/types";
 
 /**
@@ -80,7 +81,8 @@ export function stampFromPiece(chart: StitchPattern, piece: FloatingSelection, n
     ...line,
     paletteIndex: newIndex.get(line.paletteIndex)!,
   }));
-  const brand = palette[0].source?.brand;
+  const first = palette[0].source?.brand;
+  const brand = first && isLoadedSystem(first) ? first : undefined;
   const pattern: StitchPattern = {
     width,
     height,

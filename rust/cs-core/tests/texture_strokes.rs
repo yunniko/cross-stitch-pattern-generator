@@ -197,7 +197,7 @@ fn a_thread_brand_gives_the_strokes_threads_of_that_brand() {
             pattern.palette[l.palette_index]
                 .source
                 .as_ref()
-                .map(|s| s.brand),
+                .map(|s| s.brand.as_str()),
             Some("dmc")
         );
     }

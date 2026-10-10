@@ -1,6 +1,6 @@
 // Frozen copy of serializeOxs as of G-046 M3 (commit ff5de59), before M4 built the file a row at a time. The reference
 // for tests/unit/oxs-serialize-parts.spec.ts; never edit it to follow the live file.
-import { findThread, THREAD_BRANDS } from "@/lib/threads/thread-brands";
+import { findThread, THREAD_BRANDS, type ThreadBrand } from "@/lib/threads/thread-brands";
 import { EMPTY_CELL, type RGB, type StitchPattern } from "@/lib/types";
 import { escapeXmlAttribute } from "@/lib/editor/oxs-xml";
 import type { OxsExportOptions } from "@/lib/editor/oxs";
@@ -52,7 +52,7 @@ export function serializeOxsPreG046M4(pattern: StitchPattern, options: OxsExport
     lines.push(
       "<palette_item" +
         attribute("index", i + 1) +
-        attribute("number", thread && color.source ? `${THREAD_BRANDS[color.source.brand].label} ${thread.code}` : "") +
+        attribute("number", thread && color.source ? `${THREAD_BRANDS[color.source.brand as ThreadBrand].label} ${thread.code}` : "") +
         attribute("name", thread ? thread.name || thread.code : color.name) +
         attribute("color", hex) +
         attribute("printcolor", hex) +

@@ -117,17 +117,22 @@ fn str_field(o: &Map<String, Value>, key: &str) -> Option<String> {
 }
 
 impl Pattern {
-    /// The systems this chart's threads are of, by label, in catalogue order (DMC, Cosmo, Anchor): what the details' Thread
-    /// row says. The system the chart was generated in is not one of them unless a colour is its thread (G-131, D396).
-    pub fn thread_systems(&self) -> Vec<&'static str> {
-        ["dmc", "cosmo", "anchor"]
-            .into_iter()
-            .filter(|brand| {
-                self.palette
-                    .iter()
-                    .any(|c| c.source.as_ref().is_some_and(|s| s.brand == *brand))
-            })
-            .map(crate::threads::brand_label)
+    /// The systems this chart's threads are of, by label, in catalogue order (DMC, Cosmo, Anchor), then any system not
+    /// loaded as the chart stores it (G-132): what the details' Thread row says. The system the chart was generated in is not
+    /// one of them unless a colour is its thread (G-131, D396).
+    pub fn thread_systems(&self) -> Vec<String> {
+        const LOADED: [&str; 3] = ["dmc", "cosmo", "anchor"];
+        let mut used: Vec<&str> = Vec::new();
+        for s in self.palette.iter().filter_map(|c| c.source.as_ref()) {
+            if !used.contains(&s.brand.as_str()) {
+                used.push(&s.brand);
+            }
+        }
+        let loaded = LOADED.into_iter().filter(|brand| used.contains(brand));
+        let other = used.iter().copied().filter(|brand| !LOADED.contains(brand));
+        loaded
+            .chain(other)
+            .map(|brand| crate::threads::brand_label(brand).to_string())
             .collect()
     }
 

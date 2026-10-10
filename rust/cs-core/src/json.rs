@@ -43,17 +43,27 @@ impl PaletteSetOptions {
             let name = c.name.clone().filter(|n| !n.trim().is_empty());
             colors.push(match (&c.system, &c.number, c.rgb) {
                 // A thread of any system with its own colour: a typed number never changes the colour (D397).
+                // The system may be one not loaded here (G-132): kept as written, its number listed nowhere.
                 (Some(system), Some(number), Some(rgb)) => {
-                    let brand = Brand::from_mode(Some(system.as_str()), "thread system")?
-                        .ok_or_else(|| "a thread's system is a thread brand".to_string())?;
+                    let system = system.trim();
+                    if system.is_empty()
+                        || system.eq_ignore_ascii_case("full")
+                        || system.chars().count() > 40
+                        || system.chars().any(char::is_control)
+                    {
+                        return Err("a thread's system is a name of up to 40 characters".into());
+                    }
                     let number = number.trim();
                     if number.is_empty() {
                         return Err("a thread needs its number".into());
                     }
-                    let listed = crate::threads::thread_by_code(brand, number);
+                    let listed = Brand::from_mode(Some(system), "thread system")
+                        .ok()
+                        .flatten()
+                        .and_then(|brand| crate::threads::thread_by_code(brand, number));
                     SetColor {
                         rgb,
-                        source: Some((brand, number.to_string())),
+                        source: Some((system.to_string(), number.to_string())),
                         label: name.unwrap_or_else(|| match listed {
                             Some((listed_name, _)) => {
                                 crate::threads::thread_name(number, &listed_name)
@@ -71,7 +81,7 @@ impl PaletteSetOptions {
                             .ok_or_else(|| format!("unknown {} thread {code}", self.mode))?;
                         SetColor {
                             rgb,
-                            source: Some((brand, code.clone())),
+                            source: Some((brand.id().to_string(), code.clone())),
                             label: name
                                 .unwrap_or_else(|| crate::threads::thread_name(code, &listed_name)),
                         }

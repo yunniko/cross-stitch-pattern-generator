@@ -80,7 +80,8 @@ export function formatColorCount(count: number): string {
  * typed by hand (G-131), it may be a number no catalogue here lists (`threadIdentity`). Immutable: replace it, never mutate it.
  */
 export interface ThreadSwatchRef {
-  readonly brand: ThreadBrand;
+  /** The thread system as stored: a loaded system's id, or any other system's string, kept as written (G-132). */
+  readonly brand: string;
   readonly code: string;
 }
 

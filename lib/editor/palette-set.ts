@@ -102,7 +102,7 @@ export function withColorThread(set: PaletteSet, index: number, thread: ThreadSw
 }
 
 /** A set colour as the generation request and the files write it: the colour, its name and its thread. */
-function colorData(c: PaletteSetColor): { rgb: RGB; name?: string; system?: ThreadBrand; number?: string } {
+function colorData(c: PaletteSetColor): { rgb: RGB; name?: string; system?: string; number?: string } {
   return {
     rgb: c.rgb,
     ...(c.name ? { name: c.name } : {}),

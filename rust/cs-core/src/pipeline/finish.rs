@@ -120,7 +120,7 @@ pub(super) fn chart(run: &mut Run, clock: &mut Clock) {
                 Some(set) => {
                     let chosen = &set.colors[used[original]];
                     let source = chosen.source.as_ref().map(|(brand, code)| ThreadSource {
-                        brand: brand.id(),
+                        brand: brand.clone(),
                         code: code.clone(),
                     });
                     (
@@ -264,7 +264,7 @@ fn line_thread(pattern: &mut StitchPattern, rgb: Rgb, brand: Option<Brand>) -> u
         Some(brand) => {
             let (code, name, rgb) = thread_for(brand, rgb);
             let source = ThreadSource {
-                brand: brand.id(),
+                brand: brand.id().to_string(),
                 code: code.clone(),
             };
             (rgb, thread_name(&code, &name), Some(source))

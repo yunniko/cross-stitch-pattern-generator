@@ -67,7 +67,8 @@ pub struct BuildOptions {
 #[derive(Clone, Debug)]
 pub struct SetColor {
     pub rgb: Rgb,
-    pub source: Option<(Brand, String)>,
+    /// The thread's system and number. The system is a loaded one's id, or any other as the request wrote it (G-132).
+    pub source: Option<(String, String)>,
     /// The name the chart shows: the user's, else "code - name" for a thread; empty for a custom colour with none (which is
     /// named from its colour).
     pub label: String,
@@ -93,10 +94,10 @@ pub struct PaletteColor {
     pub source: Option<ThreadSource>,
 }
 
-/// `ThreadSwatchRef`: a brand and that brand's own code.
+/// `ThreadSwatchRef`: a system and that system's own code. The system is a loaded one's id, or any other as written (G-132).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ThreadSource {
-    pub brand: &'static str,
+    pub brand: String,
     pub code: String,
 }
 

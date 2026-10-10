@@ -36,7 +36,7 @@ export interface SerializedPattern {
   /** Row-major, one index per cell -- a plain array, since Uint8Array doesn't round-trip through JSON.stringify usefully. */
   cellPalette: number[];
   /** `source` is absent for a custom color, and on files saved before version 7. */
-  palette: Array<{ rgb: RGB; symbol: string; name: string; source?: { brand: ThreadBrand; code: string } }>;
+  palette: Array<{ rgb: RGB; symbol: string; name: string; source?: { brand: string; code: string } }>;
   /** Optional so files saved before this field existed still parse (see deserializePattern's fallback). */
   name?: string;
   /** Absent on files saved before G-012, or when the pattern has no associated photo. */
@@ -420,7 +420,7 @@ function isByte(value: unknown): value is number {
 function parseSource(value: unknown): ThreadSwatchRef | undefined {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
   const { brand, code } = value as Record<string, unknown>;
-  // A number no catalogue lists is kept (G-131): it was typed by the person, for a thread they own.
+  // A number no catalogue lists is kept (G-131), and so is a system not loaded here (G-132): the file's word for its thread.
   return typeof brand === "string" && typeof code === "string" ? (threadIdentity(brand, code) ?? undefined) : undefined;
 }
 
