@@ -201,7 +201,32 @@ Outside both: G-111's comments follow G-112; G-097 comes after G-108, whose char
 - 2026-10-08 — Owner accepted the plan ("you can go ahead with 109, 106 and 126 - 128"), to run after G-109 in the order G-106, G-126, G-127, G-128. Items (1) to (6) are the Owner's and wait on them. JulAI's part starts after G-127: the pages take the Owner's text, so they are built with the missing text named as missing, and the launch checklist as a script.
 - 2026-10-08 — drafted from G-106's constraints at the Owner's request.
 
-### G-108 · Charts saved to an account, a gallery, and who can see each (private by default) — DRAFT (part 2; part 1 signed off 2026-10-08)
+### G-132 · Thread systems as plugins: managed in the admin, uploaded by users, and never needed to open a chart — DRAFT (planned 2026-10-10, awaiting acceptance)
+- **What (Owner, 2026-10-10):**
+  - A thread system (DMC, Anchor, Cosmo, and any later one) is a plugin: a data package of a name and its threads (number, name, colour), not code. The three built in today become plugins.
+  - The admin adds, edits and deletes site systems in the admin area.
+  - A user uploads systems of their own, private to their account (Owner), usable for generating as well as editing (Owner).
+  - A chart, stamp or palette keeps each colour's number, colour, name and system string, so a system that is gone, or never loaded here, does not matter: the colour opens in the common colour picker when changed.
+- **Why:** threads people own come from many makers; a fixed list in the code needs a release for each one.
+- **Acceptance criteria:**
+  1. Any system string survives open, edit, save, reload, export and every file format (chart, stamp, palette file, account palette, OXS): nothing drops or refuses a colour because its system is unknown here. Exports print the system's name if it is loaded, else the string as stored.
+  2. Changing a colour whose system is not loaded opens the common colour picker; its number and system stay unless the person changes them.
+  3. DMC, Cosmo and Anchor are rows of a thread-system table, seeded by the migration, and nothing in the TypeScript or Rust build lists them. Anchor is a plain list of its 355 threads with today's colours (Owner); Anchor charts may differ slightly from before, and the goldens are re-pinned deliberately.
+  4. The generator takes the chosen system's threads in the request, resolved by the server from the table (never trusted from the browser).
+  5. The admin lists, adds (upload or by hand), edits (name, notes, source and licence, threads), downloads and deletes site systems; each change is in the change log. Each site system can still be switched per site, tier and person as the brand features are today.
+  6. Signed in, a person uploads a system as CSV (number, name, hex) or JSON, sees, renames, downloads and deletes their own, and uses it in generation, Set up palette, + Add and the colour editor. Behind feature `threads.custom` and limit `threads.systems` (default 10), at most 2,000 threads a system (Owner: like palettes). Deleted with the account.
+  7. Verified by unit tests on the pure parts, Rust tests, e2e in CI for each flow, the full suite, and a live check.
+- **Constraints:** docs/architecture.md (the account part through the same server pattern as stamps and palettes; the exporter that production runs is Rust); a plugin is data only, because running uploaded code would be a security hole; release notes for users only; no DB dump before the migration (Owner, 2026-10-08); thread sources keep their recorded licences (`docs/*-colors-provenance.md`).
+
+**Milestones:**
+- [ ] M1 — Any system string is kept: the system becomes an open string in types and parsers (chart, stamp, palette file, account palette, OXS import), exports print the stored string when the system is not loaded, and the colour editor and + Add open the common colour picker for such a colour. Still on the built-in lists.
+- [ ] M2 — Systems as data: the `ThreadSystem` table and migration seeded with DMC, Cosmo and Anchor (plain list); one server module and route give the systems a person can use; the browser reads them instead of the built-in lists; Rust takes the threads in the request and its compiled-in catalogues go (kept as test fixtures); Anchor's goldens re-pinned.
+- [ ] M3 — The admin's Thread systems page: list, add, edit, download, delete, switched per site, tier and person, logged.
+- [ ] M4 — A person's own systems: upload, list, rename, download, delete in the account and from the editor's system choice; used in generation and editing; the feature, limit and size cap; deleted with the account.
+- [ ] M5 — The brief and What's new, a QA pass on the flows, then release and deploy to cross-stitch.craftodejnice.cz (standing approval), with the seed checked live.
+
+**Progress log** (newest first):
+- 2026-10-10 — goal created from the Owner's request and planned; the Owner chose: Anchor as a plain list, a user's systems private to them, usable for generation and editing, gated like palettes (feature `threads.custom`, limit `threads.systems` 10).### G-108 · Charts saved to an account, a gallery, and who can see each (private by default) — DRAFT (part 2; part 1 signed off 2026-10-08)
 - **Part 1 (saving to the account, the account's Charts, previews) — DONE, Owner sign-off 2026-10-08;** archived in `docs/goals-archive/G-101-to-G-110.md`. Deployed in v0.15.0, v0.16.0 and v0.17.0.
 - **Part 2 (later, not in this plan):** unlisted and public visibility, the gallery and its moderation (G-111).
 - **What:** asked by the Owner, 2026-10-06. A signed-in person saves a chart to their account (the versioned document of G-094, with its photo if they choose) and reopens it from any browser; their charts are listed with previews. Each chart has a visibility: **private** (the default), unlisted (anyone with the link), or public (in a gallery). The gallery shows public charts with previews; the owner can change visibility or delete at any time. Account settings hold the defaults.
