@@ -534,3 +534,4 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | D392 | 04-editing | the tools on the active layer |
 | D393 | 04-editing 08-exports-and-files | counts and exports from the visible layers |
 | D394 | 04-editing | cut, and paste onto the active layer |
+| G-131 | 05-colours-and-threads 08-exports-and-files | palettes with thread system and number, saved to the account, loaded into a chart |

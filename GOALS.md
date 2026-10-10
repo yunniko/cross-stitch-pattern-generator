@@ -201,6 +201,34 @@ Outside both: G-111's comments follow G-112; G-097 comes after G-108, whose char
 - 2026-10-08 — Owner accepted the plan ("you can go ahead with 109, 106 and 126 - 128"), to run after G-109 in the order G-106, G-126, G-127, G-128. Items (1) to (6) are the Owner's and wait on them. JulAI's part starts after G-127: the pages take the Owner's text, so they are built with the missing text named as missing, and the launch checklist as a script.
 - 2026-10-08 — drafted from G-106's constraints at the Owner's request.
 
+### G-131 · Palettes: thread number and system on every colour, no brand lock, saved to the account, loaded into a chart — ACTIVE (planned 2026-10-10, awaiting acceptance)
+- **What (Owner, 2026-10-10):**
+  - Every colour carries its own thread **system** (DMC, Anchor, Cosmo, or none) and **number**, editable by hand wherever the whole palette is edited (the Edit colours and Set up palette), beside the name.
+  - A chart is no longer locked to one brand: threads of several systems sit in one chart.
+  - Exports print the same thread columns for every chart: Symbol, System, Number, Name, then the counts; System and Number are blank for a colour with none.
+  - A palette is saved and loaded to and from a **file** and the **account**, from both the generation page and the Edit page. It keeps each colour's colour, name, system and number.
+  - A palette is loaded into an open chart by **Append** (adds its colours the chart lacks) or **Replace** (the chart's colours are mapped onto it).
+- **Why:** palettes are made once and reused across charts and devices; a lock to one brand stops mixing threads people actually own.
+- **Acceptance criteria:**
+  1. A colour's system and number can be typed or chosen and are kept through save, reload, the editable file and every export. Typing never changes the colour itself (Owner).
+  2. Nothing refuses a thread for being of another system: adding, editing, stamps and palette loads accept any mix.
+  3. The A4 thread table and colour key, the Pattern Keeper PDF and the PNG key show the same columns whatever the systems; OXS writes each colour's own system and number.
+  4. A palette file keeps colour, name, system and number per colour; files saved before still load as before.
+  5. Signed in, palettes are saved to, listed from, loaded from and deleted from the account on both pages; palettes found in this browser are offered once to move into the account, after which the account's list is the only saved list (Owner). Signed out, file only. Behind the feature palettes.account with the count limit palettes.count, site default 100 (Owner: like stamps).
+  6. Append adds only colours the chart lacks (same system and number, or for a colour with none the same colour), within the colour limit, as one undo step.
+  7. Replace: a chart colour whose system and number is in the loaded palette becomes that colour; every other becomes the nearest-looking loaded colour, so two may merge (Owner). It acts on every layer, keeps the stitches' kinds and backstitch, is one undo step, and the palette is the loaded one afterwards.
+  8. Verified by unit tests on the pure parts, e2e in CI for each flow, the full suite, and a live deploy check.
+- **Constraints:** the architecture rules in docs/architecture.md (the account part goes through the same server pattern as stamps, lib/stamps/server.ts; the export columns are built in the Rust exporter that production runs, with the TypeScript twin kept identical); release notes for users only; no DB dump before the migration (Owner, 2026-10-08).
+
+**Milestones:**
+- [ ] M1 — Thread identity per colour, and the lock removed: system and number on each colour (type, editable file); hand-editing fields in Edit's colours and in Set up palette; the brand refusals removed from editing and stamps.
+- [ ] M2 — Exports with one set of thread columns (System, Number) in the Rust exporter and its TypeScript twin, including the divergence between them in when codes print; OXS per colour.
+- [ ] M3 — Palette file version 2 (system, number, name per colour; version 1 still loads), save and load on the Edit page as on generation, and loading into the chart by Append or Replace with the mapping above.
+- [ ] M4 — Palettes in the account: table and migration, routes, feature and limit, the saved list on both pages, the one-time move of browser palettes.
+- [ ] M5 — The brief and What's new, a QA pass on the flows, then release and deploy to cross-stitch.craftodejnice.cz (standing approval).
+
+**Progress log** (newest first):
+- 2026-10-10 — goal created from the Owner's request and planned; the Owner chose: Replace maps by same thread else nearest (merges allowed), account-only saved list with a one-time move from the browser, typed numbers never change the colour, gating like stamps. "Pattern ... append or replace" read as the palette loaded into the chart.
 ### G-108 · Charts saved to an account, a gallery, and who can see each (private by default) — DRAFT (part 2; part 1 signed off 2026-10-08)
 - **Part 1 (saving to the account, the account's Charts, previews) — DONE, Owner sign-off 2026-10-08;** archived in `docs/goals-archive/G-101-to-G-110.md`. Deployed in v0.15.0, v0.16.0 and v0.17.0.
 - **Part 2 (later, not in this plan):** unlisted and public visibility, the gallery and its moderation (G-111).
