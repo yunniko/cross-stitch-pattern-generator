@@ -149,6 +149,27 @@ describe("serializeOxs", () => {
     expect(back.palette.map((c) => [c.name, c.rgb])).toEqual(pattern.palette.map((c) => [c.name, c.rgb]));
   });
 
+  it("writes each colour's own system and number, a typed one included, whatever the chart's system (G-131, D396)", () => {
+    const pattern = makePattern(
+      [
+        { rgb: [190, 20, 40], name: "Mine", source: { brand: "cosmo", code: "X-77" } },
+        { rgb: [5, 5, 5], name: "403", source: { brand: "anchor", code: "403" } },
+        { rgb: [9, 9, 9], name: "Custom" },
+      ],
+      3,
+      1,
+      [0, 1, 2],
+      { threadBrand: "dmc" }
+    );
+    const items = tagsOf(serializeOxs(pattern)).filter((t) => t.name === "palette_item");
+    expect(items.map((t) => [t.attributes.number, t.attributes.name])).toEqual([
+      ["cloth", "cloth"],
+      ["Cosmo X-77", "Mine"],
+      ["Anchor 403", "403"],
+      ["", "Custom"],
+    ]);
+  });
+
   it("exports custom colours named like the cloth or a thread code without them being read back as either", () => {
     const pattern = makePattern(
       [

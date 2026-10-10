@@ -14,6 +14,7 @@ import { headerText, truncateToWidth } from "./render-text";
 import { hexToRgb, luminance, rgbToHex } from "../color/color";
 import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT, type SizeUnit } from "./finished-size";
 import { formatSkeinEstimate } from "../threads/floss-estimate";
+import { printedThreadLabel } from "../threads/printed-thread";
 import { buildStitchTiles, type StitchTiles } from "./stitch-texture";
 import { buildGround, type Ground } from "./canvas-ground";
 import type { ExportCanvas } from "./canvas-texture-catalog";
@@ -829,7 +830,8 @@ function drawLegendItem(
 
   ctx.fillStyle = "#111111";
   ctx.font = `13px ${FONT_STACK}`;
-  ctx.fillText(truncateToWidth(ctx, color.name, maxTextWidth), textX, y + LEGEND_SWATCH_SIZE / 2 + 1);
+  // The thread, as the A4 key's System, Number and Color name say it (G-131, D396).
+  ctx.fillText(truncateToWidth(ctx, printedThreadLabel(color), maxTextWidth), textX, y + LEGEND_SWATCH_SIZE / 2 + 1);
 
   ctx.fillStyle = "#666666";
   ctx.font = `11px ${FONT_STACK}`;

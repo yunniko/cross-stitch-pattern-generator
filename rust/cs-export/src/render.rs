@@ -660,7 +660,8 @@ fn draw_legend_item(ctx: &mut dyn Ctx, p: &Pattern, entry: LegendEntry, x: f64, 
     ctx.set_baseline(Baseline::Middle);
     ctx.set_fill("#111111");
     ctx.set_font(&format!("13px {FONT_STACK}"));
-    let name = truncate_to_width(ctx, &color.name, max_w);
+    // The thread, as the A4 key's System, Number and Color name say it (G-131, D396).
+    let name = truncate_to_width(ctx, &color.thread_label(), max_w);
     ctx.fill_text(&name, text_x, y + LEGEND_SWATCH_SIZE / 2.0 + 1.0);
     ctx.set_fill("#666666");
     ctx.set_font(&format!("11px {FONT_STACK}"));

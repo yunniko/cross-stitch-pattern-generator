@@ -1,5 +1,6 @@
-//! G-083: the Pattern Keeper PDF is not touched by the export fixes (Owner, 2026-10-01). It shares its page drawing with the
-//! A4 pages, so this pins its bytes: whatever is added to the A4 pages must be opt-in and off here.
+//! G-083: the Pattern Keeper PDF changes only on purpose (Owner, 2026-10-01). It shares its page drawing with the A4 pages,
+//! so this pins its bytes: whatever is added to the A4 pages must be opt-in and off here, unless the Owner has asked for it
+//! in the PDF too. Re-pinned once, for the System and Number columns every key now has (G-131, D396).
 
 use cs_export::export;
 use cs_export::model::{Pattern, Request};
@@ -50,14 +51,14 @@ fn request(kind: &str) -> Request {
 }
 
 #[test]
-fn the_pattern_keeper_pdf_is_the_same_bytes_as_before_the_export_fixes() {
+fn the_pattern_keeper_pdf_is_the_same_bytes_as_when_it_was_last_pinned() {
     let p = chart();
     let color = export(&p, &request("pdf-color")).unwrap().bytes;
     let bw = export(&p, &request("pdf-bw")).unwrap().bytes;
-    // The values below were taken from the exporter as it stood before G-083, which is what this test keeps.
+    // The values below were taken from the exporter at G-131 M2 (D396); before it, from the exporter before G-083.
     assert_eq!(fnv(&color), PINNED_COLOR, "color: {}", fnv(&color));
     assert_eq!(fnv(&bw), PINNED_BW, "bw: {}", fnv(&bw));
 }
 
-const PINNED_COLOR: u64 = 6928240481011384590;
-const PINNED_BW: u64 = 15436744622563401771;
+const PINNED_COLOR: u64 = 1310502135608400080;
+const PINNED_BW: u64 = 2153418596737238084;

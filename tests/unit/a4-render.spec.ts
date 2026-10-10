@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildDetailRows, computeKeyColumns, infoPageTitle, overlapSidesForPage, splitThreadCodeName } from "@/lib/export/a4-render";
+import { buildDetailRows, computeKeyColumns, infoPageTitle, overlapSidesForPage } from "@/lib/export/a4-render";
 import { calculateA4Layout } from "@/lib/export/a4-layout";
 import { EMPTY_CELL, type PaletteColor, type RGB, type StitchPattern } from "@/lib/types";
 
@@ -91,20 +91,6 @@ describe("infoPageTitle (G-016)", () => {
   });
 });
 
-describe("splitThreadCodeName (G-016)", () => {
-  it("splits a 'CODE - Name' string into its parts", () => {
-    expect(splitThreadCodeName("310 - Black")).toEqual({ code: "310", name: "Black" });
-  });
-
-  it("only splits on the first ' - ', since a DMC name can itself contain one", () => {
-    expect(splitThreadCodeName("347 - Salmon - Very Dark")).toEqual({ code: "347", name: "Salmon - Very Dark" });
-  });
-
-  it("returns the whole string as the code, with an empty name, when there's no separator (G-029 M2: this is Cosmo's real shape -- a bare code, no descriptive name)", () => {
-    expect(splitThreadCodeName("352")).toEqual({ code: "352", name: "" });
-  });
-});
-
 describe("buildDetailRows (G-016)", () => {
   it("includes stitch count, finished size (both units), fabric, and color count, but no Thread row for a non-DMC pattern", () => {
     const pattern = makePattern(140, 140, new Array(140 * 140).fill(0), [[0, 0, 0]]);
@@ -137,40 +123,39 @@ describe("buildDetailRows (G-016)", () => {
     expect(cmFirst.indexOf("cm")).toBeLessThan(cmFirst.indexOf("in"));
   });
 
-  it("includes a 'Thread: DMC' row only when the pattern is brand-matched", () => {
-    const pattern = { ...makePattern(10, 10, [0], [[0, 0, 0]]), threadBrand: "dmc" as const };
-    const rows = buildDetailRows(pattern, 14, "in");
-    expect(Object.fromEntries(rows)["Thread"]).toBe("DMC");
-  });
-
-  it("includes a 'Thread: Cosmo' row for a Cosmo-matched pattern (G-029 M2)", () => {
-    const pattern = { ...makePattern(10, 10, [0], [[0, 0, 0]]), threadBrand: "cosmo" as const };
-    const rows = buildDetailRows(pattern, 14, "in");
-    expect(Object.fromEntries(rows)["Thread"]).toBe("Cosmo");
-  });
-
-  it("includes a 'Thread: Anchor' row for an Anchor-matched pattern (G-029 M3)", () => {
-    const pattern = { ...makePattern(10, 10, [0], [[0, 0, 0]]), threadBrand: "anchor" as const };
-    const rows = buildDetailRows(pattern, 14, "in");
-    expect(Object.fromEntries(rows)["Thread"]).toBe("Anchor");
+  it("names in its Thread row the systems the threads are of, not the one the chart was generated in (G-131, D396)", () => {
+    const base = {
+      ...makePattern(
+        10,
+        10,
+        [0, 1, 2],
+        [
+          [0, 0, 0],
+          [9, 9, 9],
+          [5, 5, 5],
+        ]
+      ),
+      threadBrand: "dmc" as const,
+    };
+    expect(Object.fromEntries(buildDetailRows(base, 14, "in"))["Thread"]).toBeUndefined();
+    const sources = [{ brand: "anchor", code: "403" }, undefined, { brand: "dmc", code: "X-77" }] as const;
+    const mixed = { ...base, palette: base.palette.map((color, i) => ({ ...color, source: sources[i] })) };
+    expect(Object.fromEntries(buildDetailRows(mixed, 14, "in"))["Thread"]).toBe("DMC, Anchor");
   });
 });
 
 describe("computeKeyColumns (G-016)", () => {
-  it("omits the code column entirely (zero width) when not DMC mode", () => {
-    const cols = computeKeyColumns(2000, false);
-    expect(cols.codeW).toBe(0);
-  });
-
-  it("reserves real width for the code column in DMC mode", () => {
-    const cols = computeKeyColumns(2000, true);
+  it("has its System and Number columns in every chart (G-131, D396)", () => {
+    const cols = computeKeyColumns(2000);
+    expect(cols.systemW).toBeGreaterThan(0);
     expect(cols.codeW).toBeGreaterThan(0);
+    expect(cols.codeX).toBe(cols.systemX + cols.systemW);
   });
 
   it("never lets columns exceed the printable width", () => {
-    for (const isDmc of [true, false]) {
+    for (const hasType of [true, false]) {
       const printableWidthPx = 2200;
-      const cols = computeKeyColumns(printableWidthPx, isDmc);
+      const cols = computeKeyColumns(printableWidthPx, undefined, hasType);
       expect(cols.totalWidth).toBeLessThanOrEqual(printableWidthPx + 1); // rounding
     }
   });

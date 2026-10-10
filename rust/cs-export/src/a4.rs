@@ -1,9 +1,7 @@
 //! Ports of `lib/export/a4-layout.ts`, the page drawing of `a4-render.ts` (on the shared `Ctx`, so the PDF draws the
 //! same pages) and `a4-export.ts` (the ZIP of PNG pages).
 
-use crate::format::{
-    color_count, finished_size, luminance, skein_estimate, split_thread_code_name, stitch_count,
-};
+use crate::format::{color_count, finished_size, luminance, skein_estimate, stitch_count};
 use crate::model::{Color, LegendEntry, Pattern, SizeUnit};
 use crate::render::{
     draw_backstitch, draw_chart, fill_for_cell, fill_stitch_cell, symbol_text_color,
@@ -11,7 +9,6 @@ use crate::render::{
     LEGIBILITY_FLOOR_PX,
 };
 use crate::text::{Align, Baseline};
-use crate::threads::brand_label;
 
 pub const PRINT_DPI: f64 = 300.0;
 
@@ -631,6 +628,8 @@ struct TableColumns {
     colour_w: f64,
     bw_x: f64,
     bw_w: f64,
+    system_x: f64,
+    system_w: f64,
     number_x: f64,
     number_w: f64,
     name_x: f64,
@@ -640,16 +639,19 @@ struct TableColumns {
     total: f64,
 }
 
-fn table_columns(printable_w: f64, has_code: bool, dpi: f64) -> TableColumns {
+/// The same columns in every chart, whatever its threads' systems (G-131, D396).
+fn table_columns(printable_w: f64, dpi: f64) -> TableColumns {
     let mm = |v: f64| mm_to_px(v, dpi);
     let colour_w = mm(16.0);
     let bw_w = mm(16.0);
-    let number_w = if has_code { mm(26.0) } else { 0.0 };
+    let system_w = mm(18.0);
+    let number_w = mm(22.0);
     let skein_w = mm(26.0);
-    let name_w = (printable_w - colour_w - bw_w - number_w - skein_w).max(mm(30.0));
+    let name_w = (printable_w - colour_w - bw_w - system_w - number_w - skein_w).max(mm(30.0));
     let colour_x = 0.0;
     let bw_x = colour_x + colour_w;
-    let number_x = bw_x + bw_w;
+    let system_x = bw_x + bw_w;
+    let number_x = system_x + system_w;
     let name_x = number_x + number_w;
     let skein_x = name_x + name_w;
     TableColumns {
@@ -657,6 +659,8 @@ fn table_columns(printable_w: f64, has_code: bool, dpi: f64) -> TableColumns {
         colour_w,
         bw_x,
         bw_w,
+        system_x,
+        system_w,
         number_x,
         number_w,
         name_x,
@@ -764,8 +768,7 @@ pub fn draw_skein_table_page(
     }
 
     let printable_w = l.page_w - 2.0 * l.margin;
-    let has_code = p.has_thread_codes();
-    let c = table_columns(printable_w, has_code, l.dpi);
+    let c = table_columns(printable_w, l.dpi);
     let x = l.margin;
     let header_h = mm(TABLE_HEADER_MM);
     let row_h = mm(TABLE_ROW_MM);
@@ -782,9 +785,8 @@ pub fn draw_skein_table_page(
     ctx.set_align(Align::Center);
     ctx.fill_text("Color", x + c.colour_x + c.colour_w / 2.0, mid);
     ctx.fill_text("B&W", x + c.bw_x + c.bw_w / 2.0, mid);
-    if has_code {
-        ctx.fill_text("Number", x + c.number_x + c.number_w / 2.0, mid);
-    }
+    ctx.fill_text("System", x + c.system_x + c.system_w / 2.0, mid);
+    ctx.fill_text("Number", x + c.number_x + c.number_w / 2.0, mid);
     ctx.set_align(Align::Left);
     ctx.fill_text("Color name", x + c.name_x + mm(1.5), mid);
     ctx.set_align(Align::Center);
@@ -812,18 +814,14 @@ pub fn draw_skein_table_page(
             ctx.set_baseline(Baseline::Middle);
             ctx.fill_text(&color.symbol, sx + size / 2.0, sy + size / 2.0 + 1.0);
         }
-        let (code, name) = if has_code {
-            printed_code_name(color, p.thread_brand.is_some())
-        } else {
-            (String::new(), color.name.clone())
-        };
+        let (system, code, name) = color.printed_thread();
         ctx.set_fill("#111111");
         ctx.set_baseline(Baseline::Middle);
-        if has_code {
-            ctx.set_font(&font(header_px));
-            ctx.set_align(Align::Center);
-            ctx.fill_text(&code, x + c.number_x + c.number_w / 2.0, row_mid);
-        }
+        ctx.set_font(&font(header_px));
+        ctx.set_align(Align::Center);
+        ctx.fill_text(&system, x + c.system_x + c.system_w / 2.0, row_mid);
+        let shown_code = truncate_to_width(ctx, &code, c.number_w - mm(2.0));
+        ctx.fill_text(&shown_code, x + c.number_x + c.number_w / 2.0, row_mid);
         ctx.set_font(&font(mm(3.2)));
         ctx.set_align(Align::Left);
         let shown = truncate_to_width(ctx, &name, c.name_w - mm(3.0));
@@ -847,12 +845,7 @@ pub fn draw_skein_table_page(
         let ly = top + header_h + i as f64 * row_h;
         ctx.line(x, ly, x + c.total, ly);
     }
-    let mut xs = vec![c.bw_x, c.number_x];
-    if !has_code {
-        xs.pop();
-    }
-    xs.extend([c.name_x, c.skein_x]);
-    for cx in xs {
+    for cx in [c.bw_x, c.system_x, c.number_x, c.name_x, c.skein_x] {
         ctx.line(x + cx, top, x + cx, top + total_h);
     }
 }
@@ -931,7 +924,7 @@ pub fn draw_legend_page(ctx: &mut dyn Ctx, p: &Pattern, l: &Layout, aida: f64, a
         ctx.set_baseline(Baseline::Middle);
         ctx.set_fill("#111111");
         ctx.set_font(&font(name_px));
-        let name = truncate_to_width(ctx, &color.name, max_w);
+        let name = truncate_to_width(ctx, &color.thread_label(), max_w);
         ctx.fill_text(&name, text_x, y + swatch_px / 2.0 - detail_px * 0.6);
         ctx.set_fill("#666666");
         ctx.set_font(&font(detail_px));
@@ -988,8 +981,10 @@ fn detail_rows(p: &Pattern, aida: f64, unit: SizeUnit) -> Vec<(String, String)> 
             format!("{}-count Aida", crate::jsfmt::number(aida)),
         ),
     ];
-    if let Some(brand) = &p.thread_brand {
-        rows.push(("Thread".into(), brand_label(brand).to_string()));
+    // The systems the chart's threads are of, not the one it was generated in: a chart may mix them (G-131, D396).
+    let systems = p.thread_systems();
+    if !systems.is_empty() {
+        rows.push(("Thread".into(), systems.join(", ")));
     }
     rows.push(("Color count".into(), color_count(p.palette.len())));
     // The stitch count above counts both kinds together; these two say how it divides (G-082), and the Color key lists each
@@ -1021,6 +1016,8 @@ fn detail_rows(p: &Pattern, aida: f64, unit: SizeUnit) -> Vec<(String, String)> 
 struct KeyColumns {
     symbol_x: f64,
     symbol_w: f64,
+    system_x: f64,
+    system_w: f64,
     code_x: f64,
     code_w: f64,
     name_x: f64,
@@ -1037,26 +1034,23 @@ struct KeyColumns {
     total: f64,
 }
 
-fn key_columns(
-    printable_w: f64,
-    has_code: bool,
-    has_backstitch: bool,
-    has_type: bool,
-    dpi: f64,
-) -> KeyColumns {
-    let symbol_w = mm_to_px(12.0, dpi);
+/// System and Number stand in every chart's key, whatever its threads' systems (G-131, D396).
+fn key_columns(printable_w: f64, has_backstitch: bool, has_type: bool, dpi: f64) -> KeyColumns {
+    let symbol_w = mm_to_px(14.0, dpi);
     let type_w = if has_type { mm_to_px(20.0, dpi) } else { 0.0 };
-    let code_w = if has_code { mm_to_px(18.0, dpi) } else { 0.0 };
+    let system_w = mm_to_px(16.0, dpi);
+    let code_w = mm_to_px(18.0, dpi);
     let stitch_w = mm_to_px(28.0, dpi);
     let backstitch_w = if has_backstitch {
         mm_to_px(28.0, dpi)
     } else {
         0.0
     };
-    let name_w =
-        mm_to_px(30.0, dpi).max(printable_w - symbol_w - code_w - type_w - stitch_w - backstitch_w);
+    let name_w = mm_to_px(30.0, dpi)
+        .max(printable_w - symbol_w - system_w - code_w - type_w - stitch_w - backstitch_w);
     let symbol_x = 0.0;
-    let code_x = symbol_x + symbol_w;
+    let system_x = symbol_x + symbol_w;
+    let code_x = system_x + system_w;
     let name_x = code_x + code_w;
     let type_x = name_x + name_w;
     let stitch_x = type_x + type_w;
@@ -1064,6 +1058,8 @@ fn key_columns(
     KeyColumns {
         symbol_x,
         symbol_w,
+        system_x,
+        system_w,
         code_x,
         code_w,
         name_x,
@@ -1082,7 +1078,6 @@ pub struct InfoPlan {
     title: String,
     details: Vec<(String, String)>,
     cols: KeyColumns,
-    has_code: bool,
     printable_w: f64,
     /// Backstitch length per palette index, for the column that replaced the skein count (G-073 M5).
     bs_length: Vec<f64>,
@@ -1100,7 +1095,6 @@ pub fn plan_info_pages(
     unit: SizeUnit,
     author: &str,
 ) -> InfoPlan {
-    let has_code = p.has_thread_codes();
     let bs_length = crate::backstitch::length_by_color(&p.backstitch, p.palette.len());
     let printable_w = l.page_w - 2.0 * l.margin;
     let printable_h = l.page_h - 2.0 * l.margin;
@@ -1127,14 +1121,7 @@ pub fn plan_info_pages(
         bs_length,
         title: info_title(p.name.as_deref(), author),
         details,
-        cols: key_columns(
-            printable_w,
-            has_code,
-            !p.backstitch.is_empty(),
-            p.has_halves(),
-            l.dpi,
-        ),
-        has_code,
+        cols: key_columns(printable_w, !p.backstitch.is_empty(), p.has_halves(), l.dpi),
         printable_w,
         rows_on_page1,
         rows_per_continuation,
@@ -1177,45 +1164,12 @@ fn draw_details_table(
     y + total
 }
 
-/// `printedThreadCodeName`.
-///
-/// In a chart of mixed brands (`brand_matched` false) a thread's code stands in the Color # column and its name carries the
-/// brand, since the same number means different threads in different brands; a custom colour has no code and keeps its name.
-fn printed_code_name(color: &Color, brand_matched: bool) -> (String, String) {
-    let (code, name) = split_thread_code_name(&color.name);
-    if !brand_matched {
-        return match &color.source {
-            None => (String::new(), color.name.clone()),
-            Some(s) => {
-                let label = crate::threads::brand_label(&s.brand);
-                let name = if code == s.code {
-                    name
-                } else {
-                    color.name.clone()
-                };
-                let named = if name.is_empty() {
-                    label.to_string()
-                } else {
-                    format!("{label} {name}")
-                };
-                (s.code.clone(), named.trim().to_string())
-            }
-        };
-    }
-    match &color.source {
-        None => (code, name),
-        Some(s) if code == s.code => (s.code.clone(), name),
-        Some(s) => (s.code.clone(), color.name.clone()),
-    }
-}
-
 #[allow(clippy::too_many_arguments)]
 fn draw_key_block(
     ctx: &mut dyn Ctx,
     x: f64,
     y0: f64,
     c: &KeyColumns,
-    has_code: bool,
     p: &Pattern,
     entries: &[LegendEntry],
     aida: f64,
@@ -1236,9 +1190,8 @@ fn draw_key_block(
     let header_mid = y0 + header_h / 2.0;
     ctx.set_align(Align::Center);
     ctx.fill_text("Symbol", x + c.symbol_x + c.symbol_w / 2.0, header_mid);
-    if has_code {
-        ctx.fill_text("Color #", x + c.code_x + c.code_w / 2.0, header_mid);
-    }
+    ctx.fill_text("System", x + c.system_x + c.system_w / 2.0, header_mid);
+    ctx.fill_text("Number", x + c.code_x + c.code_w / 2.0, header_mid);
     ctx.set_align(Align::Left);
     ctx.fill_text("Color name", x + c.name_x + mm_to_px(1.5, dpi), header_mid);
     ctx.set_align(Align::Center);
@@ -1275,17 +1228,13 @@ fn draw_key_block(
         ctx.set_align(Align::Center);
         ctx.fill_text(&color.symbol, sx + size / 2.0, mid + 1.0);
 
-        let (code, name) = if has_code {
-            printed_code_name(color, p.thread_brand.is_some())
-        } else {
-            (String::new(), color.name.clone())
-        };
-        if has_code {
-            ctx.set_fill("#111111");
-            ctx.set_font(&font(header_px));
-            ctx.set_align(Align::Center);
-            ctx.fill_text(&code, x + c.code_x + c.code_w / 2.0, mid);
-        }
+        let (system, code, name) = color.printed_thread();
+        ctx.set_fill("#111111");
+        ctx.set_font(&font(header_px));
+        ctx.set_align(Align::Center);
+        ctx.fill_text(&system, x + c.system_x + c.system_w / 2.0, mid);
+        let shown_code = truncate_to_width(ctx, &code, c.code_w - mm_to_px(2.0, dpi));
+        ctx.fill_text(&shown_code, x + c.code_x + c.code_w / 2.0, mid);
         ctx.set_fill("#111111");
         ctx.set_font(&font(mm_to_px(3.2, dpi)));
         ctx.set_align(Align::Left);
@@ -1331,11 +1280,7 @@ fn draw_key_block(
         let ly = y0 + header_h + i as f64 * row_h;
         ctx.line(x, ly, x + c.total, ly);
     }
-    let mut xs = vec![c.symbol_x];
-    if has_code {
-        xs.push(c.code_x);
-    }
-    xs.push(c.name_x);
+    let mut xs = vec![c.symbol_x, c.system_x, c.code_x, c.name_x];
     if c.type_w > 0.0 {
         xs.push(c.type_x);
     }
@@ -1395,7 +1340,6 @@ pub fn draw_info_page1(ctx: &mut dyn Ctx, p: &Pattern, plan: &InfoPlan, l: &Layo
         l.margin,
         y,
         &plan.cols,
-        plan.has_code,
         p,
         &p.legend_entries()[..n],
         aida,
@@ -1428,7 +1372,6 @@ pub fn draw_info_continuation(
         l.margin,
         l.margin + caption_px * 1.8,
         &plan.cols,
-        plan.has_code,
         p,
         entries,
         aida,
@@ -1485,28 +1428,72 @@ mod code_column_tests {
         }
     }
 
-    #[test]
-    fn a_brand_matched_chart_prints_code_and_name_apart() {
-        let c = color("321 - Red", Some(("dmc", "321")));
-        assert_eq!(printed_code_name(&c, true), ("321".into(), "Red".into()));
+    fn printed(name: &str, source: Option<(&str, &str)>) -> (String, String, String) {
+        color(name, source).printed_thread()
     }
 
     #[test]
-    fn a_mixed_chart_still_has_its_code_column_and_the_name_carries_the_brand() {
-        let dmc = color("321 - Red", Some(("dmc", "321")));
-        let anchor = color("403 - Black", Some(("anchor", "403")));
-        let custom = color("Custom 1", None);
+    fn each_thread_prints_its_own_system_and_number_and_its_name_without_the_number() {
         assert_eq!(
-            printed_code_name(&dmc, false),
-            ("321".into(), "DMC Red".into())
+            printed("321 - Red", Some(("dmc", "321"))),
+            ("DMC".into(), "321".into(), "Red".into())
         );
         assert_eq!(
-            printed_code_name(&anchor, false),
-            ("403".into(), "Anchor Black".into())
+            printed("403 - Black", Some(("anchor", "403"))),
+            ("Anchor".into(), "403".into(), "Black".into())
+        );
+    }
+
+    #[test]
+    fn a_typed_number_and_a_renamed_thread_print_as_they_are() {
+        assert_eq!(
+            printed("Mine", Some(("dmc", "X-77"))),
+            ("DMC".into(), "X-77".into(), "Mine".into())
         );
         assert_eq!(
-            printed_code_name(&custom, false),
-            (String::new(), "Custom 1".into())
+            printed("310 - Black", Some(("dmc", "321"))),
+            ("DMC".into(), "321".into(), "310 - Black".into())
         );
+    }
+
+    #[test]
+    fn a_colour_that_is_no_thread_prints_its_whole_name_even_when_it_looks_like_one() {
+        assert_eq!(
+            printed("321 - Red", None),
+            (String::new(), String::new(), "321 - Red".into())
+        );
+    }
+
+    #[test]
+    fn the_legends_without_columns_print_the_same_three_on_one_line() {
+        let label = |name: &str, source| color(name, source).thread_label();
+        assert_eq!(
+            label("403 - Black", Some(("anchor", "403"))),
+            "Anchor 403 - Black"
+        );
+        assert_eq!(label("403", Some(("anchor", "403"))), "Anchor 403");
+        assert_eq!(label("Mine", Some(("cosmo", "X-77"))), "Cosmo X-77 - Mine");
+        assert_eq!(label("Custom yellow", None), "Custom yellow");
+    }
+
+    #[test]
+    fn the_thread_row_names_the_systems_in_use_in_catalogue_order() {
+        let mut p = crate::model::Pattern::from_editable_json(
+            r#"{"width":1,"height":1,"cellPalette":[0],"palette":[{"rgb":[0,0,0],"symbol":"A","name":"a"}]}"#,
+        )
+        .unwrap();
+        assert!(p.thread_systems().is_empty());
+        p.thread_brand = Some("dmc".into());
+        assert!(
+            p.thread_systems().is_empty(),
+            "the generation system is no thread"
+        );
+        p.palette = vec![
+            color("403", Some(("anchor", "403"))),
+            color("x", None),
+            color("321", Some(("dmc", "321"))),
+            color("310", Some(("dmc", "310"))),
+        ];
+        assert_eq!(p.thread_systems(), vec!["DMC", "Anchor"]);
     }
 }

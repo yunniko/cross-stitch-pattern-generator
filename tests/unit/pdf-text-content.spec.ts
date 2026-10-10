@@ -79,7 +79,6 @@ describe("the PDF written as text", () => {
     const pattern: StitchPattern = { ...base, cellPalette, palette, threadBrand: "dmc" };
     const layout = calculateA4Layout(pattern.width, pattern.height, { overlapCells: 5, dpi: 72 });
     const plan = planInfoPages(pattern, layout, { authorName: "", aidaCount: 16, sizeUnit: "in" });
-    expect(plan.hasThreadCode).toBe(true);
     expect(plan.totalPages, "colour key pages").toBeGreaterThan(1);
     expect(await expectIdentical(pattern, "color", 5)).toBe(layout.pages.length + 1 + plan.totalPages);
   }, 120_000);

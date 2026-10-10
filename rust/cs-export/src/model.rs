@@ -27,6 +27,43 @@ pub struct Color {
     pub source: Option<ThreadRef>,
 }
 
+impl Color {
+    /// `printedThread`: what this colour's row prints under System, Number and Color name (G-131, D396).
+    ///
+    /// The system and number come only from the colour's thread, never from its name, so a colour that is no thread prints
+    /// both blank and its whole name. A name that begins with the thread's number ("321 - Red") prints without it, since
+    /// the Number column already says it.
+    pub fn printed_thread(&self) -> (String, String, String) {
+        match &self.source {
+            None => (String::new(), String::new(), self.name.clone()),
+            Some(s) => {
+                let (code, rest) = crate::format::split_thread_code_name(&self.name);
+                let name = if code == s.code {
+                    rest
+                } else {
+                    self.name.clone()
+                };
+                (
+                    crate::threads::brand_label(&s.brand).to_string(),
+                    s.code.clone(),
+                    name,
+                )
+            }
+        }
+    }
+
+    /// `printedThreadLabel`: the same three on one line, for the legends that have no columns ("DMC 321 - Red").
+    pub fn thread_label(&self) -> String {
+        let (system, code, name) = self.printed_thread();
+        let thread = format!("{system} {code}").trim().to_string();
+        match (thread.is_empty(), name.is_empty()) {
+            (true, _) => name,
+            (false, true) => thread,
+            (false, false) => format!("{thread} - {name}"),
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Pattern {
     pub width: usize,
@@ -80,10 +117,18 @@ fn str_field(o: &Map<String, Value>, key: &str) -> Option<String> {
 }
 
 impl Pattern {
-    /// Whether the legends print a Color # column: a chart matched to one brand has it, and so does a chart whose threads come
-    /// from several brands or are mixed with custom colours (it has no `thread_brand`, but its colours still have codes).
-    pub fn has_thread_codes(&self) -> bool {
-        self.thread_brand.is_some() || self.palette.iter().any(|c| c.source.is_some())
+    /// The systems this chart's threads are of, by label, in catalogue order (DMC, Cosmo, Anchor): what the details' Thread
+    /// row says. The system the chart was generated in is not one of them unless a colour is its thread (G-131, D396).
+    pub fn thread_systems(&self) -> Vec<&'static str> {
+        ["dmc", "cosmo", "anchor"]
+            .into_iter()
+            .filter(|brand| {
+                self.palette
+                    .iter()
+                    .any(|c| c.source.as_ref().is_some_and(|s| s.brand == *brand))
+            })
+            .map(crate::threads::brand_label)
+            .collect()
     }
 
     /// Parses an editable save. Validation is the TypeScript's job; this trusts its input.

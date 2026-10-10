@@ -644,12 +644,13 @@ export function serializeOxsParts(pattern: StitchPattern, options: OxsExportOpti
     `<palette_item${attribute("index", 0)}${attribute("number", "cloth")}${attribute("name", "cloth")}${attribute("color", "FFFFFF")}${attribute("printcolor", "FFFFFF")}${attribute("blendcolor", "nil")}${attribute("strands", 2)}/>`
   );
   pattern.palette.forEach((color, i) => {
+    // A colour's own thread, listed or typed (G-131, D396): a number no catalogue lists is written as it was typed.
     const thread = color.source ? findThread(color.source.brand, color.source.code) : undefined;
     const hex = toHex(color.rgb);
     lines.push(
       "<palette_item" +
         attribute("index", i + 1) +
-        attribute("number", thread && color.source ? `${THREAD_BRANDS[color.source.brand].label} ${thread.code}` : "") +
+        attribute("number", color.source ? `${THREAD_BRANDS[color.source.brand].label} ${thread?.code ?? color.source.code}` : "") +
         attribute("name", thread ? thread.name || thread.code : color.name) +
         attribute("color", hex) +
         attribute("printcolor", hex) +

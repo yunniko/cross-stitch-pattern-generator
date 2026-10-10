@@ -432,3 +432,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D393 — Counts and exports draw the visible layers' top stitches; Export all's editable entry is replaced in the page — active
 - D394 — A cut piece, or a copy taken to another layer, is pasted in place — active
 - D395 — A colour's thread is the person's: any system in any chart, typed numbers kept, a recolour keeps it — active
+- D396 — Every key prints System and Number columns, filled from each colour's own thread; the Pattern Keeper PDF re-pinned — active

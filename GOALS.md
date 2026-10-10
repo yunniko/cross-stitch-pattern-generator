@@ -222,12 +222,13 @@ Outside both: G-111's comments follow G-112; G-097 comes after G-108, whose char
 
 **Milestones:**
 - [x] M1 — Thread identity per colour, and the lock removed: system and number on each colour (type, editable file); hand-editing fields in Edit's colours and in Set up palette; the brand refusals removed from editing and stamps.
-- [ ] M2 — Exports with one set of thread columns (System, Number) in the Rust exporter and its TypeScript twin, including the divergence between them in when codes print; OXS per colour.
+- [x] M2 — Exports with one set of thread columns (System, Number) in the Rust exporter and its TypeScript twin, including the divergence between them in when codes print; OXS per colour.
 - [ ] M3 — Palette file version 2 (system, number, name per colour; version 1 still loads), save and load on the Edit page as on generation, and loading into the chart by Append or Replace with the mapping above.
 - [ ] M4 — Palettes in the account: table and migration, routes, feature and limit, the saved list on both pages, the one-time move of browser palettes.
 - [ ] M5 — The brief and What's new, a QA pass on the flows, then release and deploy to cross-stitch.craftodejnice.cz (standing approval).
 
 **Progress log** (newest first):
+- 2026-10-10 — M2 done (D396): every key (A4 thread table and colour key, Pattern Keeper PDF, PNG legends) prints System, Number and Color name columns whatever the systems, the same rule in Rust and the TypeScript twin; the Thread detail row names the systems in use; OXS writes each colour's own system and number, typed ones included, byte-equal to the editor's (new parity test). Pattern Keeper PDF re-pinned. Not verified: how the Pattern Keeper app reads the new columns. Verified: cargo test all ok; vitest 1,904/1,904; tsc, eslint (6 old warnings), prettier, docs-lint, brief and release-note checks. M1's CI on 241e20e: e2e 686 and 39 passed.
 - 2026-10-10 — M1 done (D395): the lock removed from editing, "+ Add", stamps and file loading; System and Number fields in the colour editor; a recolour keeps the thread. Hand-editing in Set up palette moves to M3 with the palette file v2 it writes. Verified: tsc, eslint (6 old warnings), prettier, docs-lint, brief and release-note checks; vitest 1,901/1,901; e2e for typed numbers and mixed systems in CI.
 - 2026-10-10 — the Owner accepted the plan; no milestone marked for review.
 - 2026-10-10 — goal created from the Owner's request and planned; the Owner chose: Replace maps by same thread else nearest (merges allowed), account-only saved list with a one-time move from the browser, typed numbers never change the colour, gating like stamps. "Pattern ... append or replace" read as the palette loaded into the chart.

@@ -69,7 +69,7 @@ pub fn luminance(rgb: [u8; 3]) -> f64 {
     (0.2126 * rgb[0] as f64 + 0.7152 * rgb[1] as f64 + 0.0722 * rgb[2] as f64).round()
 }
 
-/// `formatThreadName`'s inverse for display (`splitThreadCodeName`).
+/// `formatThreadName`'s inverse for display (`splitThreadCodeName` in `lib/threads/printed-thread.ts`).
 pub fn split_thread_code_name(full: &str) -> (String, String) {
     match full.find(" - ") {
         Some(i) => (full[..i].to_string(), full[i + 3..].to_string()),

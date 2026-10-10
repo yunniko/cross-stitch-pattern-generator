@@ -65,7 +65,7 @@ The kinds, in the order shown; the editable file is chosen to begin with, and th
 | **Realistic preview PNG** | A picture of the finished stitching in the chosen stitch texture, backstitch as solid lines, on a transparent ground, or on the canvas colour and cloth when "Canvas in exported preview" is on | `<name>_preview.png` | **[server]** |
 | **"Pixel art PNG (1 px per stitch)"** | One pixel per stitch, true colours, empty stitches transparent; backstitch not included | `<name>_pixels.png` | Device |
 | **Editable pattern (.json)** | The editable file | `<name>_editable.json` | Device |
-| **OXS chart for other programs (.oxs)** | Open Cross Stitch chart: colours, stitches, backstitch, the fabric count and author; a half stitch is written as a whole stitch | `<name>.oxs` | **[server]** |
+| **OXS chart for other programs (.oxs)** | Open Cross Stitch chart: colours, stitches, backstitch, the fabric count and author; each colour's thread as its own system and number ("Cosmo 2213"), a typed number as typed, a colour that is no thread with none; a half stitch is written as a whole stitch | `<name>.oxs` | **[server]** |
 | **Palette file (.json)** | The chart's colours as a palette (`02`: format, mode, and each colour with its thread code and RGB); a chart with no colours is refused: "This chart has no colours yet, so there is no palette to export." | `<name>_palette.json` | Device |
 
 `<name>` is the chart's name. A chart too large to draw as one picture is refused with the message in `09`.
@@ -76,7 +76,9 @@ With a paged kind chosen, a line says how many pages: "*c* × *r* pages — *n*+
 
 ## A4 pages
 
-Pages carry: a map of the pages first, a letter in each page's top-right corner, the overlap bands saying which page they repeat, the middle of the chart marked with black triangles on the rulers and a heavy frame, and a skein table (colour cell, black-and-white cell, number, name, skeins); a thread that has only backstitch reads "backstitch only"; the extended legend lists backstitch length per thread and a details table with the whole-stitch and half-stitch counts.
+Pages carry: a map of the pages first, a letter in each page's top-right corner, the overlap bands saying which page they repeat, the middle of the chart marked with black triangles on the rulers and a heavy frame, and a skein table (colour cell, black-and-white cell, system, number, name, skeins); a thread that has only backstitch reads "backstitch only"; the extended legend lists backstitch length per thread and a details table with the whole-stitch and half-stitch counts.
+
+**Threads in every key.** The skein table, the colour key of the A4 pages and the Pattern Keeper PDF have the same columns whatever the chart's threads: **System** and **Number** beside the colour name, filled from each colour's own thread (`05`) and left blank for a colour that is no thread. A name that begins with the thread's number ("321 - Red") prints without it. The details' **Thread** line names the systems the chart's threads are of ("DMC, Anchor"), and is left out when none is a thread. The keys with no columns (the full chart PNG's legend and the PDF's simple legend) print the same on one line: "Anchor 403 - Black".
 
 ## Print and export settings
 

@@ -90,17 +90,22 @@ pub fn serialize(p: &Pattern, author_name: &str, aida_count: f64) -> Vec<u8> {
         attribute("strands", "2")
     ));
     for (i, color) in p.palette.iter().enumerate() {
-        let thread = color
+        // A colour's own thread, listed or typed (G-131, D396): a number no catalogue lists is written as it was typed.
+        let listed = color
             .source
             .as_ref()
-            .and_then(|s| find_thread(&s.brand, &s.code).map(|t| (s, t)));
+            .and_then(|s| find_thread(&s.brand, &s.code));
         let h = hex(color.rgb);
-        let number_text = match &thread {
-            Some((s, t)) => format!("{} {}", brand_label(&s.brand), t.code),
+        let number_text = match &color.source {
+            Some(s) => format!(
+                "{} {}",
+                brand_label(&s.brand),
+                listed.map_or(s.code.as_str(), |t| t.code.as_str())
+            ),
             None => String::new(),
         };
-        let name_text = match &thread {
-            Some((_, t)) => {
+        let name_text = match &listed {
+            Some(t) => {
                 if t.name.is_empty() {
                     t.code.clone()
                 } else {

@@ -17,8 +17,8 @@ import {
   type SymbolStamps,
   fillStitchCell,
 } from "./render";
-import { THREAD_BRANDS } from "../threads/thread-brands";
-import { filledStitchCount, formatColorCount, formatStitchCount, type PaletteColor, type StitchPattern } from "../types";
+import { printedThread, printedThreadLabel, threadSystems } from "../threads/printed-thread";
+import { filledStitchCount, formatColorCount, formatStitchCount, type StitchPattern } from "../types";
 
 // Physical text sizes for print, independent of cell size (unlike the
 // on-screen single-PNG chart, where number/label font sizes scale with
@@ -273,7 +273,7 @@ export function drawA4LegendPage(ctx: ChartDrawingContext, pattern: StitchPatter
 
     ctx.fillStyle = "#111111";
     ctx.font = `${nameFontPx}px ${FONT_STACK}`;
-    ctx.fillText(truncateToWidth(ctx, color.name, maxTextWidth), textX, y + swatchPx / 2 - detailFontPx * 0.6);
+    ctx.fillText(truncateToWidth(ctx, printedThreadLabel(color), maxTextWidth), textX, y + swatchPx / 2 - detailFontPx * 0.6);
 
     ctx.fillStyle = "#666666";
     ctx.font = `${detailFontPx}px ${FONT_STACK}`;
@@ -298,8 +298,8 @@ export function renderA4LegendPage(pattern: StitchPattern, layout: A4Layout): An
 // Owner's explicit "simple legend should remain as well") -- this one leads
 // with a title and a details table (stitch count, finished size, fabric,
 // thread, color count), then a full "Color key" table with one row per
-// color (symbol swatch, thread code when the pattern is brand-matched,
-// name, stitch count, skein count). Unlike the simple legend's swatch grid, a
+// color (symbol swatch, thread system and number, name, stitch count,
+// skein count). Unlike the simple legend's swatch grid, a
 // one-row-per-color table with this much per-row detail can outgrow a
 // single A4 page well within MAX_COLORS (100) -- e.g. at ~25 rows/page,
 // exceeding it needs only 26+ colors -- so this is genuinely paginated,
@@ -316,40 +316,6 @@ const KEY_HEADER_FONT_MM = 3;
 const KEY_NAME_FONT_MM = 3.2;
 const KEY_ROW_HEIGHT_MM = 8;
 const KEY_HEADER_ROW_HEIGHT_MM = 6.5;
-
-/**
- * Splits a brand-matched pattern's `"CODE - Name"` color name back into
- * its parts for display -- purely cosmetic (which column shows what);
- * whether the pattern *is* brand-matched is decided once from
- * `pattern.threadBrand` (set by `applyBrandPalette`, generalized from
- * `dmcMode` in G-029 M1, HANDOVER.md D92), never re-derived by parsing
- * names here. The `"CODE - Name"` format itself is brand-agnostic --
- * every brand `applyBrandPalette` produces a color name uses it.
- *
- * When there's no `" - "` separator, the whole string is treated as the
- * CODE, not the name (G-029 M2, HANDOVER.md D93): this function is only
- * ever called on a brand-matched pattern's color name
- * (`hasThreadCode`-gated), and `formatThreadName` (lib/thread-brands.ts)
- * produces exactly this shape -- a bare code, no separator -- for a
- * brand with no published descriptive names (Cosmo). A bare code
- * belongs in the CODE column, not the Name column.
- */
-export function splitThreadCodeName(fullName: string): { code: string; name: string } {
-  const idx = fullName.indexOf(" - ");
-  if (idx === -1) return { code: fullName, name: "" };
-  return { code: fullName.slice(0, idx), name: fullName.slice(idx + 3) };
-}
-
-/**
- * The code and name printed in the color key. The code comes from the color's thread identity when it has one, so a
- * renamed thread still prints its real code (D122); the name drops a leading "CODE - " only when that code matches.
- */
-export function printedThreadCodeName(color: Pick<PaletteColor, "name" | "source">): { code: string; name: string } {
-  const split = splitThreadCodeName(color.name);
-  if (!color.source) return split;
-  if (split.code === color.source.code) return { code: color.source.code, name: split.name };
-  return { code: color.source.code, name: color.name };
-}
 
 /**
  * "PATTERN_NAME by AUTHOR_NAME", falling back in each direction when
@@ -374,7 +340,9 @@ export function buildDetailRows(pattern: StitchPattern, aidaCount: number, sizeU
     ["Finished size", `${finishedPrimary} (${finishedSecondary})`],
     ["Fabric", `${aidaCount}-count Aida`],
   ];
-  if (pattern.threadBrand) rows.push(["Thread", THREAD_BRANDS[pattern.threadBrand].label]);
+  // The systems the chart's threads are of, not the one it was generated in: a chart may mix them (G-131, D396).
+  const systems = threadSystems(pattern.palette);
+  if (systems.length > 0) rows.push(["Thread", systems.join(", ")]);
   rows.push(["Color count", formatColorCount(pattern.palette.length)]);
   // The stitch count above counts both kinds together; these two say how it divides (G-082), and the Color key lists each type and thread.
   if (hasHalfStitches(pattern)) {
@@ -433,6 +401,8 @@ function drawDetailsTable(
 export interface KeyColumns {
   symbolX: number;
   symbolW: number;
+  systemX: number;
+  systemW: number;
   codeX: number;
   codeW: number;
   nameX: number;
@@ -447,17 +417,21 @@ export interface KeyColumns {
   totalWidth: number;
 }
 
-export function computeKeyColumns(printableWidthPx: number, hasThreadCode: boolean, dpi: number = PRINT_DPI, hasType = false): KeyColumns {
-  const symbolW = mmToPx(12, dpi);
-  const codeW = hasThreadCode ? mmToPx(18, dpi) : 0;
+/** System and Number stand in every chart's key, whatever its threads' systems (G-131, D396). */
+export function computeKeyColumns(printableWidthPx: number, dpi: number = PRINT_DPI, hasType = false): KeyColumns {
+  const symbolW = mmToPx(14, dpi);
+  const systemW = mmToPx(16, dpi);
+  const codeW = mmToPx(18, dpi);
   const typeW = hasType ? mmToPx(20, dpi) : 0;
   const stitchW = mmToPx(28, dpi);
   const skeinW = mmToPx(28, dpi);
-  const nameW = Math.max(mmToPx(30, dpi), printableWidthPx - symbolW - codeW - typeW - stitchW - skeinW);
+  const nameW = Math.max(mmToPx(30, dpi), printableWidthPx - symbolW - systemW - codeW - typeW - stitchW - skeinW);
 
   let x = 0;
   const symbolX = x;
   x += symbolW;
+  const systemX = x;
+  x += systemW;
   const codeX = x;
   x += codeW;
   const nameX = x;
@@ -469,7 +443,7 @@ export function computeKeyColumns(printableWidthPx: number, hasThreadCode: boole
   const skeinX = x;
   x += skeinW;
 
-  return { symbolX, symbolW, codeX, codeW, nameX, nameW, typeX, typeW, stitchX, stitchW, skeinX, skeinW, totalWidth: x };
+  return { symbolX, symbolW, systemX, systemW, codeX, codeW, nameX, nameW, typeX, typeW, stitchX, stitchW, skeinX, skeinW, totalWidth: x };
 }
 
 /** Draws the "Color key" table's header row plus as many `colors` rows as given, with a full grid, starting at `(x, yStart)`. Returns the y just past the drawn block. */
@@ -478,7 +452,6 @@ function drawKeyTableBlock(
   x: number,
   yStart: number,
   cols: KeyColumns,
-  hasThreadCode: boolean,
   pattern: StitchPattern,
   entries: readonly LegendEntry[],
   aidaCount: number,
@@ -498,7 +471,8 @@ function drawKeyTableBlock(
   const headerMidY = yStart + headerHeightPx / 2;
   ctx.textAlign = "center";
   ctx.fillText("Symbol", x + cols.symbolX + cols.symbolW / 2, headerMidY);
-  if (hasThreadCode) ctx.fillText("Color #", x + cols.codeX + cols.codeW / 2, headerMidY);
+  ctx.fillText("System", x + cols.systemX + cols.systemW / 2, headerMidY);
+  ctx.fillText("Number", x + cols.codeX + cols.codeW / 2, headerMidY);
   ctx.textAlign = "left";
   ctx.fillText("Color name", x + cols.nameX + mmToPx(1.5, dpi), headerMidY);
   ctx.textAlign = "center";
@@ -524,14 +498,12 @@ function drawKeyTableBlock(
     ctx.textAlign = "center";
     ctx.fillText(color.symbol, swatchX + swatchSize / 2, midY + 1);
 
-    const { code, name } = hasThreadCode ? printedThreadCodeName(color) : { code: "", name: color.name };
-
-    if (hasThreadCode) {
-      ctx.fillStyle = "#111111";
-      ctx.font = `${headerFontPx}px ${FONT_STACK}`;
-      ctx.textAlign = "center";
-      ctx.fillText(code, x + cols.codeX + cols.codeW / 2, midY);
-    }
+    const { system, number, name } = printedThread(color);
+    ctx.fillStyle = "#111111";
+    ctx.font = `${headerFontPx}px ${FONT_STACK}`;
+    ctx.textAlign = "center";
+    ctx.fillText(system, x + cols.systemX + cols.systemW / 2, midY);
+    ctx.fillText(truncateToWidth(ctx, number, cols.codeW - mmToPx(2, dpi)), x + cols.codeX + cols.codeW / 2, midY);
 
     ctx.fillStyle = "#111111";
     ctx.font = `${mmToPx(KEY_NAME_FONT_MM, dpi)}px ${FONT_STACK}`;
@@ -559,14 +531,7 @@ function drawKeyTableBlock(
     ctx.lineTo(x + cols.totalWidth, ly);
     ctx.stroke();
   }
-  const columnXs = [
-    cols.symbolX,
-    ...(hasThreadCode ? [cols.codeX] : []),
-    cols.nameX,
-    ...(cols.typeW > 0 ? [cols.typeX] : []),
-    cols.stitchX,
-    cols.skeinX,
-  ];
+  const columnXs = [cols.symbolX, cols.systemX, cols.codeX, cols.nameX, ...(cols.typeW > 0 ? [cols.typeX] : []), cols.stitchX, cols.skeinX];
   for (const colX of columnXs) {
     if (colX === 0) continue; // left edge already drawn by the outer rect
     ctx.beginPath();
@@ -608,7 +573,6 @@ export interface InfoPagesPlan {
   title: string;
   detailRows: Array<[string, string]>;
   cols: KeyColumns;
-  hasThreadCode: boolean;
   printableWidthPx: number;
   rowsOnPage1: number;
   rowsPerContinuationPage: number;
@@ -617,13 +581,12 @@ export interface InfoPagesPlan {
 }
 
 export function planInfoPages(pattern: StitchPattern, layout: A4Layout, options: A4InfoPageOptions): InfoPagesPlan {
-  const hasThreadCode = pattern.threadBrand !== undefined;
   const printableWidthPx = layout.pageWidthPx - 2 * layout.marginPx;
   const printableHeightPx = layout.pageHeightPx - 2 * layout.marginPx;
 
   const title = infoPageTitle(pattern.name, options.authorName);
   const detailRows = buildDetailRows(pattern, options.aidaCount, options.sizeUnit);
-  const cols = computeKeyColumns(printableWidthPx, hasThreadCode, layout.dpi, hasHalfStitches(pattern));
+  const cols = computeKeyColumns(printableWidthPx, layout.dpi, hasHalfStitches(pattern));
 
   const titleFontPx = mmToPx(INFO_TITLE_FONT_MM, layout.dpi);
   const gapPx = mmToPx(INFO_SECTION_GAP_MM, layout.dpi);
@@ -644,7 +607,7 @@ export function planInfoPages(pattern: StitchPattern, layout: A4Layout, options:
   const continuationPageCount = remainingAfterPage1 === 0 ? 0 : Math.ceil(remainingAfterPage1 / rowsPerContinuationPage);
   const totalPages = 1 + continuationPageCount;
 
-  return { title, detailRows, cols, hasThreadCode, printableWidthPx, rowsOnPage1, rowsPerContinuationPage, totalColors, totalPages };
+  return { title, detailRows, cols, printableWidthPx, rowsOnPage1, rowsPerContinuationPage, totalColors, totalPages };
 }
 
 /** Draws info page 1's content (title, details table, color-key table start) -- see `planInfoPages`. */
@@ -681,17 +644,7 @@ export function drawInfoPage1(
   y += keyTitleFontPx * 1.6;
 
   const rowsOnPage1Actual = Math.min(plan.rowsOnPage1, plan.totalColors);
-  drawKeyTableBlock(
-    ctx,
-    layout.marginPx,
-    y,
-    plan.cols,
-    plan.hasThreadCode,
-    pattern,
-    legendEntries(pattern).slice(0, rowsOnPage1Actual),
-    aidaCount,
-    layout.dpi
-  );
+  drawKeyTableBlock(ctx, layout.marginPx, y, plan.cols, pattern, legendEntries(pattern).slice(0, rowsOnPage1Actual), aidaCount, layout.dpi);
   drawPageFooter(ctx, layout, 1, plan.totalPages);
 }
 
@@ -717,7 +670,7 @@ export function drawInfoContinuationPage(
   ctx.fillText("Color key (continued)", layout.marginPx, cy);
   cy += captionFontPx * 1.8;
 
-  drawKeyTableBlock(ctx, layout.marginPx, cy, plan.cols, plan.hasThreadCode, pattern, entries, aidaCount, layout.dpi);
+  drawKeyTableBlock(ctx, layout.marginPx, cy, plan.cols, pattern, entries, aidaCount, layout.dpi);
   drawPageFooter(ctx, layout, pageNumber, plan.totalPages);
 }
 
