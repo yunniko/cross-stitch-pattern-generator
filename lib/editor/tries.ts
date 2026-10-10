@@ -75,6 +75,44 @@ export function addTry<T extends TryMeta>(tries: readonly T[], added: T): { trie
   return trim([...tries, added]);
 }
 
+/**
+ * A Generate's chart as a try (G-133, D403). One that is the same chart made with the same settings as a try already kept
+ * is not kept twice: that try is the one the chart is, and it becomes the most recent of the recent ones (a pinned one
+ * stays pinned). Answers the tries, the ones dropped, and the id of the try the chart now is.
+ */
+export function keepTry(tries: readonly Try[], added: Try): { tries: Try[]; dropped: Try[]; currentId: string } {
+  const same = tries.find((entry) => isTry(added.pattern, entry.pattern) && sameSettings(entry.settings, added.settings));
+  if (!same) return { ...addTry(tries, added), currentId: added.id };
+  const refreshed = same.pinned ? same : { ...same, recentSince: added.recentSince };
+  return { tries: tries.map((entry) => (entry === same ? refreshed : entry)), dropped: [], currentId: same.id };
+}
+
+/** Settings as one text whatever order their names came in, so two equal sets of settings are the same text. */
+function canonical(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
+  if (value !== null && typeof value === "object") {
+    const entries = Object.entries(value as Record<string, unknown>).filter(([, v]) => v !== undefined);
+    return `{${entries
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+      .map(([k, v]) => `${JSON.stringify(k)}:${canonical(v)}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value) ?? "null";
+}
+
+export const sameSettings = (a: TrySettings, b: TrySettings) => canonical(a) === canonical(b);
+
+/**
+ * The try the chart on screen is (G-133, D403): the one last chosen or made, while the chart is still its chart; otherwise
+ * the most recent try the chart equals (after a reload, or an Undo back to an earlier try). Two tries can be the same chart
+ * when they were made with different settings, and each is the current one when it was the one chosen.
+ */
+export function currentTryId(tries: readonly Try[], chart: StitchPattern | null, chosenId: string | null): string | null {
+  const chosen = chosenId === null ? undefined : tries.find((entry) => entry.id === chosenId);
+  if (chosen && isTry(chart, chosen.pattern)) return chosen.id;
+  return tries.findLast((entry) => isTry(chart, entry.pattern))?.id ?? null;
+}
+
 /** Pins a try, which takes it out of the five that come and go. A sixth pin is refused, with the reason. */
 export function pinTry<T extends TryMeta>(tries: readonly T[], id: string): { tries: T[] } | { refused: string } {
   const target = tries.find((entry) => entry.id === id);

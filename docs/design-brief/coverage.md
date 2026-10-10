@@ -540,7 +540,9 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | D397 | 02-photo-and-generation 05-colours-and-threads 08-exports-and-files | palette file version 2; a set's mode only offers threads; Append and Replace into a chart |
 | D398 | 01-overview 02-photo-and-generation 05-colours-and-threads 09-limits-and-messages | palettes kept with the account; save as file; the move from the browser |
 | G-132 | 05-colours-and-threads 08-exports-and-files | thread systems as data; a system not loaded here kept as written |
+| G-133 | 02-photo-and-generation 04-editing | every try selectable, nothing beside the tries but words; locked layers |
 | D399 | 05-colours-and-threads 08-exports-and-files | any system name kept; a colour of one not loaded opens in the common colour picker |
 | D400 | 02-photo-and-generation 05-colours-and-threads | the systems are data with a note each; Anchor matched as a plain list |
 | D401 | 05-colours-and-threads 10-features | the admin's thread systems, their files and their switches |
 | D402 | 05-colours-and-threads 09-limits-and-messages 10-features | a person's own thread systems: upload, "Yours", the account page, the switch and the limit |
+| D403 | 02-photo-and-generation | the same chart made again is the kept try; the current try follows the choice |

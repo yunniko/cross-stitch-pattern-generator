@@ -176,7 +176,7 @@ test("a generated chart stays in Photo, where another try is one press away, and
   await expect(page.getByRole("button", { name: "Regenerate", exact: true })).toBeEnabled();
   await expect(workspace(page, "Edit")).toBeEnabled();
 
-  await page.getByRole("button", { name: "Continue in Edit →" }).click();
+  await workspace(page, "Edit").click();
   await expect(workspace(page, "Edit")).toHaveAttribute("aria-selected", "true");
   await expect(page.getByRole("tab", { name: "Threads" })).toHaveAttribute("aria-selected", "true");
   await expect(page.getByTestId("legend-color-row").first()).toBeVisible();

@@ -129,7 +129,7 @@ test("the tries survive a reload, with the one the chart is still marked, and ca
 test("a chart that has been edited is none of the tries, and they are all still there", async ({ page }) => {
   await photoLoaded(page);
   await generateWith(page, 5);
-  await page.getByRole("button", { name: "Continue in Edit →" }).click();
+  await showWorkspace(page, "Edit");
   await expect(page.getByRole("tab", { name: "Edit", exact: true })).toHaveAttribute("aria-selected", "true");
 
   // The same stitch painted in one thread and then another: whatever it was, it is not that now.
@@ -148,6 +148,48 @@ test("a chart that has been edited is none of the tries, and they are all still 
   await expect(tryButton(page, 1)).toHaveAttribute("aria-pressed", "true");
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   await expect(tryButton(page, 1)).toHaveAttribute("aria-pressed", "false");
+});
+
+test("the same chart made again with the same settings is the try already kept, not a second one", async ({ page }) => {
+  await photoLoaded(page);
+  await generateWith(page, 6);
+  await generateWith(page, 3);
+  await expect(tryButton(page, 2)).toHaveAttribute("aria-pressed", "true");
+
+  // Back to six colours and Generate again: the same chart from the same settings is Try 1 again.
+  await generateWith(page, 6);
+  expect(await numbers(page)).toEqual([1, 2]);
+  await expect(tryButton(page, 1)).toHaveAttribute("aria-pressed", "true");
+  await expect(tryButton(page, 2)).toHaveAttribute("aria-pressed", "false");
+  // And every try can still be chosen.
+  await tryButton(page, 2).click();
+  await expect(tryButton(page, 2)).toHaveAttribute("aria-pressed", "true");
+  await tryButton(page, 1).click();
+  await expect(tryButton(page, 1)).toHaveAttribute("aria-pressed", "true");
+});
+
+test("many tries leave the last one in reach: the strip has nothing beside it to cover a try", async ({ page }) => {
+  test.setTimeout(180_000);
+  await page.setViewportSize({ width: 1100, height: 800 });
+  await photoLoaded(page);
+  for (const count of [3, 4, 5, 6, 7]) await generateWith(page, count);
+  await page.getByRole("button", { name: "Pin Try 1" }).click();
+  await page.getByRole("button", { name: "Pin Try 2" }).click();
+  await generateWith(page, 8);
+  await generateWith(page, 9);
+  expect(await numbers(page)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+  await expect(page.getByTestId("tries").getByRole("button", { name: /Continue in Edit/ })).toHaveCount(0);
+
+  // The track scrolls, and the last try, scrolled to, is wholly inside the strip and takes a press.
+  const strip = (await page.getByTestId("tries").boundingBox())!;
+  const last = page.getByTestId("try").last();
+  await last.scrollIntoViewIfNeeded();
+  const box = (await last.boundingBox())!;
+  expect(box.x + box.width, "the last try runs past the strip").toBeLessThanOrEqual(strip.x + strip.width);
+  await tryButton(page, 3).click();
+  await expect(tryButton(page, 3)).toHaveAttribute("aria-pressed", "true");
+  await tryButton(page, 7).click();
+  await expect(tryButton(page, 7)).toHaveAttribute("aria-pressed", "true");
 });
 
 test("tries belong to the photo: the question before another photo names the pinned ones, and the new photo starts at Try 1", async ({

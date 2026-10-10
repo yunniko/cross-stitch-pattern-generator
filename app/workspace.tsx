@@ -57,7 +57,7 @@ import { usePhotoAdjustPreview } from "./hooks/use-photo-adjust-preview";
 import { useColorPrediction } from "./hooks/use-color-prediction";
 import { readToolOption, writeToolOption } from "@/lib/editor/tool-options";
 import { toolTabShown } from "@/lib/editor/tool-tab";
-import { isTry, trySettingsOf, type Try } from "@/lib/editor/tries";
+import { currentTryId as currentTryOf, isTry, trySettingsOf, type Try } from "@/lib/editor/tries";
 import type { WorkspaceOptions } from "@/lib/editor/workspace-storage";
 import { useTries } from "./hooks/use-tries";
 import { TriesStrip } from "./components/tries-strip";
@@ -406,8 +406,8 @@ export default function Workspace({ account }: WorkspaceProps) {
   // Every chart a Generate makes is kept as a try of the photo in hand (G-095 M4, D298).
   // They belong to the photo as loaded, so its edits do not hide them (G-124).
   const tries = useTries(source.original?.meta.dataUrl ?? null);
-  // The most recent of them, where two tries are the same chart.
-  const currentTryId = useMemo(() => tries.tries.findLast((entry) => isTry(pattern, entry.pattern))?.id ?? null, [pattern, tries.tries]);
+  // The one last chosen or made while the chart is still it, else the most recent the chart equals (D403).
+  const currentTryId = useMemo(() => currentTryOf(tries.tries, pattern, tries.chosenId), [pattern, tries.tries, tries.chosenId]);
   /**
    * A new chart is what the person asked to see, so a Photo tool still in hand (which keeps the photo up over the chart)
    * is put down for Pan once a generation or a try lands (G-124).
@@ -441,7 +441,9 @@ export default function Workspace({ account }: WorkspaceProps) {
    */
   function showTry(entry: Try) {
     if (entry.id === currentTryId) return;
-    lifecycle.generated(entry.pattern, false);
+    tries.choose(entry.id);
+    // Two tries can be the same chart (made with different settings): then only the settings change, and the chart stays.
+    if (!isTry(pattern, entry.pattern)) lifecycle.generated(entry.pattern, false);
     putPhotoToolDown();
     // The sliders are a preview of the next Apply, not a setting of the chart, so a try leaves them as they are (G-124).
     for (const [key, value] of Object.entries(entry.settings))
@@ -889,7 +891,6 @@ export default function Workspace({ account }: WorkspaceProps) {
                     onPin={tries.pin}
                     onUnpin={tries.unpin}
                     onDelete={tries.remove}
-                    onEdit={gatedAction("view.workspace-edit", features, () => chooseWorkspace("edit"))}
                   />
                 ) : null
               }

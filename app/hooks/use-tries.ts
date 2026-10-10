@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { getKeyValueStore, hashDataUrl } from "@/lib/editor/project-store";
-import { addTry, deleteTry, inOrder, pinTry, unpinTry, type Try, type TrySettings } from "@/lib/editor/tries";
+import { deleteTry, inOrder, keepTry, pinTry, unpinTry, type Try, type TrySettings } from "@/lib/editor/tries";
 import { createTriesStore, type TrySet } from "@/lib/editor/tries-store";
 import type { StitchPattern } from "@/lib/types";
 import { useLatest } from "./use-latest";
@@ -29,6 +29,8 @@ export function useTries(photoDataUrl: string | null) {
   /** The photo in hand, by its key; null with none. */
   const [photoKey, setPhotoKey] = useState<string | null>(null);
   const [refusal, setRefusal] = useState<string | null>(null);
+  /** The try last made or chosen: which of two same-chart tries the chart is (D403). */
+  const [chosenId, setChosenId] = useState<string | null>(null);
   const latest = useLatest({ set, photoKey });
 
   useEffect(() => {
@@ -72,15 +74,23 @@ export function useTries(photoDataUrl: string | null) {
     /** Why the last pin was refused, until the next change. */
     refusal,
     dismissRefusal: () => setRefusal(null),
+    chosenId,
+    /** A try was gone back to. */
+    choose: (id: string) => setChosenId(id),
 
-    /** A Generate finished: its chart is kept as the newest try, and the oldest unpinned one gives way past five. */
+    /**
+     * A Generate finished: its chart is kept as the newest try, and the oldest unpinned one gives way past five. The same
+     * chart made with the same settings as a kept try is that try again, not a new one (D403).
+     */
     add(pattern: StitchPattern, settings: TrySettings) {
       const held = current();
       if (!held) return;
       const now = Date.now();
       const made: Try = { id: newId(), number: held.nextNumber, madeAt: now, recentSince: now, pinned: false, settings, pattern };
-      const { tries, dropped } = addTry(held.tries, made);
-      replace({ ...held, nextNumber: held.nextNumber + 1, tries }, { made: [made], dropped: dropped.map((entry) => entry.id) });
+      const { tries, dropped, currentId } = keepTry(held.tries, made);
+      setChosenId(currentId);
+      if (currentId !== made.id) replace({ ...held, tries });
+      else replace({ ...held, nextNumber: held.nextNumber + 1, tries }, { made: [made], dropped: dropped.map((entry) => entry.id) });
     },
 
     pin(id: string) {

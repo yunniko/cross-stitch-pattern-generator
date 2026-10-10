@@ -2,13 +2,16 @@ import { describe, expect, it } from "vitest";
 import { createMemoryKeyValueStore } from "../../lib/editor/project-store";
 import {
   addTry,
+  currentTryId,
   deleteTry,
   inOrder,
   isTry,
+  keepTry,
   parseTrySettings,
   pinTry,
   PINNED_TRIES,
   RECENT_TRIES,
+  sameSettings,
   trySettingsOf,
   trySummary,
   unpinTry,
@@ -137,6 +140,60 @@ describe("which try the chart on screen is", () => {
     expect(isTry({ ...made, palette: made.palette.slice(0, 1) }, made)).toBe(false);
     expect(isTry({ ...made, backstitch: [{ x1: 0, y1: 0, x2: 1, y2: 1, paletteIndex: 0 }] }, made)).toBe(false);
     expect(isTry(null, made)).toBe(false);
+  });
+});
+
+describe("the same chart made again (G-133, D403)", () => {
+  const made = (number: number, pattern: StitchPattern, settings: Try["settings"], pinned = false): Try => ({
+    ...meta(number, pinned),
+    settings,
+    pattern,
+  });
+
+  it("with the same settings is the try already kept, which becomes the most recent; nothing is added", () => {
+    const tries = [made(1, chart(4, 3, 0), { colorCount: 6, paletteMode: "dmc" }), made(2, chart(4, 3, 1), { colorCount: 3 })];
+    const again = made(3, structuredClone(chart(4, 3, 0)), { paletteMode: "dmc", colorCount: 6 });
+    const result = keepTry(tries, { ...again, recentSince: 50 });
+    expect(result.currentId).toBe("t1");
+    expect(numbers(result.tries)).toEqual([1, 2]);
+    expect(result.dropped).toEqual([]);
+    expect(result.tries[0].recentSince).toBe(50);
+  });
+
+  it("a pinned one stays pinned and keeps its place", () => {
+    const pinned = made(1, chart(4, 3, 0), { colorCount: 6 }, true);
+    const result = keepTry([pinned], made(2, chart(4, 3, 0), { colorCount: 6 }));
+    expect(result.currentId).toBe("t1");
+    expect(result.tries).toEqual([pinned]);
+  });
+
+  it("with other settings is a try of its own", () => {
+    const tries = [made(1, chart(4, 3, 0), { colorCount: 6 })];
+    const result = keepTry(tries, made(2, chart(4, 3, 0), { colorCount: 8 }));
+    expect(result.currentId).toBe("t2");
+    expect(numbers(result.tries)).toEqual([1, 2]);
+  });
+
+  it("settings compare by value, whatever order their names and nested values came in", () => {
+    expect(
+      sameSettings(
+        { customSize: { width: 4, height: 3 }, colorCount: 2 } as never,
+        { colorCount: 2, customSize: { height: 3, width: 4 } } as never
+      )
+    ).toBe(true);
+    expect(sameSettings({ colorCount: 2 }, { colorCount: 3 })).toBe(false);
+    expect(sameSettings({ colorCount: 2 }, { colorCount: 2, paletteMode: "dmc" })).toBe(false);
+  });
+
+  it("each of two same-chart tries is the current one when it was the one chosen; with none chosen, the later", () => {
+    const pattern = chart(4, 3, 0);
+    const tries = [made(1, pattern, { colorCount: 6 }), made(2, structuredClone(pattern), { colorCount: 8 })];
+    expect(currentTryId(tries, pattern, "t1")).toBe("t1");
+    expect(currentTryId(tries, pattern, "t2")).toBe("t2");
+    expect(currentTryId(tries, pattern, null)).toBe("t2");
+    // The chart is no longer the chosen one's (an Undo back to another try): the try it is, is found by its stitches.
+    expect(currentTryId([...tries, made(3, chart(4, 3, 1), {})], chart(4, 3, 1), "t1")).toBe("t3");
+    expect(currentTryId(tries, chart(4, 3, 1), "t1")).toBeNull();
   });
 });
 

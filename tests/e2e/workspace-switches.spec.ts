@@ -99,7 +99,7 @@ test("Edit locked: a chart lands in Photo, the edit commands and keys do nothing
   await page.keyboard.press("Escape");
 });
 
-test("Edit locked: a Generate is kept as a try, and taking it into Edit is greyed with the note @alone", async ({ page }) => {
+test("Edit locked: a Generate is kept as a try, and the Edit tab stays greyed with the note @alone", async ({ page }) => {
   // Generates for real, so it needs the cs-job sidecar the CI rust job builds.
   await setSiteFeatures({ "workspace.edit": "locked" });
   await page.goto("/");
@@ -107,10 +107,11 @@ test("Edit locked: a Generate is kept as a try, and taking it into Edit is greye
   await page.getByRole("radio", { name: /Small/ }).check();
   await page.getByRole("button", { name: "Generate pattern" }).click();
   await expect(page.getByTestId("chart-canvas")).toBeVisible({ timeout: 30_000 });
-  const onward = page.getByRole("button", { name: "Continue in Edit →" });
-  await expect(onward).toBeDisabled();
-  await expect(onward).toHaveAttribute("data-feature-locked", "workspace.edit");
-  await expect(onward).toHaveAttribute("title", "Edit is not available to you.");
+  await expect(page.getByTestId("try")).toHaveCount(1);
+  // The tries strip has no way into Edit of its own (G-133): the tab is the way, and it is greyed.
+  await expect(page.getByTestId("tries").getByRole("button", { name: /Edit/ })).toHaveCount(0);
+  await expect(tab(page, "Edit")).toBeDisabled();
+  await expect(tab(page, "Edit")).toHaveAttribute("data-feature-locked", "workspace.edit");
 });
 
 test("Edit hidden: no tab, and its commands are gone from the list @alone", async ({ page }) => {

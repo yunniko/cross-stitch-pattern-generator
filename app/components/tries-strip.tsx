@@ -4,8 +4,7 @@ import { useEffect, useRef } from "react";
 import { PINNED_TRIES, RECENT_TRIES, trySummary, type Try } from "@/lib/editor/tries";
 import { EMPTY_CELL, type StitchPattern } from "@/lib/types";
 import { SkinIcon } from "../skin/skin";
-import { DISABLED_ICON, PillButton } from "./ui";
-import type { GatedAction } from "./feature-gate";
+import { DISABLED_ICON } from "./ui";
 
 /**
  * The tries, under the picture in the Photo workspace (G-095 M4, proposal D, D298): each chart a Generate made, to go
@@ -62,11 +61,9 @@ export interface TriesStripProps {
   onPin: (id: string) => void;
   onUnpin: (id: string) => void;
   onDelete: (id: string) => void;
-  /** Takes the chart on into the Edit workspace; under Edit's switch (G-103), absent when hidden, greyed when locked. */
-  onEdit: GatedAction;
 }
 
-export function TriesStrip({ tries, currentId, busy, refusal, onChoose, onPin, onUnpin, onDelete, onEdit }: TriesStripProps) {
+export function TriesStrip({ tries, currentId, busy, refusal, onChoose, onPin, onUnpin, onDelete }: TriesStripProps) {
   return (
     <div className="flex h-[84px] shrink-0 items-center gap-3 border-t border-line bg-surface px-4" data-testid="tries">
       <div role="group" aria-label="Tries" className="at-tool-track flex min-w-0 flex-1 items-center gap-2 overflow-x-auto py-1">
@@ -135,27 +132,16 @@ export function TriesStrip({ tries, currentId, busy, refusal, onChoose, onPin, o
           );
         })}
       </div>
-      <div className="flex shrink-0 flex-col items-end gap-1">
-        {onEdit && (
-          <PillButton
-            variant="raised"
-            size="md"
-            onClick={onEdit.run}
-            disabled={busy || onEdit.locked !== undefined}
-            data-feature-locked={onEdit.locked !== undefined ? "workspace.edit" : undefined}
-            title={onEdit.locked ?? "Take the chart shown into the Edit workspace"}
-          >
-            Continue in Edit →
-          </PillButton>
-        )}
-        {refusal ? (
-          <span role="alert" className="max-w-[18rem] text-right text-[11px] leading-4 text-warning" data-testid="tries-refusal">
-            {refusal}
-          </span>
-        ) : (
-          <span className="text-[11px] text-muted">Choosing a try generates nothing</span>
-        )}
-      </div>
+      {/* Only words beside the tries, so the last of many is never covered; the Edit workspace is the switch above (G-133). */}
+      {refusal ? (
+        <span role="alert" className="max-w-[14rem] shrink-0 text-right text-[11px] leading-4 text-warning" data-testid="tries-refusal">
+          {refusal}
+        </span>
+      ) : (
+        tries.length > 0 && (
+          <span className="max-w-[7rem] shrink-0 text-right text-[11px] leading-4 text-muted">Choosing a try generates nothing</span>
+        )
+      )}
     </div>
   );
 }

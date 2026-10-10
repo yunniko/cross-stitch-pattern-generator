@@ -51,6 +51,25 @@ Outside both: G-111's comments follow G-112; G-097 comes after G-108, whose char
 
 **The shortest road to selling**, if that becomes the aim: G-103, G-107, G-113, G-109, G-106, G-126, G-127, G-128. Saved charts, the gallery, the guide and the editor goals can all follow it; tiers would then differ by features and limits only, and G-106's "what happens to saved charts" has nothing to decide until G-108.
 
+### G-133 · Locked layers, every try selectable, and the tries strip without its Edit shortcut — ACTIVE (accepted 2026-10-10)
+- **What:** three fixes the Owner asked for on 2026-10-10. (a) A layer can be locked: it stays visible and is drawn and exported as before, but nothing changes its stitches until it is unlocked. (b) Every try in the strip can be chosen: two Generates that end with the same chart no longer leave one of them unselectable. (c) "Continue in Edit →" and the box around it leave the tries strip, which then gives all its width to the tries.
+- **Why:** a finished layer (a border, lettering) should be safe while the rest is worked on; a try that cannot be chosen looks broken; the Edit shortcut covered the last try when there were many, and the workspace switch above already does the same.
+- **Acceptance criteria:**
+  - Each layer in the Layers list has a lock toggle with a visible state; a locked layer stays shown.
+  - With a locked layer active, every tool that changes a layer's stitches (Brush, Line, Rectangle, Oval, Fill, Eraser, Select's cut/delete/paste onto it) is refused with a note naming the layer, as a hidden layer is now; the layer cannot be deleted, merged (as source or target) or renamed while locked. Chart-wide edits (Crop, Move the whole design, colour merges and loaded palettes) still apply to it, since they change the chart rather than one layer's drawing — this is the one judgment in the plan, recorded as a decision.
+  - The lock is saved in the editable file and survives a reload and undo/redo; a file from an older build opens with every layer unlocked, and an older build opens a file with a locked layer (ignoring the lock).
+  - A Generate whose chart and settings equal an existing try does not add a duplicate: that try becomes the current one and moves to the front of the recent ones. Tries that share a chart but were made with different settings are both kept, and each can be chosen and is shown as the current one when chosen.
+  - The tries strip has no "Continue in Edit" and no box beside the tries; its note ("Choosing a try generates nothing") and any pin refusal still show; with ten tries the last one is fully visible and clickable after scrolling the strip.
+- **Constraints:** none beyond the standing ones (release and deploy per the standing approval of 2026-09-13; e2e only in CI).
+
+**Milestones:**
+- [ ] M1 — Tries: duplicates not stored (same chart and same settings), the current try tracked by which one was chosen rather than by chart equality, "Continue in Edit" and its box removed. Unit tests on the rule in `lib/editor/tries.ts`; e2e for generating twice with the same settings, choosing between two same-chart tries, and the strip with many tries. Release note (fixed), brief updated.
+- [ ] M2 — Layer lock: the `locked` flag on a layer (document model, undo, the saved file without a format bump), a lock toggle in the Layers list, the refusal in the tool gate and in delete/merge/rename, the decision on chart-wide edits. Unit tests on the model, the gate and the file round trip; e2e for locking, being refused, unlocking, and a reload. Release note (new), brief updated.
+- [ ] M3 — Release and deploy (cross-stitch.craftodejnice.cz, standing approval): full checks, CI green, `npm run release`, deploy, live check of the chunks and `/whats-new`; HANDOVER regenerated.
+
+**Progress log** (newest first):
+- 2026-10-10 — Owner accepted the plan ("accept"): runs through all milestones, deploy included.
+- 2026-10-10 — goal written from the Owner's request; plan presented for acceptance.
 ### G-106 · Subscriptions, part 1: the billing core (contract, webhook, the subscription's state, what a person gets) — ACTIVE (accepted 2026-10-08)
 - **What:** asked by the Owner, 2026-10-06, and split on 2026-10-08 (see above).
   - A signed-in person picks a tier and a period, pays through Stripe Checkout, and manages the card, period and cancellation through Stripe's Customer Portal.

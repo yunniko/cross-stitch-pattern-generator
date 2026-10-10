@@ -35,12 +35,14 @@ Every chart a Generate makes is kept as a **try**, so an earlier result is gone 
 |---|---|
 | **What a try is** | The chart as generated, the settings that made it, and its number ("Try 3": counted up for the photo, never reused). It is shown as a small picture of the chart with its size, its number of colours and, where one was used, the brand or "your palette" |
 | **How many are kept** | The **5 most recent**, and beside them up to **5 pinned**. Making a sixth drops the oldest that is not pinned |
-| **Going back to one** | Its chart becomes the chart, as one undoable step, and the generation settings that made it are put back. No chart is generated. The try the chart on screen is, untouched, is marked; an edited chart is none of them |
+| **The same chart again** | A Generate that makes the same chart from the same settings as a kept try adds nothing: that try is the chart, marked, and it becomes the most recent of the five. The same chart from other settings is a try of its own (G-133, D403) |
+| **Going back to one** | Its chart becomes the chart, as one undoable step, and the generation settings that made it are put back. No chart is generated. The try the chart on screen is, untouched, is marked; of two that are the same chart, the one last chosen or made. Every try can be chosen; an edited chart is none of them |
 | **Pin** | Takes a try out of the five that come and go. A sixth pin is refused: "5 tries are pinned already, which is the most that are kept. Unpin or delete one first." Unpinning makes it the most recent of the five |
 | **Delete** | Removes the try; the chart on screen stays as it is |
 | **Kept for** | This browser, across visits, for the photo in hand. Taking up another photo drops them; the question asked before a new chart replaces this one says how many are pinned. A chart with no photo has none |
 | **Available when** | A chart made from a photo is open, in the Photo workspace (`01`). Unavailable while a chart is being generated |
 | **Empty** | "Each Generate is kept here as a try, to go back to without generating again: the last 5, and up to 5 you pin." |
+| **Beside the tries** | Only the line "Choosing a try generates nothing", or the reason a pin was refused. The way on to Edit is the workspace choice above, not a second one here, so nothing covers the last of many tries (G-133) |
 
 ## Size
 
