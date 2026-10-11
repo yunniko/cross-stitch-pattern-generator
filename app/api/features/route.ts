@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
+import type { FeaturesAnswer } from "@/lib/features/refresh";
 import { featureStatesFor } from "@/lib/features/server";
 
 /**
@@ -11,5 +12,5 @@ export const dynamic = "force-dynamic";
 
 export async function GET(): Promise<Response> {
   const states = await featureStatesFor((await auth())?.user?.id ?? null);
-  return NextResponse.json({ states }, { headers: { "cache-control": "no-store" } });
+  return NextResponse.json({ states } satisfies FeaturesAnswer, { headers: { "cache-control": "no-store" } });
 }

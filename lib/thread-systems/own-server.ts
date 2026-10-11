@@ -1,10 +1,5 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/auth";
-import { Refused } from "@/lib/charts/server";
-import { featureStatesFor } from "@/lib/features/server";
-import { featureUsable } from "@/lib/features/features";
-import { limitsFor } from "@/lib/limits/server";
-import { limitValue, type LimitValue } from "@/lib/limits/limits";
+import { type LimitValue } from "@/lib/limits/limits";
+import { accountResource, readBoundedJson, Refused } from "@/lib/server/account-resource";
 import { prisma } from "@/lib/prisma";
 import {
   OWN_SYSTEM_MAX_BYTES,
@@ -24,37 +19,24 @@ import { systemDetails, type ThreadRow } from "./thread-system";
  * exist. Deleting the account deletes them (the owner relation cascades).
  */
 
-export function ownSystemRefusedResponse(error: unknown): Response {
-  if (error instanceof Refused) return NextResponse.json({ error: error.message, ...error.extra }, { status: error.status });
-  console.error("thread systems:", error);
-  return NextResponse.json({ error: "Thread systems are unavailable right now. Try again in a moment." }, { status: 503 });
-}
+/** Every request needs the feature: `ownSystems.requireAccount()`. */
+export const ownSystems = accountResource({
+  log: "thread systems",
+  unavailable: "Thread systems are unavailable right now. Try again in a moment.",
+  signIn: "Sign in to keep thread systems with your account.",
+  feature: { id: OWN_SYSTEMS_FEATURE, refused: "Thread systems of your own are not available to you.", limit: OWN_SYSTEMS_LIMIT },
+});
 
 const NOT_FOUND = "That thread system is not among yours.";
 
-/** The signed-in requester's id, allowed to keep thread systems, with how many they may keep. */
-export async function requireOwnSystems(): Promise<{ userId: string; allowed: LimitValue }> {
-  const userId = (await auth())?.user?.id ?? null;
-  if (!userId) throw new Refused(401, "Sign in to keep thread systems with your account.");
-  if (!featureUsable(await featureStatesFor(userId), OWN_SYSTEMS_FEATURE)) {
-    throw new Refused(403, "Thread systems of your own are not available to you.");
-  }
-  return { userId, allowed: limitValue(await limitsFor(userId), OWN_SYSTEMS_LIMIT) };
-}
-
 /** An upload's body, refused when too large or not a list of threads. */
 export async function readOwnSystemBody(req: Request): Promise<Exclude<ReturnType<typeof readOwnSystemUpload>, { error: string }>> {
-  const declared = Number(req.headers.get("content-length"));
-  const text = Number.isFinite(declared) && declared > OWN_SYSTEM_MAX_BYTES ? null : await req.text();
-  if (text === null || new TextEncoder().encode(text).byteLength > OWN_SYSTEM_MAX_BYTES) {
-    throw new Refused(413, "That file is too large to keep.");
-  }
-  let body: unknown;
-  try {
-    body = JSON.parse(text);
-  } catch {
-    throw new Refused(400, "That is not a thread system.");
-  }
+  const body = await readBoundedJson(
+    req,
+    OWN_SYSTEM_MAX_BYTES,
+    () => new Refused(413, "That file is too large to keep."),
+    "That is not a thread system."
+  );
   const read = readOwnSystemUpload(body);
   if ("error" in read) throw new Refused(422, read.error);
   return read;

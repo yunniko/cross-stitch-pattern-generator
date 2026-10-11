@@ -114,7 +114,9 @@ describe("a workspace's requests (G-103, D314)", () => {
 
   it("every route that starts work on the processor is in the list, and each one in it asks under its own address", () => {
     // A job's own routes (its status, events, result) follow a job and start none; the rest that reach the processor start work.
-    const starting = routes(API).filter((file) => readFileSync(file, "utf8").includes("processorUrl(") && !file.includes("[id]"));
+    const starting = routes(API).filter(
+      (file) => /\b(processorUrl|forwardToProcessor)\(/.test(readFileSync(file, "utf8")) && !file.includes("[id]")
+    );
     expect(starting.map(address).sort()).toEqual(Object.keys(REQUEST_WORKSPACES).sort());
     for (const file of starting) expect(readFileSync(file, "utf8"), address(file)).toContain(`workspaceRefusal("${address(file)}"`);
   });

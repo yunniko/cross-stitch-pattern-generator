@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { guardMutation } from "@/lib/server/request-guard";
-import { deletePalette, paletteRefusedResponse, renamePalette, requirePalettes } from "@/lib/palettes/server";
+import { readPatchBody } from "@/lib/server/account-resource";
+import { deletePalette, palettes, renamePalette } from "@/lib/palettes/server";
 
 /**
  * One kept palette (G-131 M4, D398), its owner's alone; anyone else is answered 404, as for an id not in use.
@@ -14,26 +14,14 @@ export const dynamic = "force-dynamic";
 
 type Context = { params: Promise<{ id: string }> };
 
-export async function PATCH(req: Request, { params }: Context): Promise<Response> {
-  const refused = guardMutation(req, "chartSave");
-  if (refused) return refused;
-  try {
-    const { userId } = await requirePalettes();
-    const body = (await req.json().catch(() => ({}))) as { name?: unknown };
-    return NextResponse.json(await renamePalette(userId, (await params).id, body.name));
-  } catch (error) {
-    return paletteRefusedResponse(error);
-  }
-}
+export const PATCH = palettes.write(async (req: Request, { params }: Context): Promise<Response> => {
+  const { userId } = await palettes.requireAccount();
+  const body = await readPatchBody(req);
+  return NextResponse.json(await renamePalette(userId, (await params).id, body.name));
+});
 
-export async function DELETE(req: Request, { params }: Context): Promise<Response> {
-  const refused = guardMutation(req, "chartSave");
-  if (refused) return refused;
-  try {
-    const { userId } = await requirePalettes();
-    await deletePalette(userId, (await params).id);
-    return new NextResponse(null, { status: 204 });
-  } catch (error) {
-    return paletteRefusedResponse(error);
-  }
-}
+export const DELETE = palettes.write(async (req: Request, { params }: Context): Promise<Response> => {
+  const { userId } = await palettes.requireAccount();
+  await deletePalette(userId, (await params).id);
+  return new NextResponse(null, { status: 204 });
+});

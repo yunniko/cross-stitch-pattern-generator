@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { guardMutation } from "@/lib/server/request-guard";
-import { movePalettes, paletteRefusedResponse, readMoveBody, requirePalettes } from "@/lib/palettes/server";
+import { movePalettes, palettes, readMoveBody } from "@/lib/palettes/server";
 
 /**
  * The one-time move of the palettes an earlier version kept in the browser (G-131 M4, D398): POST `{ palettes: [...] }`
@@ -11,13 +10,7 @@ import { movePalettes, paletteRefusedResponse, readMoveBody, requirePalettes } f
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function POST(req: Request): Promise<Response> {
-  const refused = guardMutation(req, "chartSave");
-  if (refused) return refused;
-  try {
-    const { userId, allowed } = await requirePalettes();
-    return NextResponse.json(await movePalettes(userId, allowed, await readMoveBody(req)));
-  } catch (error) {
-    return paletteRefusedResponse(error);
-  }
-}
+export const POST = palettes.write(async (req: Request): Promise<Response> => {
+  const { userId, allowed } = await palettes.requireAccount();
+  return NextResponse.json(await movePalettes(userId, allowed, await readMoveBody(req)));
+});

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@/generated/prisma/client";
-import { requireAdmin } from "@/lib/admin/require-admin";
+import { adminAction } from "@/lib/admin/admin-action";
 import { logChange } from "@/lib/admin/change-log-data";
 import { THREAD_SYSTEM_SCOPE } from "@/lib/admin/change-log";
 import { prisma } from "@/lib/prisma";
@@ -45,69 +45,68 @@ function revalidate() {
 
 /** A new site system, offered after the others. */
 export async function createThreadSystemAction(key: string, input: ThreadSystemInput, list: string): Promise<ActionResult> {
-  try {
-    const admin = await requireAdmin();
-    const keyRefusal = systemKeyRefusal(key);
-    if (keyRefusal) return { error: keyRefusal };
-    const details = systemDetails(input);
-    if ("error" in details) return details;
-    const read = threadsOf(list);
-    if ("error" in read) return read;
-    const last = await prisma.threadSystem.findFirst({ where: SITE, orderBy: { position: "desc" }, select: { position: true } });
-    try {
-      await prisma.threadSystem.create({
-        data: {
-          key,
-          ...details,
-          threads: JSON.stringify(read.threads),
-          threadCount: read.threads.length,
-          position: (last?.position ?? -1) + 1,
-        },
-      });
-    } catch (error) {
-      // The site's keys are unique by a partial index; two adding the same key at once meet it.
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002")
-        return { error: `There is already a system "${key}".` };
-      throw error;
-    }
-    await logChange(admin, THREAD_SYSTEM_SCOPE, key, `${details.label} (${key}) added, ${read.threads.length} threads`);
-    revalidate();
-    return {};
-  } catch (error) {
-    // A refusal travels as `error`, never thrown: production replaces a thrown message with a generic one (feature-actions).
-    return { error: error instanceof Error ? error.message : "The system was not added." };
-  }
+  return adminAction(
+    async (admin): Promise<ActionResult> => {
+      const keyRefusal = systemKeyRefusal(key);
+      if (keyRefusal) return { error: keyRefusal };
+      const details = systemDetails(input);
+      if ("error" in details) return details;
+      const read = threadsOf(list);
+      if ("error" in read) return read;
+      const last = await prisma.threadSystem.findFirst({ where: SITE, orderBy: { position: "desc" }, select: { position: true } });
+      try {
+        await prisma.threadSystem.create({
+          data: {
+            key,
+            ...details,
+            threads: JSON.stringify(read.threads),
+            threadCount: read.threads.length,
+            position: (last?.position ?? -1) + 1,
+          },
+        });
+      } catch (error) {
+        // The site's keys are unique by a partial index; two adding the same key at once meet it.
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002")
+          return { error: `There is already a system "${key}".` };
+        throw error;
+      }
+      await logChange(admin, THREAD_SYSTEM_SCOPE, key, `${details.label} (${key}) added, ${read.threads.length} threads`);
+      revalidate();
+      return {};
+    },
+    { fallback: "The system was not added." }
+  );
 }
 
 /** A site system's name, note, source and licence; and its threads, when a new list is given. */
 export async function updateThreadSystemAction(key: string, input: ThreadSystemInput, list: string | null): Promise<ActionResult> {
-  try {
-    const admin = await requireAdmin();
-    const details = systemDetails(input);
-    if ("error" in details) return details;
-    const read = list === null ? null : threadsOf(list);
-    if (read && "error" in read) return read;
-    const before = await prisma.threadSystem.findFirst({ where: { ...SITE, key }, select: { id: true, label: true, threadCount: true } });
-    if (!before) return { error: "There is no such system." };
-    await prisma.threadSystem.update({
-      where: { id: before.id },
-      data: { ...details, ...(read ? { threads: JSON.stringify(read.threads), threadCount: read.threads.length } : {}) },
-    });
-    const changes = [
-      ...(before.label !== details.label ? [`renamed from ${before.label}`] : []),
-      ...(read ? [`threads replaced (${before.threadCount} → ${read.threads.length})`] : []),
-    ];
-    await logChange(
-      admin,
-      THREAD_SYSTEM_SCOPE,
-      key,
-      `${details.label} (${key}): ${changes.length ? changes.join(", ") : "details edited"}`
-    );
-    revalidate();
-    return {};
-  } catch (error) {
-    return { error: error instanceof Error ? error.message : "The system was not saved." };
-  }
+  return adminAction(
+    async (admin): Promise<ActionResult> => {
+      const details = systemDetails(input);
+      if ("error" in details) return details;
+      const read = list === null ? null : threadsOf(list);
+      if (read && "error" in read) return read;
+      const before = await prisma.threadSystem.findFirst({ where: { ...SITE, key }, select: { id: true, label: true, threadCount: true } });
+      if (!before) return { error: "There is no such system." };
+      await prisma.threadSystem.update({
+        where: { id: before.id },
+        data: { ...details, ...(read ? { threads: JSON.stringify(read.threads), threadCount: read.threads.length } : {}) },
+      });
+      const changes = [
+        ...(before.label !== details.label ? [`renamed from ${before.label}`] : []),
+        ...(read ? [`threads replaced (${before.threadCount} → ${read.threads.length})`] : []),
+      ];
+      await logChange(
+        admin,
+        THREAD_SYSTEM_SCOPE,
+        key,
+        `${details.label} (${key}): ${changes.length ? changes.join(", ") : "details edited"}`
+      );
+      revalidate();
+      return {};
+    },
+    { fallback: "The system was not saved." }
+  );
 }
 
 /**
@@ -115,23 +114,23 @@ export async function updateThreadSystemAction(key: string, input: ThreadSystemI
  * keeps its number and system, and is edited with the common colour picker (G-132 AC2).
  */
 export async function deleteThreadSystemAction(key: string): Promise<ActionResult> {
-  try {
-    const admin = await requireAdmin();
-    const featureId = `brand.${key}`;
-    const deleted = await prisma.$transaction(async (tx) => {
-      const row = await tx.threadSystem.findFirst({ where: { ...SITE, key }, select: { id: true, label: true } });
-      if (!row) return null;
-      await tx.threadSystem.delete({ where: { id: row.id } });
-      await tx.featureState.deleteMany({ where: { featureId } });
-      await tx.featureSetEntry.deleteMany({ where: { featureId } });
-      await tx.userFeature.deleteMany({ where: { featureId } });
-      return row;
-    });
-    if (!deleted) return { error: "There is no such system." };
-    await logChange(admin, THREAD_SYSTEM_SCOPE, key, `${deleted.label} (${key}) deleted, with its switches`);
-    revalidate();
-    return {};
-  } catch (error) {
-    return { error: error instanceof Error ? error.message : "The system was not deleted." };
-  }
+  return adminAction(
+    async (admin): Promise<ActionResult> => {
+      const featureId = `brand.${key}`;
+      const deleted = await prisma.$transaction(async (tx) => {
+        const row = await tx.threadSystem.findFirst({ where: { ...SITE, key }, select: { id: true, label: true } });
+        if (!row) return null;
+        await tx.threadSystem.delete({ where: { id: row.id } });
+        await tx.featureState.deleteMany({ where: { featureId } });
+        await tx.featureSetEntry.deleteMany({ where: { featureId } });
+        await tx.userFeature.deleteMany({ where: { featureId } });
+        return row;
+      });
+      if (!deleted) return { error: "There is no such system." };
+      await logChange(admin, THREAD_SYSTEM_SCOPE, key, `${deleted.label} (${key}) deleted, with its switches`);
+      revalidate();
+      return {};
+    },
+    { fallback: "The system was not deleted." }
+  );
 }

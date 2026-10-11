@@ -1,7 +1,3 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/auth";
-import { featureStatesFor } from "@/lib/features/server";
-import { featureUsable } from "@/lib/features/features";
 import { limitsFor } from "@/lib/limits/server";
 import { limitValue, type LimitValue } from "@/lib/limits/limits";
 import { prisma } from "@/lib/prisma";
@@ -20,47 +16,28 @@ import {
   storageRefusal,
   type SavedChartSummary,
 } from "./saved-charts";
+import { accountResource, readBoundedText, Refused } from "@/lib/server/account-resource";
 
 /**
  * The database half of saved charts (G-108 part 1, D354), for the routes under `/api/charts`. A refusal is a `Refused`
- * carrying its status and sentence; the routes turn it into a response with `refusedResponse`.
+ * carrying its status and sentence; the routes are wrapped by `charts.read` and `charts.write`, which answer it
+ * (`lib/server/account-resource.ts`).
  *
  * A person's saves run one at a time (a lock on their account row), so the space check and the version check each see
  * what the other save left.
  */
 
-export class Refused extends Error {
-  constructor(
-    readonly status: number,
-    message: string,
-    readonly extra: Record<string, unknown> = {}
-  ) {
-    super(message);
-  }
-}
+export { Refused };
 
-export function refusedResponse(error: unknown): Response {
-  if (error instanceof Refused) return NextResponse.json({ error: error.message, ...error.extra }, { status: error.status });
-  console.error("saved charts:", error);
-  return NextResponse.json({ error: "Saved charts are unavailable right now. Try again in a moment." }, { status: 503 });
-}
+/** Saving (making or overwriting) is the feature; reading, renaming and deleting what is saved are not. */
+export const charts = accountResource({
+  log: "saved charts",
+  unavailable: "Saved charts are unavailable right now. Try again in a moment.",
+  signIn: "Sign in to save charts to your account.",
+  feature: { id: SAVE_TO_ACCOUNT_FEATURE, refused: "Saving to your account is not available to you.", limit: CHART_STORAGE_LIMIT },
+});
 
 const NOT_FOUND = "That chart is not among your saved charts.";
-
-/** The signed-in requester's id; refused with 401 for a visitor. */
-export async function requireSignedIn(): Promise<string> {
-  const userId = (await auth())?.user?.id ?? null;
-  if (!userId) throw new Refused(401, "Sign in to save charts to your account.");
-  return userId;
-}
-
-/** Saving (making or overwriting) is a feature: refused by name while it is locked or hidden for this person. */
-async function requireSaving(userId: string): Promise<LimitValue> {
-  if (!featureUsable(await featureStatesFor(userId), SAVE_TO_ACCOUNT_FEATURE))
-    throw new Refused(403, "Saving to your account is not available to you.");
-  // A limit that cannot be read refuses (G-109 answer); the throw becomes the 503 above.
-  return limitValue(await limitsFor(userId), CHART_STORAGE_LIMIT);
-}
 
 /**
  * The body of a save, refused when it is too large or not a chart the editor can open; with the preview drawn from it,
@@ -72,14 +49,10 @@ export async function readChartBody(req: Request): Promise<{
   summary: SavedChartSummary;
   preview: Uint8Array<ArrayBuffer>;
 }> {
-  const declared = Number(req.headers.get("content-length"));
-  if (Number.isFinite(declared) && declared > SAVED_CHART_MAX_BYTES) throw tooLarge();
-  const text = await req.text();
-  const bytes = chartBytes(text);
-  if (bytes > SAVED_CHART_MAX_BYTES) throw tooLarge();
+  const text = await readBoundedText(req, SAVED_CHART_MAX_BYTES, tooLarge);
   const read = readChartUpload(text);
   if ("error" in read) throw new Refused(422, read.error);
-  return { text, bytes, summary: read.summary, preview: await chartPreviewPng(read.pattern) };
+  return { text, bytes: chartBytes(text), summary: read.summary, preview: await chartPreviewPng(read.pattern) };
 }
 
 function tooLarge() {
@@ -110,7 +83,7 @@ async function usedBytes(tx: Pick<typeof prisma, "savedChart">, userId: string):
 
 /** A new saved chart, with an id of the server's making. */
 export async function createChart(userId: string, body: Awaited<ReturnType<typeof readChartBody>>): Promise<SavedChartReceipt> {
-  const allowed = await requireSaving(userId);
+  const allowed = await charts.requireFeature(userId);
   return prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT 1 FROM "User" WHERE "id" = ${userId} FOR UPDATE`;
     const refusal = storageRefusal(await usedBytes(tx, userId), 0, body.bytes, allowed);
@@ -144,7 +117,7 @@ export async function overwriteChart(
   body: Awaited<ReturnType<typeof readChartBody>>
 ): Promise<SavedChartReceipt> {
   if (expected === null) throw new Refused(400, "The save did not say which version of the chart it replaces.");
-  const allowed = await requireSaving(userId);
+  const allowed = await charts.requireFeature(userId);
   return prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT 1 FROM "User" WHERE "id" = ${userId} FOR UPDATE`;
     const chart = await ownedChart(tx, id, userId, "write");

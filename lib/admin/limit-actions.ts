@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireAdmin } from "@/lib/admin/require-admin";
+import { adminAction } from "@/lib/admin/admin-action";
 import { logChange } from "@/lib/admin/change-log-data";
 import { formatLimit, limitById, parseLimitInput, toColumn } from "@/lib/limits/limits";
 import { prisma } from "@/lib/prisma";
@@ -20,8 +20,7 @@ export type LimitLayer =
   | { kind: "user"; userId: string };
 
 export async function setLimitAction(layer: LimitLayer, limitId: string, input: string): Promise<ActionResult> {
-  try {
-    const admin = await requireAdmin();
+  return adminAction(async (admin): Promise<ActionResult> => {
     const limit = limitById(limitId);
     if (!limit) return { error: "That is not a limit." };
     const parsed = input === "inherit" ? null : parseLimitInput(limit, input);
@@ -84,8 +83,5 @@ export async function setLimitAction(layer: LimitLayer, limitId: string, input: 
     revalidatePath("/admin/features");
     revalidatePath("/admin/changes");
     return {};
-  } catch (error) {
-    // A refusal travels as `error`, never thrown: production replaces a thrown message with a generic one (feature-actions).
-    return { error: error instanceof Error ? error.message : "The change was refused." };
-  }
+  });
 }

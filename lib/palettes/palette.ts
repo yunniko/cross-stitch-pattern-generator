@@ -29,6 +29,21 @@ export interface AccountPalette {
   savedAt: string;
 }
 
+/** What `GET /api/palettes` answers (the browser reads it through `lib/api-json.ts`). */
+export interface PaletteList {
+  palettes: AccountPalette[];
+  allowed: LimitValue;
+}
+
+/** What `POST /api/palettes` answers: the palette kept, and whether it replaced one of the same name. */
+export type PaletteSaved = AccountPalette & { replaced: boolean };
+
+/** What `POST /api/palettes/move` answers: those kept, in order, and why the rest were not. */
+export interface PalettesMoved {
+  moved: AccountPalette[];
+  refusal: string | null;
+}
+
 /** The name a palette is kept under, or null when there is none to keep it by. */
 export function paletteName(name: unknown): string | null {
   if (typeof name !== "string") return null;

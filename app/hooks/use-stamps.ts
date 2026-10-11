@@ -1,5 +1,15 @@
 import { useEffect, useState } from "react";
-import { parseStamp, serializeStamp, stampFacts, stampFromPiece, stampName, type StampContents } from "@/lib/stamps/stamp";
+import { apiJson, refusalOf } from "@/lib/api-json";
+import {
+  parseStamp,
+  serializeStamp,
+  stampFacts,
+  stampFromPiece,
+  stampName,
+  type StampCard,
+  type StampContents,
+  type StampList,
+} from "@/lib/stamps/stamp";
 import type { StampFaceStamp } from "../components/stamp-face";
 import type { FloatingSelection, StitchPattern } from "@/lib/types";
 import type { AccountSaveMessage } from "./use-account-save";
@@ -40,27 +50,19 @@ export function useStamps(pattern: StitchPattern | null, signedIn: boolean, usab
     const stamp: StampContents = { ...naming, pattern: { ...naming.pattern, name: stampName(name) } };
     setNaming(null);
     setBusy(true);
-    try {
-      const response = await fetch("/api/stamps", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: serializeStamp(stamp),
-      });
-      const body = (await response.json().catch(() => null)) as { name?: string; error?: string } | null;
-      if (response.status === 201 && body?.name) {
-        setMessage({ tone: "info", text: `Saved “${body.name}” to your stamps.` });
-        setCount((kept) => (kept === null ? null : kept + 1));
-      } else {
-        setMessage({ tone: "error", text: body?.error ?? "The stamp was not saved. Try again in a moment." });
+    const answer = await apiJson<StampCard>(
+      "/api/stamps",
+      { method: "POST", headers: { "content-type": "application/json" }, body: serializeStamp(stamp) },
+      {
+        refused: "The stamp was not saved. Try again in a moment.",
+        unreachable: "Couldn't reach the server, so the stamp was not saved. Check your connection and try again.",
       }
-    } catch {
-      setMessage({
-        tone: "error",
-        text: "Couldn't reach the server, so the stamp was not saved. Check your connection and try again.",
-      });
-    } finally {
-      setBusy(false);
-    }
+    );
+    setBusy(false);
+    if (answer.ok) {
+      setMessage({ tone: "info", text: `Saved “${answer.body.name}” to your stamps.` });
+      setCount((kept) => (kept === null ? null : kept + 1));
+    } else setMessage({ tone: "error", text: answer.error });
   }
 
   async function openGallery() {
@@ -80,10 +82,7 @@ export function useStamps(pattern: StitchPattern | null, signedIn: boolean, usab
     try {
       const response = await fetch(`/api/stamps/${encodeURIComponent(id)}`);
       if (response.ok) refusal = place(parseStamp(await response.text()));
-      else {
-        const body = (await response.json().catch(() => null)) as { error?: string } | null;
-        refusal = body?.error ?? "That stamp could not be read. Try again in a moment.";
-      }
+      else refusal = await refusalOf(response, "That stamp could not be read. Try again in a moment.");
     } catch {
       refusal = "Couldn't reach the server, so the stamp was not placed. Check your connection and try again.";
     }
@@ -117,13 +116,8 @@ const factsOf = ({ pattern }: StampContents) =>
 
 /** The person's stamps as cards, pinned first and then the newest; null when they cannot be read. */
 async function keptStamps(): Promise<StampFaceStamp[] | null> {
-  try {
-    const response = await fetch("/api/stamps", { cache: "no-store" });
-    if (!response.ok) return null;
-    return ((await response.json()) as { stamps: StampFaceStamp[] }).stamps;
-  } catch {
-    return null;
-  }
+  const answer = await apiJson<StampList>("/api/stamps", { cache: "no-store" }, { refused: "", unreachable: "" });
+  return answer.ok ? answer.body.stamps : null;
 }
 
 /** How many stamps the person keeps; null when it cannot be read. */

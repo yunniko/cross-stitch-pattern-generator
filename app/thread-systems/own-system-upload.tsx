@@ -2,6 +2,7 @@
 
 import { useState, type ChangeEvent } from "react";
 import { PillButton } from "@/app/components/ui";
+import { apiJson } from "@/lib/api-json";
 import { readOwnSystemUpload, type OwnSystem } from "@/lib/thread-systems/own-system";
 import { readThreadList, THREAD_FILE_MAX_BYTES } from "@/lib/thread-systems/thread-list-file";
 import { SYSTEM_LABEL_MAX } from "@/lib/thread-systems/thread-system";
@@ -48,25 +49,19 @@ export function OwnSystemUpload({
     if (!file) return;
     setBusy(true);
     setProblem(null);
-    try {
-      const response = await fetch("/api/thread-systems", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name, text: file.text }),
-      });
-      const body = await response.json().catch(() => null);
-      if (!response.ok) {
-        setProblem(typeof body?.error === "string" ? body.error : "That did not work. Try again in a moment.");
-        return;
+    const answer = await apiJson<OwnSystem>(
+      "/api/thread-systems",
+      { method: "POST", json: { name, text: file.text } },
+      {
+        refused: "That did not work. Try again in a moment.",
+        unreachable: "Couldn't reach the server. Check your connection and try again.",
       }
-      setFile(null);
-      setName("");
-      onAdded(body as OwnSystem);
-    } catch {
-      setProblem("Couldn't reach the server. Check your connection and try again.");
-    } finally {
-      setBusy(false);
-    }
+    );
+    setBusy(false);
+    if (!answer.ok) return setProblem(answer.error);
+    setFile(null);
+    setName("");
+    onAdded(answer.body);
   }
 
   return (

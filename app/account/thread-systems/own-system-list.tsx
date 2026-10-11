@@ -1,5 +1,6 @@
 "use client";
 
+import { apiJson, type ApiRequest } from "@/lib/api-json";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { PageHead } from "@/app/components/panel/panel-parts";
@@ -48,23 +49,17 @@ function SystemCard({ system }: { system: OwnSystem }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function send(init: RequestInit) {
+  async function send(init: ApiRequest) {
     setBusy(true);
     setError(null);
-    try {
-      const response = await fetch(`/api/thread-systems/${encodeURIComponent(system.id)}`, init);
-      if (!response.ok) {
-        const body = await response.json().catch(() => null);
-        setError(typeof body?.error === "string" ? body.error : "That did not work. Try again in a moment.");
-        return;
-      }
-      setMode("view");
-      router.refresh();
-    } catch {
-      setError("Couldn't reach the server. Check your connection and try again.");
-    } finally {
-      setBusy(false);
-    }
+    const answer = await apiJson<unknown>(`/api/thread-systems/${encodeURIComponent(system.id)}`, init, {
+      refused: "That did not work. Try again in a moment.",
+      unreachable: "Couldn't reach the server. Check your connection and try again.",
+    });
+    setBusy(false);
+    if (!answer.ok) return setError(answer.error);
+    setMode("view");
+    router.refresh();
   }
 
   const cancelRename = () => {
@@ -79,7 +74,7 @@ function SystemCard({ system }: { system: OwnSystem }) {
           className="flex flex-wrap items-center gap-2"
           onSubmit={(e) => {
             e.preventDefault();
-            void send({ method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ name }) });
+            void send({ method: "PATCH", json: { name } });
           }}
         >
           <label className="sr-only" htmlFor={`own-system-name-${system.id}`}>

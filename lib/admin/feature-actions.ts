@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import type { FeatureSwitch } from "@/generated/prisma/client";
-import { requireAdmin } from "@/lib/admin/require-admin";
+import { adminAction, type Admin } from "@/lib/admin/admin-action";
 import { logChange } from "@/lib/admin/change-log-data";
 import { isFeatureIdShape, isFeatureState, type FeatureState } from "@/lib/features/features";
 import { prisma } from "@/lib/prisma";
@@ -19,21 +19,17 @@ const NAME = /^[^\s][^\n]{0,59}$/;
 
 const SWITCH: Record<FeatureState, FeatureSwitch> = { on: "ON", locked: "LOCKED", hidden: "HIDDEN" };
 
-/**
- * What an action answers. A refusal travels as `error`, never as a thrown error: in production Next replaces a thrown
- * error's message with a generic one before it reaches the client (found by the G-102 QA pass).
- */
+/** What an action answers: a refusal as `error` (see `admin-action.ts`), or the id of what it made. */
 export type ActionResult = { error?: string; id?: string };
 
-async function attempt(work: () => Promise<string | void>): Promise<ActionResult> {
-  try {
-    const id = await work();
-    return id ? { id } : {};
-  } catch (error) {
-    const code = (error as { code?: string }).code;
-    if (code === "P2002") return { error: "That name is taken." };
-    return { error: error instanceof Error ? error.message : "The change was refused." };
-  }
+function attempt(work: (admin: Admin) => Promise<string | void>): Promise<ActionResult> {
+  return adminAction(
+    async (admin): Promise<ActionResult> => {
+      const id = await work(admin);
+      return id ? { id } : {};
+    },
+    { explain: (error) => ((error as { code?: string }).code === "P2002" ? "That name is taken." : undefined) }
+  );
 }
 
 /** A state to set, or "site" for a person or a set to follow the site (no row). */
@@ -51,8 +47,7 @@ function checkedEntries(entries: unknown): Array<{ featureId: string; state: Sta
 
 /** The site's states: "on" removes the row, since a feature with no row is on. */
 export async function setSiteFeaturesAction(entries: Array<{ featureId: string; state: StateChoice }>): Promise<ActionResult> {
-  return attempt(async () => {
-    const admin = await requireAdmin();
+  return attempt(async (admin) => {
     for (const { featureId, state } of checkedEntries(entries)) {
       if (state === "on" || state === "site") await prisma.featureState.deleteMany({ where: { featureId } });
       else
@@ -74,8 +69,7 @@ export async function setUserFeaturesAction(
   userId: string,
   entries: Array<{ featureId: string; state: StateChoice }>
 ): Promise<ActionResult> {
-  return attempt(async () => {
-    const admin = await requireAdmin();
+  return attempt(async (admin) => {
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, email: true } });
     if (!user) throw new Error("No such account.");
     for (const { featureId, state } of checkedEntries(entries)) {
@@ -95,8 +89,7 @@ export async function setUserFeaturesAction(
 
 /** Makes a set and returns its id, so the page can show it at once. */
 export async function createFeatureSetAction(name: string): Promise<ActionResult> {
-  return attempt(async () => {
-    const admin = await requireAdmin();
+  return attempt(async (admin) => {
     const trimmed = name.trim();
     if (!NAME.test(trimmed)) throw new Error("A set needs a name of up to 60 characters.");
     const set = await prisma.featureSet.create({ data: { name: trimmed } });
@@ -108,8 +101,7 @@ export async function createFeatureSetAction(name: string): Promise<ActionResult
 }
 
 export async function deleteFeatureSetAction(setId: string): Promise<ActionResult> {
-  return attempt(async () => {
-    const admin = await requireAdmin();
+  return attempt(async (admin) => {
     const set = await prisma.featureSet.findUnique({
       where: { id: setId },
       select: { name: true, tiers: { select: { id: true } }, audiences: { select: { audience: true } } },
@@ -129,8 +121,7 @@ export async function setFeatureSetEntriesAction(
   setId: string,
   entries: Array<{ featureId: string; state: StateChoice }>
 ): Promise<ActionResult> {
-  return attempt(async () => {
-    const admin = await requireAdmin();
+  return attempt(async (admin) => {
     const set = await prisma.featureSet.findUnique({ where: { id: setId }, select: { name: true } });
     if (!set) throw new Error("No such set.");
     for (const { featureId, state } of checkedEntries(entries)) {
@@ -150,8 +141,7 @@ export async function setFeatureSetEntriesAction(
 }
 
 export async function createTierAction(name: string): Promise<ActionResult> {
-  return attempt(async () => {
-    const admin = await requireAdmin();
+  return attempt(async (admin) => {
     const trimmed = name.trim();
     if (!NAME.test(trimmed)) throw new Error("A tier needs a name of up to 60 characters.");
     const tier = await prisma.tier.create({ data: { name: trimmed } });
@@ -164,8 +154,7 @@ export async function createTierAction(name: string): Promise<ActionResult> {
 
 /** Which set a tier gives its people; null for none. */
 export async function attachSetToTierAction(tierId: string, setId: string | null): Promise<ActionResult> {
-  return attempt(async () => {
-    const admin = await requireAdmin();
+  return attempt(async (admin) => {
     const tier = await prisma.tier.findUnique({ where: { id: tierId }, select: { name: true } });
     if (!tier) throw new Error("No such tier.");
     const set = setId ? await prisma.featureSet.findUnique({ where: { id: setId }, select: { name: true } }) : null;
@@ -180,8 +169,7 @@ export async function attachSetToTierAction(tierId: string, setId: string | null
 
 /** The set every guest ("guests") or every signed-in account ("accounts") gets; null for none (D307). */
 export async function setAudienceSetAction(audience: string, setId: string | null): Promise<ActionResult> {
-  return attempt(async () => {
-    const admin = await requireAdmin();
+  return attempt(async (admin) => {
     if (audience !== "guests" && audience !== "accounts") throw new Error("That is not an audience.");
     const set = setId ? await prisma.featureSet.findUnique({ where: { id: setId }, select: { name: true } }) : null;
     if (setId && !set) throw new Error("No such set.");

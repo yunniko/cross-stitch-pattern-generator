@@ -47,6 +47,20 @@ export interface StampSummary {
   backstitch: boolean;
 }
 
+/** A stamp as a card shows it, without its document: what `POST /api/stamps` answers. */
+export interface StampCard extends StampSummary {
+  id: string;
+  pinned: boolean;
+  version: number;
+  savedAt: string;
+}
+
+/** What `GET /api/stamps` answers (the browser reads it through `lib/api-json.ts`). */
+export interface StampList {
+  stamps: StampCard[];
+  allowed: LimitValue;
+}
+
 /**
  * The stamp a piece makes, named: its stitches, stitch types and shape, its backstitch, and of the chart's palette only
  * the threads those use, in the chart's order. Null for a piece with nothing in it.

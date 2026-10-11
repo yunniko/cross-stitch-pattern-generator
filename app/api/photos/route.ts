@@ -1,8 +1,6 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/auth";
 import { workspaceRefusal } from "@/lib/features/request-check";
-import { featureStatesFor } from "@/lib/features/server";
-import { guardMutation, processorUnreachable, processorUrl } from "@/lib/server/request-guard";
+import { guardMutation } from "@/lib/server/request-guard";
+import { forwardToProcessor, refusal, requester } from "@/lib/server/processor-proxy";
 import { LIMITS } from "@/processor/job-protocol";
 
 /**
@@ -20,24 +18,14 @@ export async function POST(req: Request): Promise<Response> {
   if (refused) return refused;
 
   // Photo's work (G-103, D314): refused by the workspace's name when Photo is off for this person.
-  const refusal = workspaceRefusal("/api/photos", await featureStatesFor((await auth())?.user?.id ?? null));
-  if (refusal) return NextResponse.json({ error: refusal }, { status: 403 });
+  const off = workspaceRefusal("/api/photos", (await requester()).states);
+  if (off) return refusal(403, off);
 
   const declared = Number(req.headers.get("content-length"));
   if (Number.isFinite(declared) && declared > LIMITS.uploadBytes) {
-    return NextResponse.json({ error: `That image is larger than ${Math.round(LIMITS.uploadBytes / 1024 / 1024)} MB.` }, { status: 413 });
+    return refusal(413, `That image is larger than ${Math.round(LIMITS.uploadBytes / 1024 / 1024)} MB.`);
   }
-  if (!req.body) return NextResponse.json({ error: "Expected image bytes." }, { status: 400 });
+  if (!req.body) return refusal(400, "Expected image bytes.");
 
-  try {
-    const upstream = await fetch(processorUrl("/photos"), {
-      method: "POST",
-      body: req.body,
-      // Required by Node whenever a request body is a stream.
-      duplex: "half",
-    } as RequestInit & { duplex: "half" });
-    return new NextResponse(upstream.body, { status: upstream.status, headers: { "content-type": "application/json" } });
-  } catch {
-    return processorUnreachable();
-  }
+  return forwardToProcessor("/photos", { body: req.body, answer: "stream" });
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { apiJson, type ApiRequest } from "@/lib/api-json";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useSyncExternalStore } from "react";
@@ -113,27 +114,20 @@ function ChartCard({ chart, now }: { chart: SavedChartCard; now: number }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function send(init: RequestInit, done: () => void) {
+  async function send(init: ApiRequest, done: () => void) {
     setBusy(true);
     setError(null);
-    try {
-      const response = await fetch(`/api/charts/${encodeURIComponent(chart.id)}`, init);
-      if (!response.ok) {
-        const body = await response.json().catch(() => null);
-        setError(typeof body?.error === "string" ? body.error : "That did not work. Try again in a moment.");
-        return;
-      }
-      done();
-      router.refresh();
-    } catch {
-      setError("Couldn't reach the server. Check your connection and try again.");
-    } finally {
-      setBusy(false);
-    }
+    const answer = await apiJson<unknown>(`/api/charts/${encodeURIComponent(chart.id)}`, init, {
+      refused: "That did not work. Try again in a moment.",
+      unreachable: "Couldn't reach the server. Check your connection and try again.",
+    });
+    setBusy(false);
+    if (!answer.ok) return setError(answer.error);
+    done();
+    router.refresh();
   }
 
-  const patch = (body: object, done: () => void) =>
-    send({ method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }, done);
+  const patch = (body: object, done: () => void) => send({ method: "PATCH", json: body }, done);
   const cancelRename = () => {
     setName(chart.name);
     setMode("view");

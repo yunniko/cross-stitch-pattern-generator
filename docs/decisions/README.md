@@ -447,3 +447,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D408 — The fake billing adapter and its pages exist only in builds that ask for them — active
 - D409 — The admin bootstrap is off unless set, and closes once an admin exists — active
 - D410 — Code that only tests run is removed, and CI keeps it out — active
+- D411 — Account routes, processor routes, admin actions and client fetches each go through one helper — active

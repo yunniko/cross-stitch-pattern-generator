@@ -1,8 +1,6 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/auth";
 import { workspaceRefusal } from "@/lib/features/request-check";
-import { featureStatesFor } from "@/lib/features/server";
-import { guardMutation, processorUnreachable, processorUrl } from "@/lib/server/request-guard";
+import { guardMutation } from "@/lib/server/request-guard";
+import { forwardToProcessor, readCappedBody, refusal, requester } from "@/lib/server/processor-proxy";
 import { requestSystemsFor, withThreadSystems } from "@/lib/thread-systems/server";
 
 /**
@@ -21,30 +19,15 @@ export async function POST(req: Request): Promise<Response> {
   if (refused) return refused;
 
   // Photo's work (G-103, D314): refused by the workspace's name when Photo is off for this person.
-  const userId = (await auth())?.user?.id ?? null;
-  const states = await featureStatesFor(userId);
-  const refusal = workspaceRefusal("/api/predictions", states);
-  if (refusal) return NextResponse.json({ error: refusal }, { status: 403 });
+  const { userId, states } = await requester();
+  const locked = workspaceRefusal("/api/predictions", states);
+  if (locked) return refusal(403, locked);
 
-  const body = await req.text();
-  if (body.length > MAX_BYTES) {
-    return NextResponse.json({ error: "That request is too large." }, { status: 413 });
-  }
+  const read = await readCappedBody(req, MAX_BYTES, "That request is too large.");
+  if ("response" in read) return read.response;
 
   // The thread systems it names, from the table and never from the browser (G-132, D400).
-  const forwarded = await withThreadSystems(body, async (b) => ({ threadSystems: await requestSystemsFor(b, states, userId) }));
+  const forwarded = await withThreadSystems(read.body, async (b) => ({ threadSystems: await requestSystemsFor(b, states, userId) }));
 
-  try {
-    const upstream = await fetch(processorUrl("/predictions"), {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: forwarded,
-    });
-    const headers: Record<string, string> = { "content-type": "application/json" };
-    const retryAfter = upstream.headers.get("retry-after");
-    if (retryAfter) headers["retry-after"] = retryAfter;
-    return new NextResponse(await upstream.text(), { status: upstream.status, headers });
-  } catch {
-    return processorUnreachable();
-  }
+  return forwardToProcessor("/predictions", { body: forwarded });
 }

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireAdmin } from "@/lib/admin/require-admin";
+import { adminAction, type Admin } from "@/lib/admin/admin-action";
 import { logChange } from "@/lib/admin/change-log-data";
 import { BILLING_SCOPE } from "@/lib/admin/change-log";
 import { formatMoney, moveRefusal } from "@/lib/billing/admin-view";
@@ -27,14 +27,14 @@ const OFF = "Billing is off on this server, so nothing can be changed at the pay
 const UNAVAILABLE = "The payment provider could not be reached. Nothing was changed; please try again in a few minutes.";
 const OWN = "Your own subscription is not changed here; another admin changes it.";
 
-async function attempt(work: () => Promise<string | void>): Promise<SubscriptionActionResult> {
-  try {
-    const done = await work();
-    return done ? { done } : {};
-  } catch (error) {
-    if (error instanceof BillingUnavailableError) return { error: UNAVAILABLE };
-    return { error: error instanceof Error ? error.message : "The change was refused." };
-  }
+function attempt(work: (admin: Admin) => Promise<string | void>): Promise<SubscriptionActionResult> {
+  return adminAction(
+    async (admin): Promise<SubscriptionActionResult> => {
+      const done = await work(admin);
+      return done ? { done } : {};
+    },
+    { explain: (error) => (error instanceof BillingUnavailableError ? UNAVAILABLE : undefined) }
+  );
 }
 
 async function gatewayOrRefuse(): Promise<BillingGateway> {
@@ -62,8 +62,7 @@ export async function refundPaymentAction(
   requestKey: string,
   ask: RefundAsk
 ): Promise<SubscriptionActionResult> {
-  return attempt(async () => {
-    const admin = await requireAdmin();
+  return attempt(async (admin) => {
     if (userId === admin.id) throw new Error(OWN);
     if (!/^[A-Za-z0-9-]{8,64}$/.test(requestKey)) throw new Error("The page is out of date; reload it.");
     const user = await prisma.user.findUnique({
@@ -143,8 +142,7 @@ async function moveOne(gateway: BillingGateway, admin: { id: string; email: stri
 
 /** Moves one person to their tier's current price for the same period, from their next renewal. */
 export async function movePersonPriceAction(userId: string): Promise<SubscriptionActionResult> {
-  return attempt(async () => {
-    const admin = await requireAdmin();
+  return attempt(async (admin) => {
     await moveOne(await gatewayOrRefuse(), admin, userId);
     await deliverFakeEvents();
     revalidateSubscriptions(userId);
@@ -157,8 +155,7 @@ export async function movePersonPriceAction(userId: string): Promise<Subscriptio
  * subscription that may not move (a failing payment, say) is left on its price and counted.
  */
 export async function movePriceHoldersAction(priceId: string): Promise<SubscriptionActionResult> {
-  return attempt(async () => {
-    const admin = await requireAdmin();
+  return attempt(async (admin) => {
     const gateway = await gatewayOrRefuse();
     const holders = await prisma.subscription.findMany({
       where: { priceId, kind: "stripe", endedAt: null },

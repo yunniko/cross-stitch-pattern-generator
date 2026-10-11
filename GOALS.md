@@ -297,7 +297,7 @@ Outside both: G-111's comments follow G-112; G-097 comes after G-108, whose char
   - Delete `cs-wasm` (D186 superseded) and the unreferenced scripts.
   - Correct every "fall back to TypeScript" comment, D264's gutter, and the handover lines.
   - Split the live-chart half out of `render.ts`.
-- [ ] M3 — **Server and client scaffolding (C, server part).**
+- [x] M3 — **Server and client scaffolding (C, server part).**
   - Add `lib/server/account-resource.ts` (refusal, feature and limit check, bounded JSON) for the four resources, and `proxyToProcessor` for the five routes.
   - Add an `adminAction` wrapper, plus a test that every export of `lib/admin/*-actions.ts` uses it.
   - Add `lib/env.ts`, which validates the environment at startup.
@@ -332,6 +332,9 @@ Outside both: G-111's comments follow G-112; G-097 comes after G-108, whose char
 **Settled by the Owner at acceptance (2026-10-11):** M1 drops the worker-thread layer; the fake billing pages and adapter leave the production build entirely (not a runtime gate); M1 deploys on its own ahead of the rest.
 
 **Progress log** (newest first):
+- 2026-10-11 — M3 done (D411). `lib/server/account-resource.ts` carries the refusal, feature/limit check and bounded bodies for charts, stamps, palettes and own thread systems (eleven routes now `X.read`/`X.write`); `lib/server/processor-proxy.ts` forwards the five processor routes (photos now passes retry-after too); every admin action wraps `adminAction`/`asAdmin`; `lib/api-json.ts` serves palette-account, use-stamps, the three account lists, the own-system upload and the features refresh, typed by answer types beside each resource (`use-account-save` and opening a chart keep their tested outcome parsers). `lib/env.ts` + `instrumentation.ts`: a production server missing `DATABASE_URL`, `AUTH_SECRET` or `PROCESSOR_URL` names all of them and exits 1 — throwing alone left `next start` alive serving nothing, so it exits. HANDOVER gains the nginx/one-process rate-limit rule and the env rule.
+  - Verified: unit 1,919 / 161 files (new: account-resource, processor-proxy, admin-actions-guarded — shown to catch a planted unguarded action — env, api-json); tsc, eslint, prettier clean; `next build` with no server env ok; standalone `server.js` without env exit 1 with the three problems, with them "Ready". `features-resolve.spec` now finds processor routes by `forwardToProcessor(` too. M2's CI green on 31a5753 (check, rust), 717e346 too. Full e2e left to CI on push.
+  - Removed from HANDOVER: nothing; the admin rule line now names the guard spec. Next: M4.
 - 2026-10-11 — M2 done (D410). Deleted: the TS export engine and its specs, `cs-wasm`, both parity scripts, the TS gamut mapping, unused generation code and exports, and pdf-lib. The export types are in `lib/export/export-request.ts` rather than the planned `export-kinds.ts`. The live chart drawing moved to `lib/editor/chart-render.ts` with `stitch-texture.ts` and `canvas-backend.ts`. Specs that guarded live behaviour moved to Rust. `check:reachable` is in CI and `check:fast`. Eight decisions are superseded by D410, D396 in part; D264's gutter is corrected. `chart-render-parity` now checks the on-screen fallback against the rect-grid reference. Verified:
   - unit 1,879 / 156 files; Rust processor 24; cargo 109; goldens 74 with hashes unchanged;
   - e2e: export, A4, half-stitch, layer exports and viewport parity 145; chart-render-parity 68;

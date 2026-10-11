@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { guardMutation } from "@/lib/server/request-guard";
-import { createStamp, listStamps, readStampBody, requireSignedIn, stampRefusedResponse } from "@/lib/stamps/server";
+import { createStamp, listStamps, readStampBody, stamps } from "@/lib/stamps/server";
 
 /**
  * Stamps (G-119, D360). GET lists the requester's own, with how many they may keep; POST keeps the stamp in the body, with
@@ -10,21 +9,11 @@ import { createStamp, listStamps, readStampBody, requireSignedIn, stampRefusedRe
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET(): Promise<Response> {
-  try {
-    return NextResponse.json(await listStamps(await requireSignedIn()), { headers: { "cache-control": "no-store" } });
-  } catch (error) {
-    return stampRefusedResponse(error);
-  }
-}
+export const GET = stamps.read(async (): Promise<Response> => {
+  return NextResponse.json(await listStamps(await stamps.requireSignedIn()), { headers: { "cache-control": "no-store" } });
+});
 
-export async function POST(req: Request): Promise<Response> {
-  const refused = guardMutation(req, "chartSave");
-  if (refused) return refused;
-  try {
-    const userId = await requireSignedIn();
-    return NextResponse.json(await createStamp(userId, await readStampBody(req)), { status: 201 });
-  } catch (error) {
-    return stampRefusedResponse(error);
-  }
-}
+export const POST = stamps.write(async (req: Request): Promise<Response> => {
+  const userId = await stamps.requireSignedIn();
+  return NextResponse.json(await createStamp(userId, await readStampBody(req)), { status: 201 });
+});

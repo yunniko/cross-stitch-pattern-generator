@@ -3,7 +3,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { setData, type PaletteSet } from "@/lib/editor/palette-set";
 import { readSavedPalettes, writeSavedPalettes, type SavedPalette } from "@/lib/editor/saved-palettes";
-import { PALETTES_FEATURE, type AccountPalette } from "@/lib/palettes/palette";
+import { apiJson } from "@/lib/api-json";
+import { PALETTES_FEATURE, type AccountPalette, type PaletteList, type PaletteSaved, type PalettesMoved } from "@/lib/palettes/palette";
 import { useFeature } from "../features/features-context";
 
 /**
@@ -55,19 +56,17 @@ function markOffered() {
 }
 
 async function sendPalette(name: string, set: PaletteSet): Promise<{ palette: AccountPalette; replaced: boolean } | { error: string }> {
-  try {
-    const response = await fetch("/api/palettes", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name, ...setData(set) }),
-    });
-    const body = (await response.json().catch(() => null)) as (AccountPalette & { replaced: boolean; error?: string }) | null;
-    if (response.ok && body?.id)
-      return { palette: { id: body.id, name: body.name, set: body.set, savedAt: body.savedAt }, replaced: body.replaced };
-    return { error: body?.error ?? "The palette was not saved. Try again in a moment." };
-  } catch {
-    return { error: "Couldn't reach the server, so the palette was not saved. Check your connection and try again." };
-  }
+  const answer = await apiJson<PaletteSaved>(
+    "/api/palettes",
+    { method: "POST", json: { name, ...setData(set) } },
+    {
+      refused: "The palette was not saved. Try again in a moment.",
+      unreachable: "Couldn't reach the server, so the palette was not saved. Check your connection and try again.",
+    }
+  );
+  if (!answer.ok) return { error: answer.error };
+  const { replaced, ...palette } = answer.body;
+  return { palette, replaced };
 }
 
 export function PaletteAccountProvider({ signedIn, children }: { signedIn: boolean; children: ReactNode }) {
@@ -81,16 +80,15 @@ export function PaletteAccountProvider({ signedIn, children }: { signedIn: boole
     if (!usable) return;
     let live = true;
     void (async () => {
-      try {
-        const response = await fetch("/api/palettes", { cache: "no-store" });
-        const body = (await response.json().catch(() => null)) as { palettes?: AccountPalette[]; error?: string } | null;
-        if (!live) return;
-        if (response.ok && body?.palettes) setPalettes(body.palettes);
-        else setError(body?.error ?? "Couldn't read your palettes. Try again in a moment.");
-      } catch {
-        if (live) setError("Couldn't reach the server to read your palettes.");
-      }
-      if (live && !offered()) setBrowserPalettes(readSavedPalettes());
+      const answer = await apiJson<PaletteList>(
+        "/api/palettes",
+        { cache: "no-store" },
+        { refused: "Couldn't read your palettes. Try again in a moment.", unreachable: "Couldn't reach the server to read your palettes." }
+      );
+      if (!live) return;
+      if (answer.ok) setPalettes(answer.body.palettes);
+      else setError(answer.error);
+      if (!offered()) setBrowserPalettes(readSavedPalettes());
     })();
     return () => {
       live = false;
@@ -107,15 +105,15 @@ export function PaletteAccountProvider({ signedIn, children }: { signedIn: boole
 
   const remove = useCallback(
     async (id: string) => {
-      try {
-        const response = await fetch(`/api/palettes/${encodeURIComponent(id)}`, { method: "DELETE" });
-        if (response.status !== 204) {
-          const body = (await response.json().catch(() => null)) as { error?: string } | null;
-          return body?.error ?? "The palette was not deleted. Try again in a moment.";
+      const answer = await apiJson<void>(
+        `/api/palettes/${encodeURIComponent(id)}`,
+        { method: "DELETE" },
+        {
+          refused: "The palette was not deleted. Try again in a moment.",
+          unreachable: "Couldn't reach the server, so the palette was not deleted.",
         }
-      } catch {
-        return "Couldn't reach the server, so the palette was not deleted.";
-      }
+      );
+      if (!answer.ok) return answer.error;
       const name = palettes?.find((p) => p.id === id)?.name;
       setPalettes((list) => (list ?? []).filter((p) => p.id !== id));
       return name ? `Deleted “${name}”.` : "Deleted the palette.";
@@ -126,26 +124,16 @@ export function PaletteAccountProvider({ signedIn, children }: { signedIn: boole
   // Moves the browser's palettes in one request, the server giving a name the account keeps already a number; what is
   // left after a refusal stays in the browser, offered again next visit.
   const moveBrowserPalettes = useCallback(async () => {
-    let moved: AccountPalette[] = [];
-    let refusal: string | null = null;
-    try {
-      const response = await fetch("/api/palettes/move", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ palettes: browserPalettes.map((p) => ({ name: p.name, ...setData(p.set) })) }),
-      });
-      const body = (await response.json().catch(() => null)) as {
-        moved?: AccountPalette[];
-        refusal?: string | null;
-        error?: string;
-      } | null;
-      if (response.ok && body?.moved) {
-        moved = body.moved;
-        refusal = body.refusal ?? null;
-      } else refusal = body?.error ?? "The palettes were not moved. Try again in a moment.";
-    } catch {
-      refusal = "Couldn't reach the server, so the palettes were not moved. Check your connection and try again.";
-    }
+    const answer = await apiJson<PalettesMoved>(
+      "/api/palettes/move",
+      { method: "POST", json: { palettes: browserPalettes.map((p) => ({ name: p.name, ...setData(p.set) })) } },
+      {
+        refused: "The palettes were not moved. Try again in a moment.",
+        unreachable: "Couldn't reach the server, so the palettes were not moved. Check your connection and try again.",
+      }
+    );
+    const moved = answer.ok ? answer.body.moved : [];
+    const refusal = answer.ok ? answer.body.refusal : answer.error;
     const left = browserPalettes.slice(moved.length);
     setPalettes((list) => [...[...moved].reverse(), ...(list ?? [])]);
     writeSavedPalettes(left);

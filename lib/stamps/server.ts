@@ -1,13 +1,19 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/auth";
 import { chartPreviewPng } from "@/lib/charts/preview";
-import { Refused } from "@/lib/charts/server";
-import { featureStatesFor } from "@/lib/features/server";
-import { featureUsable } from "@/lib/features/features";
 import { limitsFor } from "@/lib/limits/server";
-import { limitValue, type LimitValue } from "@/lib/limits/limits";
+import { limitValue } from "@/lib/limits/limits";
+import { accountResource, readBoundedText, Refused } from "@/lib/server/account-resource";
 import { prisma } from "@/lib/prisma";
-import { STAMP_COUNT_LIMIT, STAMP_MAX_BYTES, STAMPS_FEATURE, countRefusal, readStampUpload, stampName, type StampSummary } from "./stamp";
+import {
+  STAMP_COUNT_LIMIT,
+  STAMP_MAX_BYTES,
+  STAMPS_FEATURE,
+  countRefusal,
+  readStampUpload,
+  stampName,
+  type StampCard,
+  type StampList,
+  type StampSummary,
+} from "./stamp";
 
 /**
  * The database half of stamps (G-119, D360), for the routes under `/api/stamps`. Shaped as saved charts' (`lib/charts/
@@ -17,26 +23,15 @@ import { STAMP_COUNT_LIMIT, STAMP_MAX_BYTES, STAMPS_FEATURE, countRefusal, readS
 
 export { Refused };
 
-export function stampRefusedResponse(error: unknown): Response {
-  if (error instanceof Refused) return NextResponse.json({ error: error.message, ...error.extra }, { status: error.status });
-  console.error("stamps:", error);
-  return NextResponse.json({ error: "Stamps are unavailable right now. Try again in a moment." }, { status: 503 });
-}
+/** Keeping a new stamp is the feature; reading, renaming and deleting those kept are not. */
+export const stamps = accountResource({
+  log: "stamps",
+  unavailable: "Stamps are unavailable right now. Try again in a moment.",
+  signIn: "Sign in to keep stamps with your account.",
+  feature: { id: STAMPS_FEATURE, refused: "Stamps are not available to you.", limit: STAMP_COUNT_LIMIT },
+});
 
 const NOT_FOUND = "That stamp is not among your stamps.";
-
-/** The signed-in requester's id; refused with 401 for a visitor. */
-export async function requireSignedIn(): Promise<string> {
-  const userId = (await auth())?.user?.id ?? null;
-  if (!userId) throw new Refused(401, "Sign in to keep stamps with your account.");
-  return userId;
-}
-
-/** Keeping a stamp is a feature: refused by name while it is locked or hidden for this person. Answers their limit. */
-async function requireStamps(userId: string): Promise<LimitValue> {
-  if (!featureUsable(await featureStatesFor(userId), STAMPS_FEATURE)) throw new Refused(403, "Stamps are not available to you.");
-  return limitValue(await limitsFor(userId), STAMP_COUNT_LIMIT);
-}
 
 /** The body of a save, refused when too large or not a stamp; with the document to keep and its preview. */
 export async function readStampBody(req: Request): Promise<{
@@ -45,11 +40,7 @@ export async function readStampBody(req: Request): Promise<{
   summary: StampSummary;
   preview: Uint8Array<ArrayBuffer>;
 }> {
-  const declared = Number(req.headers.get("content-length"));
-  if (Number.isFinite(declared) && declared > STAMP_MAX_BYTES) throw tooLarge();
-  const text = await req.text();
-  if (new TextEncoder().encode(text).byteLength > STAMP_MAX_BYTES) throw tooLarge();
-  const read = readStampUpload(text);
+  const read = readStampUpload(await readBoundedText(req, STAMP_MAX_BYTES, tooLarge));
   if ("error" in read) throw new Refused(422, read.error);
   return {
     document: read.document,
@@ -64,14 +55,6 @@ function tooLarge() {
     413,
     `This piece is larger than ${STAMP_MAX_BYTES / 1024 / 1024} MB, too large to keep as a stamp. Select a smaller piece.`
   );
-}
-
-/** A stamp as a card shows it, without its document. */
-export interface StampCard extends StampSummary {
-  id: string;
-  pinned: boolean;
-  version: number;
-  savedAt: string;
 }
 
 const CARD = {
@@ -93,7 +76,7 @@ const card = ({ updatedAt, ...stamp }: { updatedAt: Date } & Omit<StampCard, "sa
 });
 
 export async function createStamp(userId: string, body: Awaited<ReturnType<typeof readStampBody>>): Promise<StampCard> {
-  const allowed = await requireStamps(userId);
+  const allowed = await stamps.requireFeature(userId);
   return prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT 1 FROM "User" WHERE "id" = ${userId} FOR UPDATE`;
     const refusal = countRefusal(await tx.stamp.count({ where: { userId } }), allowed);
@@ -175,7 +158,7 @@ export function countStamps(userId: string): Promise<number> {
 }
 
 /** The person's stamps, pinned first, then newest, without their documents; with how many they may keep. */
-export async function listStamps(userId: string): Promise<{ stamps: StampCard[]; allowed: LimitValue }> {
+export async function listStamps(userId: string): Promise<StampList> {
   const [stamps, limits] = await Promise.all([
     prisma.stamp.findMany({ where: { userId }, orderBy: [{ pinned: "desc" }, { updatedAt: "desc" }], select: CARD }),
     limitsFor(userId),

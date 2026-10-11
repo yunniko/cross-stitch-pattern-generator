@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireAdmin } from "@/lib/admin/require-admin";
+import { adminAction } from "@/lib/admin/admin-action";
 import { logChange } from "@/lib/admin/change-log-data";
 import { SETTING_SCOPE } from "@/lib/admin/change-log";
 import { prisma } from "@/lib/prisma";
@@ -13,8 +13,7 @@ import type { ActionResult } from "./feature-actions";
  * the row, so the setting takes its default again. Each change is checked as an admin's and logged under SETTING.
  */
 export async function setSiteSettingAction(id: string, input: string): Promise<ActionResult> {
-  try {
-    const admin = await requireAdmin();
+  return adminAction(async (admin): Promise<ActionResult> => {
     const definition = siteSettingDefinition(id);
     if (!definition) return { error: "There is no such setting." };
     if (input === "default") {
@@ -34,8 +33,5 @@ export async function setSiteSettingAction(id: string, input: string): Promise<A
     revalidatePath("/admin/settings");
     revalidatePath("/admin/changes");
     return {};
-  } catch (error) {
-    // A refusal travels as `error`, never thrown: production replaces a thrown message with a generic one (feature-actions).
-    return { error: error instanceof Error ? error.message : "The change was refused." };
-  }
+  });
 }

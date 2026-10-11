@@ -1,10 +1,5 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/auth";
-import { Refused } from "@/lib/charts/server";
-import { featureStatesFor } from "@/lib/features/server";
-import { featureUsable } from "@/lib/features/features";
-import { limitsFor } from "@/lib/limits/server";
-import { limitValue, type LimitValue } from "@/lib/limits/limits";
+import { type LimitValue } from "@/lib/limits/limits";
+import { accountResource, readBoundedJson, Refused } from "@/lib/server/account-resource";
 import type { PaletteSet } from "@/lib/editor/palette-set";
 import { prisma } from "@/lib/prisma";
 import {
@@ -20,6 +15,8 @@ import {
   readPaletteUpload,
   storedPalette,
   type AccountPalette,
+  type PaletteList,
+  type PalettesMoved,
 } from "./palette";
 
 /**
@@ -28,34 +25,19 @@ import {
  * check sees what the other save left, and anyone but the owner is answered as if the palette did not exist.
  */
 
-export { Refused };
-
-export function paletteRefusedResponse(error: unknown): Response {
-  if (error instanceof Refused) return NextResponse.json({ error: error.message, ...error.extra }, { status: error.status });
-  console.error("palettes:", error);
-  return NextResponse.json({ error: "Palettes are unavailable right now. Try again in a moment." }, { status: 503 });
-}
+/** Every palette request needs the feature: `palettes.requireAccount()`. */
+export const palettes = accountResource({
+  log: "palettes",
+  unavailable: "Palettes are unavailable right now. Try again in a moment.",
+  signIn: "Sign in to keep palettes with your account.",
+  feature: { id: PALETTES_FEATURE, refused: "Palettes are not available to you.", limit: PALETTE_COUNT_LIMIT },
+});
 
 const NOT_FOUND = "That palette is not among your palettes.";
 
-/** The signed-in requester's id, allowed to keep palettes, with how many they may keep. */
-export async function requirePalettes(): Promise<{ userId: string; allowed: LimitValue }> {
-  const userId = (await auth())?.user?.id ?? null;
-  if (!userId) throw new Refused(401, "Sign in to keep palettes with your account.");
-  if (!featureUsable(await featureStatesFor(userId), PALETTES_FEATURE)) throw new Refused(403, "Palettes are not available to you.");
-  return { userId, allowed: limitValue(await limitsFor(userId), PALETTE_COUNT_LIMIT) };
-}
-
 /** A body as JSON, refused when larger than `maxBytes` or not JSON. */
-async function readJson(req: Request, maxBytes: number): Promise<unknown> {
-  const declared = Number(req.headers.get("content-length"));
-  const text = Number.isFinite(declared) && declared > maxBytes ? null : await req.text();
-  if (text === null || new TextEncoder().encode(text).byteLength > maxBytes) throw new Refused(413, "That is too large to keep.");
-  try {
-    return JSON.parse(text);
-  } catch {
-    throw new Refused(400, "That is not a palette.");
-  }
+function readJson(req: Request, maxBytes: number): Promise<unknown> {
+  return readBoundedJson(req, maxBytes, () => new Refused(413, "That is too large to keep."), "That is not a palette.");
 }
 
 /** The body of a save, refused when too large or not a palette. */
@@ -112,7 +94,7 @@ export async function movePalettes(
   userId: string,
   allowed: LimitValue,
   list: Array<{ name: string; set: PaletteSet }>
-): Promise<{ moved: AccountPalette[]; refusal: string | null }> {
+): Promise<PalettesMoved> {
   return prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT 1 FROM "User" WHERE "id" = ${userId} FOR UPDATE`;
     const taken = new Set((await tx.palette.findMany({ where: { userId }, select: { name: true } })).map((p) => p.name));
@@ -155,7 +137,7 @@ export async function deletePalette(userId: string, id: string): Promise<void> {
 }
 
 /** The person's palettes, newest first, with how many they may keep. */
-export async function listPalettes(userId: string, allowed: LimitValue): Promise<{ palettes: AccountPalette[]; allowed: LimitValue }> {
+export async function listPalettes(userId: string, allowed: LimitValue): Promise<PaletteList> {
   const rows = await prisma.palette.findMany({ where: { userId }, orderBy: { updatedAt: "desc" }, select: ROW });
   return { palettes: rows.flatMap((row) => palette(row) ?? []), allowed };
 }

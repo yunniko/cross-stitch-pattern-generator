@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { processorBaseUrl } from "@/lib/env";
 
 /**
  * What stands between the open internet and the processor (G-034 M2, M3).
@@ -103,7 +104,7 @@ function canonicalOrigin(origin: string): string | null {
  * trusted, which is the deployed default — the site's own origin is what a browser sends anyway.
  */
 function allowedOrigins(req: Request): string[] {
-  const configured = process.env.APP_URL;
+  const configured = process.env.APP_URL || null;
   return configured ? [new URL(req.url).origin, configured] : [new URL(req.url).origin];
 }
 
@@ -194,9 +195,9 @@ export function mailRateLimited(email: string): SpendResult {
   return spend(`mail:${email}`, "mail");
 }
 
-/** Where the processor lives on the internal network; only these handlers ever address it. */
+/** Where the processor lives on the internal network (`lib/env.ts`); only these handlers ever address it. */
 export function processorUrl(path: string): string {
-  const base = process.env.PROCESSOR_URL ?? "http://127.0.0.1:8081";
+  const base = processorBaseUrl();
   return `${base.replace(/\/$/, "")}${path}`;
 }
 

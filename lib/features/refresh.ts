@@ -1,3 +1,5 @@
+import type { FeatureStates } from "./features";
+
 /**
  * How long the browser keeps a person's feature states before it asks for them again (G-102): set on the server by
  * `FEATURES_REFRESH_SECONDS`, 300 when unset or not a number, held between 5 seconds and a day. An admin's change then
@@ -16,4 +18,9 @@ export function featuresRefreshSeconds(raw: string | undefined): number {
 /** True when the states held are older than the time they may be kept. */
 export function featuresExpired(fetchedAt: number, now: number, refreshSeconds: number): boolean {
   return now - fetchedAt >= refreshSeconds * 1000;
+}
+
+/** What `GET /api/features` answers: the asker's feature states, fresh. */
+export interface FeaturesAnswer {
+  states: FeatureStates;
 }

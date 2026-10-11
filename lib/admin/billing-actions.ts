@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import type { Prisma } from "@/generated/prisma/client";
-import { requireAdmin } from "@/lib/admin/require-admin";
+import { adminAction, type Admin } from "@/lib/admin/admin-action";
 import { logChange } from "@/lib/admin/change-log-data";
 import { BILLING_SCOPE } from "@/lib/admin/change-log";
 import {
@@ -31,14 +31,14 @@ import type { ActionResult } from "./feature-actions";
 const OFF = "Billing is off on this server. Prices are made at the payment provider, so none can be made or changed until it is set up.";
 const UNAVAILABLE = "The payment provider could not be reached. Nothing was changed; please try again in a few minutes.";
 
-async function attempt(work: () => Promise<void>): Promise<ActionResult> {
-  try {
-    await work();
-    return {};
-  } catch (error) {
-    if (error instanceof BillingUnavailableError) return { error: UNAVAILABLE };
-    return { error: error instanceof Error ? error.message : "The change was refused." };
-  }
+function attempt(work: (admin: Admin) => Promise<void>): Promise<ActionResult> {
+  return adminAction(
+    async (admin): Promise<ActionResult> => {
+      await work(admin);
+      return {};
+    },
+    { explain: (error) => (error instanceof BillingUnavailableError ? UNAVAILABLE : undefined) }
+  );
 }
 
 async function gatewayOrRefuse(): Promise<BillingGateway> {
@@ -92,8 +92,7 @@ export interface NewPriceInput {
 
 /** A new price for a tier and period, made at the provider and offered from now on in place of the one it replaces. */
 export async function createPriceAction(input: NewPriceInput): Promise<ActionResult> {
-  return attempt(async () => {
-    const admin = await requireAdmin();
+  return attempt(async (admin) => {
     if (!isBillingInterval(input.interval)) throw new Error("Choose monthly or yearly.");
     if (!isPriceCurrency(input.currency)) throw new Error("Choose a currency from the list.");
     if (!/^[A-Za-z0-9-]{8,64}$/.test(input.requestKey)) throw new Error("The form is out of date; reload the page.");
@@ -142,8 +141,7 @@ export async function createPriceAction(input: NewPriceInput): Promise<ActionRes
 
 /** An earlier price offered again, in place of the current one of its tier and period. */
 export async function makePriceCurrentAction(priceId: string): Promise<ActionResult> {
-  return attempt(async () => {
-    const admin = await requireAdmin();
+  return attempt(async (admin) => {
     const price = await prisma.price.findUnique({
       where: { id: priceId },
       select: {
@@ -181,8 +179,7 @@ export async function makePriceCurrentAction(priceId: string): Promise<ActionRes
 
 /** A price no longer offered, with nothing in its place; the subscriptions on it keep it. */
 export async function withdrawPriceAction(priceId: string): Promise<ActionResult> {
-  return attempt(async () => {
-    const admin = await requireAdmin();
+  return attempt(async (admin) => {
     const price = await prisma.price.findUnique({
       where: { id: priceId },
       select: {
@@ -211,8 +208,7 @@ export async function withdrawPriceAction(priceId: string): Promise<ActionResult
  * whose webhook has not arrived yet keeps the tier; a tier with no prices needs no provider.
  */
 export async function deleteTierAction(tierId: string): Promise<ActionResult> {
-  return attempt(async () => {
-    const admin = await requireAdmin();
+  return attempt(async (admin) => {
     const tier = await prisma.tier.findUnique({
       where: { id: tierId },
       select: {
@@ -267,8 +263,7 @@ function revalidatePerson() {
 
 /** Gives a person a tier by hand until the start of the day chosen (UTC); over an earlier grant, it replaces it. */
 export async function grantTierAction(userId: string, tierId: string, endsOn: string): Promise<ActionResult> {
-  return attempt(async () => {
-    const admin = await requireAdmin();
+  return attempt(async (admin) => {
     if (userId === admin.id) throw new Error(GRANT_REFUSED.own);
     const now = new Date();
     const [user, tier, stored] = await Promise.all([
@@ -291,8 +286,7 @@ export async function grantTierAction(userId: string, tierId: string, endsOn: st
 
 /** Ends a tier given by hand now. */
 export async function endGrantAction(userId: string): Promise<ActionResult> {
-  return attempt(async () => {
-    const admin = await requireAdmin();
+  return attempt(async (admin) => {
     if (userId === admin.id) throw new Error(GRANT_REFUSED.own);
     const now = new Date();
     const [user, stored] = await Promise.all([

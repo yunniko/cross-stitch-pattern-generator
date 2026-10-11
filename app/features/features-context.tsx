@@ -1,7 +1,8 @@
 "use client";
 
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { featuresExpired } from "@/lib/features/refresh";
+import { apiJson } from "@/lib/api-json";
+import { featuresExpired, type FeaturesAnswer } from "@/lib/features/refresh";
 import {
   EVERYTHING_ON,
   featureShown,
@@ -42,14 +43,11 @@ export function FeaturesProvider({
     let cancelled = false;
     async function ask() {
       fetchedAt.current = Date.now();
-      try {
-        const response = await fetch("/api/features", { cache: "no-store" });
-        if (!response.ok) return;
-        const { states: next } = (await response.json()) as { states: FeatureStates };
-        if (!cancelled) setStates((held) => (JSON.stringify(held) === JSON.stringify(next) ? held : next));
-      } catch {
-        // Offline or the server busy: keep what is held.
-      }
+      // Offline or the server busy: keep what is held, so the refusal's words are never shown.
+      const answer = await apiJson<FeaturesAnswer>("/api/features", { cache: "no-store" }, { refused: "", unreachable: "" });
+      if (!answer.ok || cancelled) return;
+      const next = answer.body.states;
+      setStates((held) => (JSON.stringify(held) === JSON.stringify(next) ? held : next));
     }
     const timer = window.setInterval(() => {
       if (document.visibilityState === "visible") void ask();

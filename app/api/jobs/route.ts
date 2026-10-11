@@ -1,10 +1,8 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/auth";
-import { guardMutation, processorUnreachable, processorUrl } from "@/lib/server/request-guard";
+import { guardMutation } from "@/lib/server/request-guard";
 import { quotaForRoute } from "@/lib/limits/quota-server";
 import { generationRefusal, workspaceRefusal } from "@/lib/features/request-check";
-import { featureStatesFor } from "@/lib/features/server";
 import { parseBody } from "@/lib/server/parse-body";
+import { forwardToProcessor, readCappedBody, refusal, requester } from "@/lib/server/processor-proxy";
 import { requestSystemsFor, systemLabelsFor, withThreadSystems } from "@/lib/thread-systems/server";
 import { systemRefusal } from "@/lib/thread-systems/thread-system";
 
@@ -26,22 +24,20 @@ export async function POST(req: Request): Promise<Response> {
   const refused = guardMutation(req);
   if (refused) return refused;
 
-  const body = await req.text();
-  if (body.length > MAX_SETTINGS_BYTES) {
-    return NextResponse.json({ error: "That request is too large." }, { status: 413 });
-  }
+  const read = await readCappedBody(req, MAX_SETTINGS_BYTES, "That request is too large.");
+  if ("response" in read) return read.response;
+  const { body } = read;
 
   // Under the feature switches (G-102): a request asking for a feature this person cannot use is refused by name, before
   // the processor sees it. The body is read as JSON only for this; the processor still gets the text as sent.
-  const userId = (await auth())?.user?.id ?? null;
+  const { userId, states } = await requester();
   // The workspace first (G-103, D314): with Photo off nothing of it is served, whatever the settings ask.
-  const states = await featureStatesFor(userId);
   const parsed = parseBody(body);
-  const refusal =
+  const locked =
     workspaceRefusal("/api/jobs", states) ??
     generationRefusal(parsed, states) ??
     systemRefusal(parsed, states, new Map(await systemLabelsFor(userId)));
-  if (refusal) return NextResponse.json({ error: refusal }, { status: 403 });
+  if (locked) return refusal(403, locked);
 
   // The thread systems it names, from the table and never from the browser (G-132, D400).
   const forwarded = await withThreadSystems(body, async (b) => ({ threadSystems: await requestSystemsFor(b, states, userId) }));
@@ -50,19 +46,5 @@ export async function POST(req: Request): Promise<Response> {
   const quota = await quotaForRoute("GENERATE", userId, null);
   if ("response" in quota) return quota.response;
 
-  try {
-    const upstream = await fetch(processorUrl("/jobs"), {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: forwarded,
-    });
-    quota.ticket.settle(upstream.ok);
-    const headers: Record<string, string> = { "content-type": "application/json" };
-    const retryAfter = upstream.headers.get("retry-after");
-    if (retryAfter) headers["retry-after"] = retryAfter;
-    return new NextResponse(await upstream.text(), { status: upstream.status, headers });
-  } catch {
-    quota.ticket.settle(false);
-    return processorUnreachable();
-  }
+  return forwardToProcessor("/jobs", { body: forwarded, ticket: quota.ticket });
 }
