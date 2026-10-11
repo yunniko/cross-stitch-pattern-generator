@@ -89,6 +89,6 @@ All remembered in the browser; none changes the chart. **Each is shown only with
 | **A4 cell size** | Number of millimetres, **2 to 12**, step 0.25; typed freely and brought within the limits on leaving the field (Enter commits); invalid text is ignored | 5.5 | A4 pages only (symbols and lines grow with it); not the full chart PNG, not the Pattern Keeper PDF |
 | **A4/PDF overlap** | One press among **0, 3, 5, 10** stitches repeated between adjacent pages | 5 | A4 pages and the PDF |
 | **Canvas in exported preview** | Switch, shown with the realistic preview | Off | The realistic preview (alone and inside Export all) sits on the canvas colour and cloth instead of a transparent ground |
-| **Author name** | Text, any length | Empty ("(shown on exported charts)") | Printed on exported charts and written to the OXS file |
+| **Author name** | Text, up to 200 characters | Empty ("(shown on exported charts)") | Printed on exported charts and written to the OXS file |
 | **Fabric count / Unit** | See `03`: the chart's own | 14 / cm | Physical sizes in every export |
 | **Stitch texture** | See `03` | Classic | The realistic preview |

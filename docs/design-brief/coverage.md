@@ -541,6 +541,7 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | D398 | 01-overview 02-photo-and-generation 05-colours-and-threads 09-limits-and-messages | palettes kept with the account; save as file; the move from the browser |
 | G-132 | 05-colours-and-threads 08-exports-and-files | thread systems as data; a system not loaded here kept as written |
 | G-133 | 02-photo-and-generation 04-editing | every try selectable, nothing beside the tries but words; locked layers; M4 (the account opens on Charts, Active accounts) is accounts and admin, out of scope |
+| G-134 | 09-limits-and-messages 08-exports-and-files | code health; what shows is M1's refusal of a file that is not a picture and the author name's limit |
 | D399 | 05-colours-and-threads 08-exports-and-files | any system name kept; a colour of one not loaded opens in the common colour picker |
 | D400 | 02-photo-and-generation 05-colours-and-threads | the systems are data with a note each; Anchor matched as a plain list |
 | D401 | 05-colours-and-threads 10-features | the admin's thread systems, their files and their switches |
@@ -549,3 +550,6 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | D405 | out of scope (accounts and admin) | |
 | D406 | out of scope (accounts and admin) | |
 | D403 | 02-photo-and-generation | the same chart made again is the kept try; the current try follows the choice |
+| D407 | 09-limits-and-messages | a file that is not a picture is refused before decoding |
+| D408 | out of scope (billing) | |
+| D409 | out of scope (accounts and admin) | |
