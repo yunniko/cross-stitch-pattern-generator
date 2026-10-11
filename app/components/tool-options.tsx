@@ -7,21 +7,6 @@ import { BarMenu } from "./bar-menu";
 import type { FitItem } from "./fit-track";
 import { SegmentedControl } from "./ui";
 
-/**
- * The options of the tool in hand (G-093): drawn from what the tool declares, with nothing here that knows a tool or an
- * option by name. Options with one heading are drawn together; the heading names the group for a screen reader but is
- * not written on the bar (Owner, 2026-10-07, G-118: the bar shows controls, not their names).
- *
- * Each group is one piece of the bar's fit (G-118, D340): whole, compact (every row of choices becomes one button showing
- * the current choice and opening the row; a list is compact already), or in More. A tool's options are kept whole
- * longest, and of them the first, the ones the tool is used for.
- */
-export interface ToolOptionsProps {
-  options: readonly ToolOption[];
-  valueOf: (option: ToolOption) => OptionValue;
-  onChange: (option: ToolOption, value: OptionValue) => void;
-}
-
 function Control({ option, value, onChange }: { option: ToolOption; value: OptionValue; onChange: (value: OptionValue) => void }) {
   const shown = (candidate: OptionValue) => option.choices?.find((choice) => choice.value === candidate);
   if (option.control === "select") {
@@ -137,6 +122,15 @@ function CompactControl({ option, value, onChange }: { option: ToolOption; value
   );
 }
 
+/**
+ * The options of the tool in hand (G-093): drawn from what the tool declares, with nothing here that knows a tool or an
+ * option by name. Options with one heading are drawn together; the heading names the group for a screen reader but is
+ * not written on the bar (Owner, 2026-10-07, G-118: the bar shows controls, not their names).
+ *
+ * Each group is one piece of the bar's fit (G-118, D340): whole, compact (every row of choices becomes one button showing
+ * the current choice and opening the row; a list is compact already), or in More. A tool's options are kept whole
+ * longest, and of them the first, the ones the tool is used for.
+ */
 export function toolOptionItems(
   options: readonly ToolOption[],
   valueOf: (option: ToolOption) => OptionValue,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { buildStitchTiles } from "@/lib/export/stitch-texture";
+import { buildStitchTiles } from "@/lib/editor/stitch-texture";
 import { STITCH_TEXTURES, type StitchTextureId } from "@/lib/export/stitch-texture-catalog";
 import type { PaletteColor, StitchPattern } from "@/lib/types";
 import { useGatedOptions } from "../features/features-context";

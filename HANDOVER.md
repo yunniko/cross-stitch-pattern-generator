@@ -1,6 +1,6 @@
 # Handover — cross-stitch-pattern-generator
 
-Last verified: 2026-10-11 at 7057f27; production runs 7057f27, v0.28.1 (1,974 unit, Rust processor specs 24, cargo 100, Rust goldens 74 at 7057f27; CI on 051dfe4: e2e 702 and 42)
+Last verified: 2026-10-11 at the G-134 M2 commit; production runs 7057f27, v0.28.1 (M2 local: 1,879 unit, Rust processor specs 24, cargo 109, Rust goldens 74 unchanged, e2e export and chart-parity specs 213; full e2e left to CI)
 
 Photo → editable, printable cross-stitch chart. Decoding, generation and every export but the editable save run on the server. A
 standalone Owner project (not svc-lab), live at
@@ -9,13 +9,13 @@ goals in `docs/goals-archive.md`, and company rules in `E:\CLAUDE\COMPANY\`.
 
 ## Current state
 
-**G-134, code health — ACTIVE, M1 of 6 done (accepted 2026-10-11).** Plan and findings: `docs/reviews/2026-10-10-code-health-review.md`. M1 (D407): the processor spawns each `cs-job` itself under three slots, each with a deadline, killed on cancel, deadline or a client gone, its slot freed only when it exits; predictions and previews get 15 s. The worker threads are gone. Photos are header-checked before decoding (`processor/image-header.ts`): an unknown format is 415, an oversized one 413. Sidecar panics are logged, never shown; export requests travel on stdin, and the author name is capped at 200. D408: the fake billing adapter and pages exist only in `next dev` or a `BILLING_FAKE_BUILD=1` build; CI scans the production build (`scripts/check-no-fake-billing.mjs`). D409: the admin bootstrap is off unless set and closes once an admin exists. A registration race answers "already exists" instead of 500; a failed quota give-back is retried once. M2–M6 follow (`GOALS.md`).
+**G-134, code health — ACTIVE, M1 and M2 of 6 done (accepted 2026-10-11).** Plan and findings: `docs/reviews/2026-10-10-code-health-review.md`. M1 (D407): the processor spawns each `cs-job` itself under three slots, each with a deadline, killed on cancel, deadline or a client gone, its slot freed only when it exits; predictions and previews get 15 s. The worker threads are gone. Photos are header-checked before decoding (`processor/image-header.ts`): an unknown format is 415, an oversized one 413. Sidecar panics are logged, never shown; export requests travel on stdin, and the author name is capped at 200. D408: the fake billing adapter and pages exist only in `next dev` or a `BILLING_FAKE_BUILD=1` build; CI scans the production build (`scripts/check-no-fake-billing.mjs`). D409: the admin bootstrap is off unless set and closes once an admin exists. A registration race answers "already exists" instead of 500; a failed quota give-back is retried once. M2 (D410): the TypeScript export engine, `cs-wasm`, the parity scripts, the TS gamut mapping and pdf-lib are deleted; their specs that guarded live behaviour are Rust tests now; `npm run check:reachable` (`scripts/check-reachable.mjs`, in CI and `check:fast`) fails when a module under `app/`, `lib/` or `processor/` is run by nothing that ships. The live chart drawing is `lib/editor/chart-render.ts`, `stitch-texture.ts` and `canvas-backend.ts`. M3–M6 follow (`GOALS.md`).
 
 **G-133, locked layers and the tries strip — signed off 2026-10-10, archived; M1 to M3 deployed in v0.27.0, M4 (added by the Owner) in v0.28.0.** M1 (D403): a try made again with the same chart and settings is not stored twice, the existing one is chosen (`keepTry` in `lib/editor/tries.ts`); the current try is the one chosen while the chart still equals it (`currentTryId`), so every try is selectable; the strip has no Edit shortcut. M2 (D404): `LayerHeader.locked`, saved only when true (no format bump); a locked layer refuses drawing (`lib/editor/tool-layer.ts`, and `withLayerView` as the backstop), renaming, deleting and merging either way (`setLayerLocked`, `assertUnlocked` in `lib/document/layers.ts`); chart-wide edits (crop, move, palette) still apply to it. The lock is a toggle per row in `app/components/layers-pane.tsx`. M4 (Owner's addition): the account area opens on Charts at `/account`, Profile & sign-in at `/account/profile` (D405); deleting an account clears `UsageEvent.userId` on its events, a migration cleared those already left, and the Overview's Active accounts joins `User` (D406).
 
 **G-132, thread systems as plugins — signed off 2026-10-10, archived; deployed in v0.26.0.** M1 (D399): a colour's system is an open string: a loaded system is stored by its id, any other kept as written (`threadSystem`, `isLoadedSystem` and `systemLabel` in `lib/threads/thread-brands.ts`); every format keeps it, exports print it, and the colour editor opens such a colour in the common colour picker. M2 (D400): the systems are `ThreadSystem` rows seeded by the migration; pages load them through `app/thread-systems/thread-systems-context.tsx`; the job, prediction and export routes replace whatever the browser sent with the table's (`lib/thread-systems/server.ts`); Rust has no list of its own; Anchor is a plain list. M3 (D401): `/admin/thread-systems` adds, edits, downloads and deletes site systems (`lib/admin/thread-system-actions.ts`, files read by `lib/thread-systems/thread-list-file.ts`); each system's switch `brand.<key>` is made from its row (`systemFeatures`). M4 (D402): a person's own systems are `ThreadSystem` rows with an owner, keyed `my-<name>`, under the one switch `threads.custom` and the limit `threads.systems`; uploaded through `/api/thread-systems` (`lib/thread-systems/own-system.ts` pure, `own-server.ts` reads and writes), listed at `/account/thread-systems`, and offered by `app/thread-systems/own-system-choice.tsx` as "Yours" beside each system choice. M5: released and checked live, the seed included.
 
-**G-131, palettes with thread system and number — signed off 2026-10-10, archived; deployed in v0.25.0.** M1 (D395): no chart is locked to one system; `threadBrand` only records the generation system. `threadIdentity` (`lib/threads/thread-brands.ts`) makes a typed system and number into `source`, keeping numbers no catalogue lists; `setColorThread` (`lib/editor/pattern-edit.ts`) sets it without changing the colour; the colour editor's System and Number fields are `app/components/thread-fields.tsx`; "+ Add" has the mode switch. M2 (D396): every key prints System, Number and Color name columns whatever the systems (`lib/threads/printed-thread.ts` and `Color::printed_thread` in Rust); OXS writes each colour's own system and number. M3 (D397): a set colour is `{rgb, name?, source?}`, the palette file is version 2 (`lib/editor/palette-set.ts`); save and load are `app/components/palette-library.tsx` on both pages; Append and Replace are `lib/editor/palette-load.ts` and `replacePaletteInDocument`. M4 (D398): saved palettes are the account's (`lib/palettes/`, `/api/palettes`), one list for both pages through `app/components/palette-account.tsx`; signed out, file only; the browser's old palettes move in by one request (`app/api/palettes/move/route.ts`).
+**G-131, palettes with thread system and number — signed off 2026-10-10, archived; deployed in v0.25.0.** M1 (D395): no chart is locked to one system; `threadBrand` only records the generation system. `threadIdentity` (`lib/threads/thread-brands.ts`) makes a typed system and number into `source`, keeping numbers no catalogue lists; `setColorThread` (`lib/editor/pattern-edit.ts`) sets it without changing the colour; the colour editor's System and Number fields are `app/components/thread-fields.tsx`; "+ Add" has the mode switch. M2 (D396): every key prints System, Number and Color name columns whatever the systems (`Color::printed_thread` in Rust); OXS writes each colour's own system and number. M3 (D397): a set colour is `{rgb, name?, source?}`, the palette file is version 2 (`lib/editor/palette-set.ts`); save and load are `app/components/palette-library.tsx` on both pages; Append and Replace are `lib/editor/palette-load.ts` and `replacePaletteInDocument`. M4 (D398): saved palettes are the account's (`lib/palettes/`, `/api/palettes`), one list for both pages through `app/components/palette-account.tsx`; signed out, file only; the browser's old palettes move in by one request (`app/api/palettes/move/route.ts`).
 
 **G-130, layers — DONE (Owner sign-off 2026-10-09), deployed in v0.23.0, archived.** M1 (D390): a chart is `ChartDocument.layers`, bottom first, at most 32; each layer's kind is declared once in `lib/document/layer-kinds.ts` (the stitch kind in `stitch-kind.ts`); `lib/document/layers.ts` adds, deletes (one always left), shows, hides, moves, merges (the upper stitch wins) and renames; `flatten` composes the visible layers, `layerView`/`withLayerView` give the tools the active layer as a `StitchPattern`. Chart-wide edits (crop, move, palette) go through `lib/editor/document-edit.ts`. One layer saves as format 7 exactly as before; several as format 8 (`serializeChart`). `EditorHistory` (`app/hooks/use-document-history.ts`) holds `activeLayerId`; choosing it is no undo step. M2 (D391): the `edit.layers` feature, the Layers tab (`app/components/layers-pane.tsx`, `app/hooks/use-layers.ts`), drop rule `lib/editor/layer-drop.ts`; `tests/e2e/layers-tab.spec.ts`. M3 (D392): tool previews are composed among the layers by `lib/document/layer-stack.ts`; each tool declares `layerKinds` and `drawsOnLayer`, and `lib/editor/tool-layer.ts` refuses it, with a note, on another kind or a hidden layer; `tests/e2e/layers-tools.spec.ts`. M4 (D393): the thread list and every export read `history.composite`; Export all's editable entry is replaced in the page for a chart of several layers (`lib/export/bundle-editable.ts`), so the server and Rust stay layer-blind; `tests/e2e/layers-exports.spec.ts`.
 
@@ -120,7 +120,7 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
 ## How things fit together
 
 - **Stack**: Next.js 16 App Router (`output: "standalone"`), React 19, TypeScript strict, Tailwind 4, Vitest 4,
-  Playwright 1.62, Node 22. Runtime deps: pdf-lib with fontkit, jszip, react-colorful, color-name-list,
+  Playwright 1.62, Node 22. Runtime deps: jszip, react-colorful, color-name-list,
   @napi-rs/canvas (server decode and preview encoding, D150). Rust 1.96 for G-048's port only (D182).
 - **UI shell** (direction 1b, D157): `app/page.tsx` renders `app/workspace.tsx`, which owns only undo history,
   cross-pane state and pointer dispatch (pan → move → select → brush). Behavior lives in `app/hooks/`: options,
@@ -139,11 +139,10 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
   `lib/editor/photo-adjust-preview.ts` → `lib/editor/photo-adjust.worker.ts`, painting a downscaled copy
   (`lib/pipeline/photo-preview.ts`) onto a canvas. Nothing leaves the page; the server has no preview endpoint
   since D240.
-- **Export path (server, G-034 M4, D153)**: `app/hooks/use-exports.ts` → `lib/export/export-server.ts` →
-  `app/api/exports/route.ts` → the same pool as generation, inside D149's cap. The drawing asks
-  `lib/export/canvas-backend.ts` for canvases, PNG encoding, images and the PDF font, which
-  `processor/export-backend.ts` answers with `@napi-rs/canvas`; `processor/validate-export.ts` checks requests, and
-  page progress and the file come back over the job routes.
+- **Export path (server, D221)**: `app/hooks/use-exports.ts` → `lib/export/export-server.ts` →
+  `app/api/exports/route.ts` → the same pool as generation, inside D149's cap; `processor/validate-export.ts` checks
+  the request (`lib/export/export-request.ts`), `cs-job` draws the file in Rust, and page progress and the file come
+  back over the job routes.
 - **Photo decode**: `lib/editor/load-image.ts` sends the file or data URL to `decode-image.worker.ts`;
   `decode-main-thread.ts` is the fallback, both sizing through `decode-bitmap.ts` (D128, reused by D150).
 - **Pipeline order** in `buildPattern`: area-weighted linear-light downsample; Sobel importance and per-pair
@@ -161,23 +160,23 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
   costs in ICM and cleanup, repair after merges, and mode-aware finalization (D061–D072); it evaluates every cell
   (D132). Crisp+ (G-038) adds blurred-step evidence (D139), strip snapping (D140), pruning (D141), refill (D142).
 - **Threads** (`lib/threads/`, `lib/thread-systems/`): the systems are table rows (D400); `thread-brands.ts` is the browser's registry of those loaded, `thread-system.ts` the pure rules for a list and a request, `server.ts` the table's reader for pages and routes. Provenance of the seeded three in `docs/*-colors-provenance.md`.
-- **Export** (`lib/export/`): `render.ts` holds the chart layout budget and the realistic preview, streamed a strip at
-  a time from `stitch-texture.ts`'s tiles (D173). A4 page drawing takes a `ChartDrawingContext`, so one code path draws
-  PNG and PDF pages (`pdf-canvas-adapter.ts`, D074, D126). `export-jobs.ts` runs every export on the processor, through
-  the canvases, assets and PNG writer (`lib/server/png-encode.ts`, D171) that `canvas-backend.ts` hands it (D125, D153).
-  The editable JSON alone is written in the page by `use-exports.ts`, so work can be saved with the server unreachable.
+- **Export** (`lib/export/`): the request, its kinds, progress and the download; every file is drawn by
+  `rust/cs-export` (D221, D410). The editable JSON alone is written in the page by `use-exports.ts`, so work can be
+  saved with the server unreachable. The chart on screen is drawn by `lib/editor/chart-render.ts`, the realistic view
+  from `stitch-texture.ts`'s tiles (D173), with canvases from `canvas-backend.ts`, where unit tests install
+  `@napi-rs/canvas` (`tests/unit/helpers/node-canvas.ts`).
 - **Editor data** (`lib/editor/`): pure mutations in `pattern-edit.ts`, the piece in hand in `floating-selection.ts`, selection areas in `selection-area.ts`, region finding in `region.ts`, validating (de)serializer in
   `pattern-serialize.ts` (D099), IndexedDB store in `project-store.ts` (D100), options in `workspace-storage.ts`. OXS
   lives in `oxs.ts` on the XML reader `oxs-xml.ts` (D119); `pattern-import.ts` sniffs the format.
 - **Experimental** (`lib/experimental/`): contour refinement, boundary chains, simulated annealing, diagnostics (status table in its README).
 - **Rust in the processor (G-048)**: `processor/rust-jobs.ts` spawns `cs-job` per job — pixels or the editable save
-  in, the file out, progress as JSON lines on stderr — and returns null on any failure, falling back to TypeScript
-  (D193). The image builds it in its own `rust` stage; a missing binary fails the job rather than disabling it.
+  in, the file out, progress as JSON lines on stderr. Nothing stands behind it: a failure fails the job (D221, D407).
+  The image builds it in its own `rust` stage.
 - **Rust port (G-048)**: `rust/cs-core` ports the pipeline module by module, each file naming the TypeScript it ports:
   `crisp/` holds Crisp and Crisp+, `threads.rs` brand matching, `photo_adjust.rs` the four sliders, `dither.rs` G-052's patterns,
   `jsmath.rs` and `fdlibm.rs` the V8-exact maths (D183, D184) pinned by `rust/cs-core/tests/jsmath_vectors.rs`.
   `rust/cs-export` ports every export: `text.rs`/`canvas.rs` draw DejaVu text as the processor's canvas does (D187),
-  `pdf.rs` pdf-lib's structure (D189), `bundle.rs` JSZip's ZIPs. `rust/cs-bench` is the CLI behind `npm run compare:rust`.
+  `pdf.rs` pdf-lib's structure (D189), `bundle.rs` JSZip's ZIPs. `rust/cs-bench` is the CLI the golden and measurement scripts run.
 - **Tests**: four layers (D222). Unit specs in `tests/unit/` cover the browser and the editor. The generation
   pipeline is covered by `scripts/rust-goldens.ts` (39 recorded hashes, D107), `rust/cs-core/tests/
   pattern_invariants.rs` (what must hold of *any* chart), `scripts/rust-photo-adjust.ts` (the two copies of the
@@ -185,7 +184,6 @@ extracts as μ) matters in Pattern Keeper is unconfirmed (D074, D097). Isolate d
   photo's chart). All four need
   `cargo build --release` first and run under `vitest.rust.config.ts`. E2E specs are in `tests/e2e/`;
   `npm run test:e2e` starts the processor and the app together, since the page needs both.
-  `compare:export-parity` diffs two running builds.
 - **Deploy**: `Dockerfile` builds two targets (`runtime`, `processor`) and `docker-compose.yml` runs both under
   D149's caps (app on `127.0.0.1:30150`; the processor publishes no port). Recipe and shared-host rules:
   `COMPANY/INFRASTRUCTURE_DEPLOY.md`; verification per D027.
@@ -258,7 +256,7 @@ which the Pattern Keeper PDF shares and calls with backstitch switched off.)
   moved for one keystroke and never for a drag. What is current goes in a ref.
 - **A slider is tested by a drag, not by one value.** `fill()` sets a value once and passes where a real
   drag fails; the bug above survived a green suite that way (`tests/e2e/photo-sliders-generate.spec.ts`).
-- **The TypeScript pipeline is gone** (G-068 M3): generation, crisp edges, quantisation, denoise and the optimiser exist only in `rust/`. `lib/pipeline` keeps the vocabulary (`generation-modes.ts`), the dither preview the browser draws, `regions.ts` behind the Fill tool, `downsample.ts`'s grid maths and `enhance.ts`. Adding a pipeline feature is a Rust change and a golden-hash decision, not two implementations.
+- **The TypeScript pipeline is gone** (G-068 M3): generation, crisp edges, quantisation, denoise and the optimiser exist only in `rust/`. `lib/pipeline` keeps the vocabulary (`generation-modes.ts`), the dither preview the browser draws, `regions.ts` behind the Fill tool, `grid-dimensions.ts`'s grid maths and `enhance.ts`. Adding a pipeline feature is a Rust change and a golden-hash decision, not two implementations.
 - A crash report carries the chart but never the photo (D218), and names a commit only when the image is built with `APP_COMMIT=$(git rev-parse --short HEAD)`; the plain deploy command leaves it "unknown". Confirmed after a deploy by grepping the shipped chunks for the short SHA.
 - Nothing test-only ships: a build-flagged crash hook was found in the production chunks, so the boundary's spec breaks `fillRect` instead (D218). Grep a production build before trusting a flag to remove code.
 - A palette index is read through `colorAt` (`lib/color/palette.ts`), which fails naming the index and the palette size. The renderers stay strict on purpose — a cell nothing can draw is a bug to find (D217, D219).
@@ -269,28 +267,21 @@ which the Pattern Keeper PDF shares and calls with backstitch switched off.)
 - A shape tool contributes a rasteriser returning spine cells only; thickness is the brush's, and a filled shape never stamps it (D214, D215).
 - A control added to the editing bar goes inside its `at-tool-track` unless it belongs to the view, and `main` must never become scrollable: a bar wider than its container slides the whole chart column sideways when a control in it takes focus (D213, asserted in `tests/e2e/navigation.spec.ts`).
 - Every `cellPalette` mutation passes `EMPTY_CELL` (255) through untouched (D028); view-only settings (canvas colour) never reach an export call site (D087).
-- Export drawing creates canvases, encodes PNGs and loads the font and texture only through
-  `lib/export/canvas-backend.ts`, never by touching `document` or `Image` directly (D125). That is the seam the
-  server backend plugs into (D153), so breaking it breaks server exports.
-- An export canvas is encoded once, through `canvasToPngBlobAndRelease`, and never touched afterwards (D171); symbol
-  stamps are passed only with a canvas context, never the PDF adapter, whose symbols must stay text (D172).
-- The PDF adapter keeps opaque drawing on direct operators, written as text, with one font resource per page (D126,
-  D174); `tests/unit/pdf-text-content.spec.ts` pins the bytes. Call `finish()` on each page's adapter before the page
-  is flushed or saved, or the page loses its content.
+- The chart drawing gets canvases and pictures only through `lib/editor/canvas-backend.ts`, never `document` or
+  `Image` directly: it is how the unit tests draw in Node (`tests/unit/helpers/node-canvas.ts`).
 - Crisp lives in Rust only (G-068 M3). The rules that governed the TypeScript copy — shared admissible-cost
   functions, evidence identical to a verbatim reference, Crisp+ behind its own flags (D063, D068, D139) —
   described code deleted at bf726db; they bind `rust/cs-core/src/crisp/` now, and nothing checks them.
 - ICM inner loops use no closures or array scans (D044).
 - Pixel art is never resampled, colour-converted or premultiplied on the way in: every pixel is a stitch, so the photo path's 4000 px downscale would destroy the work (`pixel-art-file.ts`, D194).
 - Cell importance reads each cell's own footprint, never pixels assigned by truncation (D197): the two agree exactly below 1:1, and only the footprint fills a finer chart's cells.
-- A new pass after quantization is gated on `smooth` in both languages, or it silently undoes dithering (D199); a
+- A new pass after quantization is gated on `smooth`, or it silently undoes dithering (D199); a
   matrix pattern is generated data, never computed at runtime (D198).
 - Six rules specific to the drawn dither pattern subsystem (G-052–G-059: seeding, texture validation, shape
   ranking, the field, per-shape knobs, the preview) moved to
   `docs/reviews/2026-09-27-drawn-pattern-rules.md` on 2026-09-27 — this section passed its cap. Read that file
   before touching `rust/cs-core/src/dither/hand_drawn.rs`, `lib/pipeline/dither-hand-drawn.ts` (the texture's ranges), or the Texture editor.
-- A pipeline stage that reads `cellPalette` must skip `EMPTY_CELL`: it is a sentinel, not palette index 255, and both
-  TypeScript and Rust must skip it in the same places or the two diverge (D196).
+- A pipeline stage that reads `cellPalette` must skip `EMPTY_CELL`: it is a sentinel, not palette index 255 (D196).
 - Rust export references are generated in the processor image, never on a laptop: only DejaVu Sans is installed there, so every raster would differ (D188).
 - Rust calls `jsmath` for every `Math` function (`libm` and `f64` differ from V8, D183, D184; recheck the vectors on a
   Node upgrade), and threads a stage only if each value keeps its TypeScript order (D185; `RUST_THREADS=3`).
@@ -350,15 +341,12 @@ which the Pattern Keeper PDF shares and calls with backstitch switched off.)
   limit. Job results travel in the editable-JSON save format, so `pattern-serialize.ts` is the wire format (D151).
 - What the processor accepts is derived from the type unions in `processor/validate-settings.ts` and
   `validate-export.ts`, never retyped: a hand-written copy once spelled `PaletteMode`'s "full" as "free" and rejected every generation.
-- The export font and stitch texture travel with the bundle: `npm run build:processor` copies them into
-  `dist/processor/assets`. The image carries no fonts, and without a registered one every text width measures zero (D153).
 - Paginated exports (A4, PDF) get 60 s plus 2 s per A4 grid page, never under the old fixed 150 s, and Export all that
   share for each of its three paginated sets (D168; `processor/job-protocol.ts`, `exportDeadlineFor`).
 - The Origin check compares canonical origins: the loopback spellings on one scheme and port are one site, scheme and
   port still separate, an unparseable origin is dropped. `APP_URL` has no default: unset trusts only the arrival origin (D156).
 - A job event stream carries an SSE comment frame every 15 s so a proxy does not drop an idle job; both clients take the frame's data line and skip the rest (`tests/unit/job-stream-keepalive.spec.ts`).
 - `MAX_STITCHES` (1500) is measured: raising it means re-running `docs/reviews/2026-09-19-new-cap-measurements.md`, and above ~1550 Export all's chart PNG no longer fits its budget (D026, D181).
-- The PDF releases each page as it is drawn through two private pdf-lib 1.17.1 fields (D169); an upgrade must keep `tests/unit/pdf-page-flush.spec.ts` green, or the flush stops silently and the heap grows back.
 - Small interface-only changes go by the fast lane (Owner, 2026-10-04, D280): affected tests only, one line under "Small changes" in `GOALS.md`, deployed in a batch after one full run. Anything touching chart data, files, exports, generation, the processor, Rust or accounts is a normal goal.
 - Rate-limit capacities default to production values, overridable by `RATE_LIMIT_JOBS_PER_MINUTE`, `RATE_LIMIT_AUTH_PER_15MIN` (G-075) and `RATE_LIMIT_PREDICTIONS_PER_MINUTE` (G-087, 90, so the colour hint never spends a Generate) and `RATE_LIMIT_DITHER_PREVIEWS_PER_MINUTE` (G-100, 90), keyed separately per `kind`; a zero or malformed value falls back to the default.
 - `ADMIN_BOOTSTRAP_ENABLED` defaults to `"false"` and promotes `ADMIN_EMAIL` only while no admin exists (D409): there is
@@ -376,7 +364,7 @@ which the Pattern Keeper PDF shares and calls with backstitch switched off.)
 
 ## Next steps and open questions
 
-- **G-134 (code health) is ACTIVE:** M1 done, deployed on its own (Owner, 2026-10-11); M2 (dead code from the Rust move) is next, then M3–M6, deploying at M6.
+- **G-134 (code health) is ACTIVE:** M1 deployed on its own (Owner, 2026-10-11), M2 done; M3 (server and client scaffolding) is next, then M4–M6, deploying at M6. Left for M6: `fillCluster`, `fillClusterDiagonal`, `paintStitch` and `compactUnusedColors` (`lib/editor/pattern-edit.ts`) run only in tests, superseded by `fillSymmetric`.
 - **G-131 (palettes) is signed off and archived (2026-10-10).** Not verified: how the Pattern Keeper app reads the new System and Number columns.
 - **G-130 (layers) is signed off and archived (2026-10-09).** Open for later: other layer kinds (bitmap, vector) join the registry in `lib/document/layer-kinds.ts`, each tool naming the kinds it works on (D390, D392).
 - **G-109 (counted limits) is signed off and archived (2026-10-09).** Every counted limit is unlimited; the values are the Owner's to set on the admin's Limits tab.
@@ -397,7 +385,6 @@ which the Pattern Keeper PDF shares and calls with backstitch switched off.)
 - **Left for a future goal, found while building it:** the casing threshold and bead spacing were judged on screen, never on paper — only a print settles how a 0.55 mm dashed line reads at a 2.75 mm cell (`docs/reviews/2026-09-25-backstitch-samples.md`). Backstitch is also absent from the realistic preview,
   which draws stitches from tiles and has no notion of a line.
 - Weakest area, unchanged by G-073 and reinforced by it: **tests assert data, not what is drawn.** Every backstitch defect the Owner found in G-073 — the zoom displacement, the missing highlight — was invisible to a suite asserting exported coordinates, and two more were found only by *looking* at a sample export. Three pixel-level tests now exist (`backstitch-scene-placement.spec.ts`, and the highlight and Isolate cases in the e2e); nothing else asserts a frame during a gesture except `tests/unit/piece-preview-cells.spec.ts`.
-- **`cargo fmt --check` is not clean and not in CI**: 11 pre-existing diffs in `cs-core`, against STANDARDS → Code style, which names `cargo fmt --check` as a required CI check. Found 2026-09-25 during G-073 M5 and left alone rather than mixed into that change.
 - G-070 is closed as answered: the V8 maths port costs nothing — replacing it is **13–25% slower** with
   identical output (D223). Its one actionable finding shipped as G-071: the build targets `x86-64-v3`,
   worth a mean 6.6% (D224). Both are written up in `docs/reviews/2026-09-24-parity-tax.md`.
@@ -409,7 +396,6 @@ which the Pattern Keeper PDF shares and calls with backstitch switched off.)
   the kind D220 fixed elsewhere.
 - Left open from G-039: ending a drag costs 116–132 ms at a 6 px stitch against a 100 ms target, and a drag with symmetry on keeps the pre-M3 cost (D145). From G-038: Crisp+ can end under the requested colour count on a busy photo (14 of 24 on road-mountains), since a refill split learns only from cells inside a colour (D142).
 - Left open: G-028 — OXS symbols use each reader's own font glyph, untested in PCStitch or WinStitch (`docs/reviews/2026-09-13-oxs-format-evidence.md`); G-032 — the 1.5 s enhancement target and Brighten's calibration; G-033 — "+ Add" keeps its old flow.
-- Known gap in the processor: if a worker file is missing or corrupt, `new Worker(...)` throws inside `spawn()` and can take the service down instead of failing one job. Low risk (the bundle ships inside the image), unfixed deliberately — it surfaced only when a build directory was deleted mid-run.
 - From G-048: generation at 1500 stitches holds 42 MB more than TypeScript in Standard, 9 MB more in Crisp+ (D190); the sidecar spawns per job. Archived 2026-09-19: G-046 (raising the 1500 cap needs two Owner decisions, D181) and G-047 (D171–D178). G-030 (public launch) is a far-future draft.
 - The dithering line (G-052 to G-059) is complete and signed off. Open: on a noisy photo at 8 colours the screens can
   read worse than no dithering, and drawn marks become grain on a flat region, which is inherent to dithering one.

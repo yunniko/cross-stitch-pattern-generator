@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, type ReactNode, type RefObject } from "react";
+import { useMemo, type RefObject } from "react";
 import type { AutosaveStatus } from "@/app/hooks/use-project-autosave";
 import { formatFinishedSize, type SizeUnit } from "@/lib/export/finished-size";
 import { filledStitchCount, formatColorCount, formatStitchCount, type StitchPattern } from "@/lib/types";

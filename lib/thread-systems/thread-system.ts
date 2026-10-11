@@ -168,7 +168,6 @@ export function namedSystems(body: Record<string, unknown>): string[] {
   return [...named];
 }
 
-const hex = (rgb: readonly number[]) => rgb.map((c) => c.toString(16).padStart(2, "0")).join("");
 const rgb = (h: string): [number, number, number] => [
   parseInt(h.slice(0, 2), 16),
   parseInt(h.slice(2, 4), 16),
@@ -178,9 +177,4 @@ const rgb = (h: string): [number, number, number] => [
 /** A list as the registry holds it. */
 export function threadColors(rows: readonly ThreadRow[]): ThreadSystemInfo["colors"] {
   return rows.map(([code, name, h]) => ({ code, name, rgb: rgb(h) }));
-}
-
-/** A registry list as rows. */
-export function threadRows(colors: ThreadSystemInfo["colors"]): ThreadRow[] {
-  return colors.map((c) => [c.code, c.name, hex(c.rgb)]);
 }

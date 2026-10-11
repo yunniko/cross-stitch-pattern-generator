@@ -23,8 +23,3 @@ export type EdgeMode = "standard" | "crisp" | "crisp-plus";
  * Declared here rather than beside the browser worker that used to own it, so it outlives that worker (G-034 M5).
  */
 export type GenerationMode = "original" | "latest";
-
-/** Crisp+ (G-038) runs every Crisp stage with its own evidence options, plus the passes that only it adds. */
-export function isCrispEdgeMode(edgeMode: EdgeMode): edgeMode is "crisp" | "crisp-plus" {
-  return edgeMode === "crisp" || edgeMode === "crisp-plus";
-}

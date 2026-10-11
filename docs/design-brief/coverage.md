@@ -553,3 +553,4 @@ Dispositions: a document name (the behaviour is described there), `internal` (en
 | D407 | 09-limits-and-messages | a file that is not a picture is refused before decoding |
 | D408 | out of scope (billing) | |
 | D409 | out of scope (accounts and admin) | |
+| D410 | internal | |

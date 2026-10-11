@@ -1,14 +1,12 @@
-import { cp, readdir, rm } from "node:fs/promises";
+import { rm } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "rolldown";
 
 /**
- * Bundles the processor into a self-contained ESM pair (G-034 M2).
- *
- * The processor shares the pipeline with the browser — `buildPattern`, the quantizers, the palette — by importing the
- * very same modules, which is what makes the golden hashes (D107) meaningful. Bundling lets the runtime image carry
- * those modules without a TypeScript toolchain or the app's whole dependency tree.
+ * Bundles the processor into one self-contained ESM entry (G-034 M2), so the runtime image carries it without a
+ * TypeScript toolchain or the app's whole dependency tree. It shares the request validation and the chart parser with
+ * the app by importing the same modules; the generation and the exports are the `cs-job` binary it spawns (D221).
  *
  * `@napi-rs/canvas` stays external: it is a native addon, so it is installed in the image rather than bundled (D150).
  */
@@ -34,15 +32,4 @@ await build({
   },
 });
 
-/**
- * The export font and the stitch texture travel with the bundle (D153). Copied here rather than only in the
- * Dockerfile, so `dist/processor` is self-contained wherever it runs: the image, a test, or a local processor. Leaving
- * this to the image alone meant every local export failed with a missing font.
- */
-await cp(path.join(ROOT, "public", "fonts"), path.join(OUT, "assets", "fonts"), { recursive: true });
-// Every stitch and canvas texture the page can name (`lib/export/*-texture-catalog.ts`), so a new one needs no edit here.
-for (const texture of (await readdir(path.join(ROOT, "public"))).filter((name) => /^(stitch|canvas)-texture.*\.png$/.test(name))) {
-  await cp(path.join(ROOT, "public", texture), path.join(OUT, "assets", texture));
-}
-
-console.log(`processor bundled to ${path.relative(ROOT, OUT)}, with its export assets`);
+console.log(`processor bundled to ${path.relative(ROOT, OUT)}`);

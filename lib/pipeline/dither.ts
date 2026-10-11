@@ -1,4 +1,4 @@
-import { DITHER_CHOICES, DITHER_GROUPS, DITHER_PATTERNS } from "./dither-patterns";
+import { DITHER_GROUPS, DITHER_PATTERNS } from "./dither-patterns";
 
 /**
  * Dithering a chart to its palette (G-052): instead of rounding every stitch to its nearest thread, neighbouring
@@ -36,9 +36,6 @@ export function ditherGroupLabel(group: DitherPatternDeclaration["group"]): stri
   if (!found) throw new Error(`Unknown dither group "${group}": it is not in DITHER_GROUPS.`);
   return found.label;
 }
-
-/** A choice several patterns share (the line screens' "Lines"), by id. */
-export type DitherChoiceDeclaration = (typeof DITHER_CHOICES)[number];
 
 /**
  * What the chooser offers a pattern as: its own id, or the choice it shares with its variants. It is also the id of the

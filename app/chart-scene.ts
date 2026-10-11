@@ -13,13 +13,13 @@ import {
   drawHighlightOverlayRaster,
   type ChartRegion,
   type RenderMode,
-} from "@/lib/export/render";
+} from "@/lib/editor/chart-render";
 import type { CellRect, FloatingSelection, SourceImageRef, StitchPattern } from "@/lib/types";
-import { createCanvas, type AnyCanvas, type Canvas2D } from "@/lib/export/canvas-backend";
+import { createCanvas, type AnyCanvas, type Canvas2D } from "@/lib/editor/canvas-backend";
 import { isFlatMode, type ChartView } from "@/lib/editor/view";
 import { isSelectTool, type Tool } from "./editor-types";
 import { drawBackstitch, drawLassoPath, drawPieceOutline, drawSelectionOutline } from "./editor-geometry";
-import type { StitchTiles } from "@/lib/export/stitch-texture";
+import type { StitchTiles } from "@/lib/editor/stitch-texture";
 import { drawRealisticRegion } from "./realistic-tiles";
 
 /**
@@ -335,7 +335,7 @@ export function drawCellsInto(
   eachCell(region, (x, y, paletteIndex, kind) => {
     // A stitch of the active layer is drawn as the chart shows that cell: under the layers above it, over the ones below.
     const shown = layers ? shownCell(layers, y * base.width + x, paletteIndex, kind) : { paletteIndex, kind };
-    drawCell(ctx, base, mode, cs, x, y, shown.paletteIndex, scene.canvasColor, "rects", shown.kind, scene.view.symbols);
+    drawCell(ctx, base, mode, cs, x, y, shown.paletteIndex, scene.canvasColor, shown.kind, scene.view.symbols);
   });
   ctx.restore();
 }

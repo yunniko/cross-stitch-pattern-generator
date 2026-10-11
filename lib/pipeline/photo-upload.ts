@@ -36,8 +36,3 @@ export async function ensurePhotoUploaded(dataUrl: string, signal?: AbortSignal)
 export function forgetPhoto(dataUrl: string): void {
   hashesByDataUrl.delete(dataUrl);
 }
-
-/** Test seam: the cache is module state, which would otherwise leak between cases. */
-export function resetPhotoUploads(): void {
-  hashesByDataUrl.clear();
-}

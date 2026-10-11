@@ -322,9 +322,6 @@ const server = createServer((req, res) => {
         // The sidecar's own note, or a generic line: never its raw stderr (D407).
         if (!res.headersSent) send(res, 500, { error: err.message });
         else res.end();
-      } else if (err instanceof Error && err.name === "ChartTooLargeError") {
-        // The caller's chart exceeds what a single image can hold — their request to change, not a server fault.
-        send(res, 422, { error: err.message });
       } else {
         console.error(`request failed: ${err instanceof Error ? err.message : "unknown"}`);
         if (!res.headersSent) send(res, 500, { error: "Something went wrong handling that." });

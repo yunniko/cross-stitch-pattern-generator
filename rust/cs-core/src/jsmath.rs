@@ -1,6 +1,6 @@
 //! The JavaScript `Math` functions the pipeline uses, with V8's exact results.
 //!
-//! Byte-identity with the TypeScript pipeline (D107) needs every transcendental function to return the same double as
+//! Byte-identity with the pipeline's golden hashes (D107), first recorded from the TypeScript in V8, needs every transcendental function to return the same double as
 //! V8, bit for bit. Rust's `f64::cbrt`, `powf` and `exp` call the platform's C library, which may differ in the last
 //! bit; V8 uses its own fdlibm-derived routines. `cbrt` and `pow` are line-for-line ports of V8's; `exp` comes from the
 //! `libm` crate, whose version is the same fdlibm code. Each is proven equal to V8 on millions of inputs from the

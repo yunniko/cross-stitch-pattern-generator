@@ -291,7 +291,7 @@ Outside both: G-111's comments follow G-112; G-097 comes after G-108, whose char
   - The quota give-back is retried.
   - Verified by new unit tests (no child left after cancel or deadline), the full suite, and a stress run.
   - **Deploy:** cross-stitch to its existing target.
-- [ ] M2 — **Dead code and stale text (B).**
+- [x] M2 — **Dead code and stale text (B).**
   - Delete the TS export engine and its specs: `a4-render`, `pdf-canvas-adapter`, `pattern-keeper-pdf`, `export-all`, `pdf-page-flush`, `export-backend`, `runExportJob`. The export types move into `export-kinds.ts`.
   - Delete the two parity scripts and the unused generation code (keep `gridDimensionsFor` in its own module).
   - Delete `cs-wasm` (D186 superseded) and the unreferenced scripts.
@@ -332,6 +332,11 @@ Outside both: G-111's comments follow G-112; G-097 comes after G-108, whose char
 **Settled by the Owner at acceptance (2026-10-11):** M1 drops the worker-thread layer; the fake billing pages and adapter leave the production build entirely (not a runtime gate); M1 deploys on its own ahead of the rest.
 
 **Progress log** (newest first):
+- 2026-10-11 — M2 done (D410). Deleted: the TS export engine and its specs, `cs-wasm`, both parity scripts, the TS gamut mapping, unused generation code and exports, and pdf-lib. The export types are in `lib/export/export-request.ts` rather than the planned `export-kinds.ts`. The live chart drawing moved to `lib/editor/chart-render.ts` with `stitch-texture.ts` and `canvas-backend.ts`. Specs that guarded live behaviour moved to Rust. `check:reachable` is in CI and `check:fast`. Eight decisions are superseded by D410, D396 in part; D264's gutter is corrected. `chart-render-parity` now checks the on-screen fallback against the rect-grid reference. Verified:
+  - unit 1,879 / 156 files; Rust processor 24; cargo 109; goldens 74 with hashes unchanged;
+  - e2e: export, A4, half-stitch, layer exports and viewport parity 145; chart-render-parity 68;
+  - tsc, lint and format clean; `next build` ok.
+  The full local e2e run was stopped by the machine running low on memory, so the full suite is verified by CI on push. Removed from HANDOVER: the canvas-backend, PDF adapter, bundle-assets and pdf-lib flush rules, the "both languages" clauses, the stale `cargo fmt` gap, and the worker-file gap (gone with M1's worker removal). Next: M3.
 - 2026-10-11 — M1 deployed as v0.28.1 (7057f27); live checks in `docs/deploy-log.md`. The broad live check failed only on tools locked for guests on the live site (passing in CI on the same commit). Reading the live switches was not permitted in this session, so that cause is inferred, not confirmed. Next: M2.
 - 2026-10-11 — M1 done (D407, D408, D409). Jobs, predictions and previews run as `cs-job` processes the processor kills on cancel, deadline or a client gone; the worker threads are gone. Photos are header-checked before decoding, and panics are logged rather than shown. Exports go on stdin, and the author name is capped at 200. The fake billing is absent from production builds, and CI scans for it. The admin bootstrap fails closed. A registration race returns its message, and the quota give-back retries once. Verified:
   - unit 1,974 / 170 files; Rust processor specs 24 (including `processor-job-kill`); cargo 100; goldens 74 with hashes unchanged;

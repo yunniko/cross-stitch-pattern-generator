@@ -69,10 +69,27 @@ pub fn luminance(rgb: [u8; 3]) -> f64 {
     (0.2126 * rgb[0] as f64 + 0.7152 * rgb[1] as f64 + 0.0722 * rgb[2] as f64).round()
 }
 
-/// `formatThreadName`'s inverse for display (`splitThreadCodeName` in `lib/threads/printed-thread.ts`).
+/// `formatThreadName`'s inverse for display: "310 - Black" is code "310" and name "Black".
 pub fn split_thread_code_name(full: &str) -> (String, String) {
     match full.find(" - ") {
         Some(i) => (full[..i].to_string(), full[i + 3..].to_string()),
         None => (full.to_string(), String::new()),
+    }
+}
+
+#[cfg(test)]
+mod split_tests {
+    use super::split_thread_code_name;
+
+    #[test]
+    fn splits_on_the_first_separator_only_since_a_name_can_hold_one() {
+        let split = |s: &str| split_thread_code_name(s);
+        assert_eq!(split("310 - Black"), ("310".into(), "Black".into()));
+        assert_eq!(
+            split("347 - Salmon - Very Dark"),
+            ("347".into(), "Salmon - Very Dark".into())
+        );
+        // No separator: the whole string is the code, as a Cosmo number is written.
+        assert_eq!(split("352"), ("352".into(), String::new()));
     }
 }

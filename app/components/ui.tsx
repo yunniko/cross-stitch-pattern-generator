@@ -205,8 +205,3 @@ export function InlineError({ message, onDismiss, className = "" }: { message: s
     </p>
   );
 }
-
-/** The chrome strip used for the options, selection and resize panels. */
-export function PanelBar({ children, gap = "gap-4" }: { children: ReactNode; gap?: string }) {
-  return <div className={`flex flex-wrap items-center ${gap} border-b border-line bg-surface px-4 py-3`}>{children}</div>;
-}

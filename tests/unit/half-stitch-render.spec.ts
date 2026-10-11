@@ -4,7 +4,7 @@ import { createBlankPattern } from "@/lib/editor/blank-pattern";
 import { addColor, withCellPalette } from "@/lib/editor/pattern-edit";
 import { STITCH_BACKSLASH as B, STITCH_SLASH as S, STITCH_WHOLE as W } from "@/lib/editor/stitch-kind";
 import { HALF_STITCH_CUT, halfStitchMask, halfStitchPolygon, insideHalfStitch } from "@/lib/export/half-stitch-shape";
-import { drawCell, drawChart, stitchPreviewPixels } from "@/lib/export/render";
+import { drawCell, drawChart } from "@/lib/editor/chart-render";
 import { EMPTY_CELL, type StitchPattern } from "@/lib/types";
 
 /** G-082 M3: a half stitch is its cell with two opposite corners cut away, 60 % of the side each way (D325). */
@@ -108,14 +108,14 @@ describe("drawn on a canvas", () => {
     const canvas = createCanvas(size, size);
     const ctx = canvas.getContext("2d");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    drawCell(ctx as any, pattern, "color", size, 0, 0, 0, "rgb(250, 250, 240)", "rects", S);
+    drawCell(ctx as any, pattern, "color", size, 0, 0, 0, "rgb(250, 250, 240)", S);
     const { data } = ctx.getImageData(0, 0, size, size);
     expect(pixel(data, size, 3, 3)).toEqual(GROUND);
     expect(pixel(data, size, 36, 5)).toEqual(RED);
   });
 });
 
-describe("the Stitched view and the preview picture", () => {
+describe("the Stitched view", () => {
   it("cuts the stitch texture with the same corners, smooth at the edge", () => {
     const mask = halfStitchMask(S, 20);
     expect(mask[0]).toBe(0); // top-left pixel
@@ -129,29 +129,5 @@ describe("the Stitched view and the preview picture", () => {
     // "\" is "/" mirrored left to right.
     const back = halfStitchMask(B, 20);
     for (let y = 0; y < 20; y++) for (let x = 0; x < 20; x++) expect(back[y * 20 + x]).toBe(mask[y * 20 + (19 - x)]);
-  });
-
-  it("leaves the cut corners of a half stitch transparent, or the canvas where there is one", () => {
-    const size = 10;
-    const pattern = chart([S, W]);
-    const solid = new Uint8ClampedArray(size * size * 4);
-    for (let i = 0; i < solid.length; i += 4) solid.set([200, 20, 20, 255], i);
-    const tiles = { cellSize: size, pixels: [solid] } as unknown as Parameters<typeof stitchPreviewPixels>[1];
-    const small = {
-      ...pattern,
-      width: 2,
-      height: 1,
-      cellPalette: pattern.cellPalette.slice(0, 2),
-      cellKind: pattern.cellKind?.slice(0, 2),
-    };
-    const bare = stitchPreviewPixels(small, tiles).getImageData(0, 0, 2 * size, size).data;
-    const alpha = (x: number, y: number) => bare[(y * 2 * size + x) * 4 + 3];
-    expect(alpha(0, 0)).toBe(0); // the cut corner of the "/"
-    expect(alpha(9, 0)).toBe(255);
-    expect(alpha(size, 0)).toBe(255); // the whole stitch beside it
-    const ground = { width: 1, height: 1, pixels: Uint8ClampedArray.of(10, 20, 30, 255) };
-    const over = stitchPreviewPixels(small, tiles, ground).getImageData(0, 0, 2 * size, size).data;
-    expect(Array.from(over.slice(0, 4))).toEqual([10, 20, 30, 255]); // canvas shows where the corner is cut
-    expect(Array.from(over.slice(9 * 4, 9 * 4 + 4))).toEqual([200, 20, 20, 255]);
   });
 });

@@ -30,11 +30,6 @@ export function kindUnderMatrix(kind: number, [a, b, c, d]: readonly [number, nu
   return px * py < 0 ? STITCH_SLASH : STITCH_BACKSLASH;
 }
 
-/** The kind of cell `index`; whole where the chart has no kinds. */
-export function kindAt(pattern: Pick<StitchPattern, "cellKind">, index: number): number {
-  return pattern.cellKind?.[index] ?? STITCH_WHOLE;
-}
-
 /** Whether any stitch of the chart is a half stitch. */
 export function hasHalfStitches(pattern: Pick<StitchPattern, "cellKind">): boolean {
   const kinds = pattern.cellKind;
@@ -73,38 +68,6 @@ export function kindCounts(pattern: Pick<StitchPattern, "cellPalette" | "cellKin
     counts[cellKind?.[i] ?? STITCH_WHOLE]++;
   }
   return counts;
-}
-
-/** One row of a legend: a thread in one stitch type, with how many cells it has (G-082). */
-export interface LegendEntry {
-  colorIndex: number;
-  kind: StitchKind;
-  count: number;
-}
-
-/**
- * One legend row for each stitch type and thread the chart uses, so a reader can tell every combination apart (Owner,
- * 2026-10-01). A chart without half stitches has one row per thread, exactly as before. A thread with no stitch at all keeps
- * its one (empty) whole row.
- */
-export function legendEntries(pattern: Pick<StitchPattern, "palette" | "cellPalette" | "cellKind">): LegendEntry[] {
-  if (!hasHalfStitches(pattern))
-    return pattern.palette.map((color) => ({ colorIndex: color.index, kind: STITCH_WHOLE, count: color.count }));
-  const entries: LegendEntry[] = [];
-  for (const color of pattern.palette) {
-    const counts = kindCounts(pattern, color.index);
-    const before = entries.length;
-    for (const kind of [STITCH_WHOLE, STITCH_SLASH, STITCH_BACKSLASH] as const) {
-      if (counts[kind] > 0) entries.push({ colorIndex: color.index, kind, count: counts[kind] });
-    }
-    if (entries.length === before) entries.push({ colorIndex: color.index, kind: STITCH_WHOLE, count: 0 });
-  }
-  return entries;
-}
-
-/** The legend's word for a kind. */
-export function kindWord(kind: number): string {
-  return kind === STITCH_SLASH ? "half /" : kind === STITCH_BACKSLASH ? "half \\" : "whole";
 }
 
 /** What a thread's stitches amount to for buying: a half stitch is half a stitch of thread, rounded up. */

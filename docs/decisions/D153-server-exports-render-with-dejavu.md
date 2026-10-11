@@ -1,5 +1,5 @@
 # D153 · Server exports draw their text with DejaVu Sans
-Date: 2026-09-17 · Goal: G-034 M4 · Status: active (superseded by: —)
+Date: 2026-09-17 · Goal: G-034 M4 · Status: superseded (superseded by: D410)
 Context: the image has no fonts, so `measureText` returned 0 and server exports would have been structurally wrong, not merely different. The browser resolves `FONT_STACK` to Arial, which cannot be shipped.
 Decision: register the DejaVu Sans already shipped for the PDF (D073) through `GlobalFonts`. A registered font satisfies the existing `FONT_STACK`, so no drawing code changes.
 Rejected: Liberation Sans, closer to Arial but a new asset and licence; one font on both sides, which would change the exports users get today.

@@ -31,7 +31,7 @@ pub struct Color {
 }
 
 impl Color {
-    /// `printedThread`: what this colour's row prints under System, Number and Color name (G-131, D396).
+    /// What this colour's row prints under System, Number and Color name (G-131, D396).
     ///
     /// The system and number come only from the colour's thread, never from its name, so a colour that is no thread prints
     /// both blank and its whole name. A name that begins with the thread's number ("321 - Red") prints without it, since
@@ -51,7 +51,7 @@ impl Color {
         }
     }
 
-    /// `printedThreadLabel`: the same three on one line, for the legends that have no columns ("DMC 321 - Red").
+    /// The same three on one line, for the legends that have no columns ("DMC 321 - Red").
     pub fn thread_label(&self) -> String {
         let (system, code, name) = self.printed_thread();
         let thread = format!("{system} {code}").trim().to_string();

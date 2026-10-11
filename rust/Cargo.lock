@@ -159,14 +159,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cs-wasm"
-version = "0.1.0"
-dependencies = [
- "cs-core",
- "serde_json",
-]
-
-[[package]]
 name = "either"
 version = "1.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

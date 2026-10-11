@@ -7,8 +7,7 @@
 # CI image and a host image would differ and either could fault after a VPS migration. See D224 and
 # `docs/reviews/2026-09-24-parity-tax.md`.
 #
-# Listed per target rather than under `[build]`, because `[build] rustflags` would also reach the `wasm32` build of
-# `cs-wasm`, where an x86 flag is meaningless.
+# Listed per target rather than under `[build]`, so that only an x86-64 build is given an x86 flag.
 #
 # **This file must be at the repository root, not in `rust/`.** Cargo reads config from the working directory
 # upwards, and every build here runs from the root with `--manifest-path rust/Cargo.toml` — CI, the Dockerfile and

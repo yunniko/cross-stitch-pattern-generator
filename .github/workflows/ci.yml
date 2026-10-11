@@ -28,6 +28,8 @@ jobs:
       # G-088: every goal and decision has a row in the design brief's coverage, and the brief names no interface element.
       # Not run anywhere until G-103, and 19 rows had gone missing since G-102.
       - run: npm run check:brief
+      # G-134 M2: every module under app/, lib/ and processor/ is run by something that ships or is tooling.
+      - run: npm run check:reachable
       # STANDARDS.md -> Code style: the formatter is a check, not a habit.
       - run: npm run format:check
       # G-105, D309: a change that can alter what a user sees carries a note in release-notes/next/ (or an `internal`
@@ -111,8 +113,8 @@ jobs:
       - run: npm run test:photo-adjust-pipeline:rust
 
       - run: npx next typegen
-      # The processor's worker bundle is git-ignored, and the unit suite runs the pool and preview specs against it
-      # (G-034 M2, M3), so it must be built before the tests rather than assumed present.
+      # The processor bundle is git-ignored, and the e2e servers run it (`scripts/e2e-servers.mjs`), so it is built here
+      # rather than assumed present.
       - run: npm run build:processor
 
       # Here rather than in `check`: specs such as the Rust half of file-migration and generation-settings run the

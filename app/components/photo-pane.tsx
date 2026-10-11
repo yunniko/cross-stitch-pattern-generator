@@ -10,7 +10,7 @@ import { isNeutralAdjust, type PhotoAdjust } from "@/lib/pipeline/photo-adjust";
 import type { ColorPrediction } from "@/lib/pipeline/prediction";
 import type { ThreadSystemInfo } from "@/lib/threads/thread-brands";
 import { MAX_COLORS, MAX_STITCHES, MIN_COLORS, MIN_STITCHES, SIZE_PRESETS, SIZE_PRESET_LABELS } from "@/lib/types";
-import { gridDimensionsFor } from "@/lib/pipeline/downsample";
+import { gridDimensionsFor } from "@/lib/pipeline/grid-dimensions";
 import { longerSideFor } from "../hooks/use-generation";
 import type { UpdateWorkspaceOption } from "../hooks/use-workspace-options";
 import { DitherChooser } from "./dither-chooser";

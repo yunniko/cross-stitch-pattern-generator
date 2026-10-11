@@ -9,14 +9,14 @@ import { DEFAULT_STITCH_TEXTURE, isStitchTextureId } from "@/lib/export/stitch-t
 import type { ExportJobPayload } from "./job-protocol";
 
 /**
- * Checking an export request before any worker is given it (G-034 M4).
+ * Checking an export request before the Rust exporter is given it (G-034 M4).
  *
- * Kept apart from `server.ts` for the same reason `validate-settings.ts` is: that module starts listening and spawns
- * workers when it loads. The pattern goes through the very parser that opens a saved file, so a malformed or tampered
- * chart is refused here rather than reaching the drawing code.
+ * Kept apart from `server.ts` for the same reason `validate-settings.ts` is: that module starts listening when it loads.
+ * The pattern goes through the very parser that opens a saved file, so a malformed or tampered chart is refused here
+ * rather than reaching the exporter.
  */
 
-/** Every kind the editor's dropdown offers, plus the bundle. Derived from the same list `runExportJob` switches on. */
+/** Every kind the editor's dropdown offers, plus the bundle. The same list as `ExportJobKind`. */
 const EXPORT_KINDS = [
   "png-color",
   "png-bw",
@@ -122,16 +122,4 @@ export function parseExportRequest(body: unknown): ParsedExportRequest {
       ...(b.systemLabels !== undefined ? { systemLabels: b.systemLabels as [string, string][] } : {}),
     },
   };
-}
-
-/** The refusal reason, or null when the request is acceptable. */
-export function exportRequestError(body: unknown): string | null {
-  return parseExportRequest(body).error;
-}
-
-/** The payload of a request `exportRequestError` accepted, filling the defaults the editor would otherwise have sent. */
-export function toExportPayload(body: unknown): ExportJobPayload {
-  const parsed = parseExportRequest(body);
-  if (parsed.error !== null) throw new Error(parsed.error);
-  return parsed.payload;
 }

@@ -64,7 +64,7 @@ export async function POST(req: Request): Promise<Response> {
     const headers: Record<string, string> = { "content-type": "application/json" };
     const retryAfter = upstream.headers.get("retry-after");
     if (retryAfter) headers["retry-after"] = retryAfter;
-    // 422 (a chart too large for one image) and 503 (a full queue) are the caller's to act on, so both pass through.
+    // A refusal (a request it cannot read, a full queue) is the caller's to act on, so the status passes through.
     return new NextResponse(await upstream.text(), { status: upstream.status, headers });
   } catch {
     quota.ticket.settle(false);

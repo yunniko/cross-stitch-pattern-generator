@@ -2,12 +2,12 @@ import { A4_PAGE_GUTTER_MM, A4_PAGE_MARGIN_MM } from "@/lib/export/export-cell-s
 import { useMemo, useState } from "react";
 import { NO_SYMMETRY, type SymmetryAxes } from "@/lib/editor/symmetry";
 import type { WorkspaceOptions } from "@/lib/editor/workspace-storage";
-import { downloadBlob } from "@/lib/export/a4-export";
+import { downloadBlob } from "@/lib/export/download-blob";
 import { calculateA4Layout } from "@/lib/export/a4-layout";
 import type { ChartDocument } from "@/lib/document/types";
 import { serializeChart } from "@/lib/editor/pattern-serialize";
 import { withEditableEntry } from "@/lib/export/bundle-editable";
-import type { ExportChoice, ExportKind } from "@/lib/export/export-jobs";
+import type { ExportChoice, ExportKind } from "@/lib/export/export-request";
 import { paletteFileText, setFromPattern } from "@/lib/editor/palette-set";
 import { pixelArtPngBlob } from "@/lib/export/pixel-art-png";
 import type { ExportProgress } from "@/lib/export/export-progress";

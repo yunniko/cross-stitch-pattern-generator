@@ -115,5 +115,3 @@ export function useTries(photoDataUrl: string | null) {
     },
   };
 }
-
-export type Tries = ReturnType<typeof useTries>;

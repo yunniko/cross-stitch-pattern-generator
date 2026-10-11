@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { rgbToHex } from "@/lib/color/color";
-import { createCanvas } from "@/lib/export/canvas-backend";
+import { createCanvas } from "@/lib/editor/canvas-backend";
 import { letteringWarnings } from "@/lib/editor/lettering-warnings";
 import { bestSize, bundledFamilies, bundledFont, pixelSizeHint } from "@/lib/editor/bundled-fonts";
 import { familyByName, fallbackFamilies, listFonts, loadFace, type FontListing } from "@/lib/editor/local-fonts";

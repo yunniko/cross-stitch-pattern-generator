@@ -13,14 +13,12 @@ import {
   isBundledId,
   pixelSizeHint,
 } from "@/lib/editor/bundled-fonts";
-import { inkCount, letteringCells, type ContextFactory } from "@/lib/editor/text-raster";
 
 /**
  * G-081 M6: the fonts that ship with the app. Each is a file in this repository under an open licence, served from this site.
  */
 
 const DIR = path.join(process.cwd(), "public", "fonts", "bundled");
-const context: ContextFactory = (w, h) => createCanvas(w, h).getContext("2d") as unknown as ReturnType<ContextFactory>;
 
 describe("the bundled catalog", () => {
   it("names a file and a licence in the repository for every font", () => {

@@ -55,8 +55,6 @@ export function useCropTool(pattern: StitchPattern | null, transformChart: (tran
   return { open, insets, size, error, changed: !isNoCrop(insets), setInsets, setEdge, reset, begin, close, clearFrame, apply };
 }
 
-export type CropTool = ReturnType<typeof useCropTool>;
-
 /**
  * Crop (G-089): the frame over the chart and the four numbers in its bar are one value. It stays open, frame kept, behind the
  * tools that only move the view, and waits out a looking-only view.

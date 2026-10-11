@@ -1,5 +1,5 @@
 # D186 · The WASM build uses a raw ABI and runs single-threaded
-Date: 2026-09-19 · Goal: G-048 M3 · Status: active (superseded by: —)
+Date: 2026-09-19 · Goal: G-048 M3 · Status: superseded (superseded by: D410)
 Context: criterion 4 asks for generation timed as WASM as well as native. The measurement needs a module Node can load; nothing ships from it in M3.
 Decision: `rust/cs-wasm` exports `alloc`, `dealloc`, `generate` and `result_len`, and returns the same JSON as the CLI. It imports a millisecond clock from `env`. Rayon runs on the calling thread.
 Force: tie-break — any bindings layer would do for a benchmark; a raw ABI adds no tooling.

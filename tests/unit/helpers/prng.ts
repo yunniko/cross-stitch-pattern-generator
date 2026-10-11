@@ -1,4 +1,4 @@
-/** Mulberry32 — small deterministic PRNG so any randomized pass here is reproducible for the same input. */
+/** Mulberry32 — a small deterministic PRNG, so a fuzz run is reproducible from its seed. */
 export function mulberry32(seed: number): () => number {
   let a = seed;
   return () => {

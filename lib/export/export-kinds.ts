@@ -1,4 +1,4 @@
-import type { ExportChoice } from "./export-jobs";
+import type { ExportChoice } from "./export-request";
 
 /**
  * What can be exported, as the Export workspace offers it (G-095 M5) and as the feature list names it (G-102): three

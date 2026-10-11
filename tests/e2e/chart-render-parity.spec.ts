@@ -42,15 +42,16 @@ interface Case {
 
 /**
  * Draws `c` with the frozen reference and with the live code inside the page. Returns how many bytes differ for the
- * export path (`drawChart`, `drawHighlightOverlay`) and for the on-screen path (`drawChartOnScreen`, and the raster
- * highlight mask candidate), plus the canvas size.
+ * fallback path (`drawChart`, `drawHighlightOverlay`, which the on-screen functions fall back to) and for the
+ * on-screen path (`drawChartOnScreen`, and the raster highlight mask candidate), plus the canvas size. Both are
+ * compared with the reference drawing its grid as filled rects, as the live code does since D410.
  */
 async function differingBytes(
   page: Page,
   c: Case
-): Promise<{ exportDiffering: number; screenDiffering: number; maskDiffering: number; bytes: number; size: string }> {
+): Promise<{ fallbackDiffering: number; screenDiffering: number; maskDiffering: number; bytes: number; size: string }> {
   return page.evaluate((c) => {
-    type Renderers = typeof import("../../lib/export/render");
+    type Renderers = typeof import("../../lib/editor/chart-render");
     const { live, reference } = (window as unknown as { __renderers: { live: Renderers; reference: Renderers } }).__renderers;
     const rectGridContext = (window as unknown as { __rectGridContext: (ctx: CanvasRenderingContext2D) => CanvasRenderingContext2D })
       .__rectGridContext;
@@ -79,13 +80,12 @@ async function differingBytes(
     const w = (region.x1 - region.x0) * c.cellSize + (c.kind === "chart" ? 1 : 0);
     const h = (region.y1 - region.y0) * c.cellSize + (c.kind === "chart" ? 1 : 0);
 
-    function drawWith(r: Renderers, target: "reference" | "reference-rects" | "export" | "screen" | "mask"): Uint8ClampedArray {
+    function drawWith(r: Renderers, target: "reference-rects" | "fallback" | "screen" | "mask"): Uint8ClampedArray {
       const canvas = document.createElement("canvas");
       canvas.width = w;
       canvas.height = h;
       const raw = canvas.getContext("2d")!;
       const ctx = target === "reference-rects" ? rectGridContext(raw) : raw;
-      const onScreen: ["rects"] | [] = target === "screen" || target === "mask" ? ["rects"] : [];
       const mode = c.mode ?? "color";
       const live = r as Renderers & {
         drawChartOnScreen?: Renderers["drawChart"];
@@ -107,7 +107,7 @@ async function differingBytes(
           editSeed = (editSeed * 1103515245 + 12345) & 0x7fffffff;
           const y = editSeed % c.height;
           const index = e % 9 === 0 ? 255 : editSeed % c.colors;
-          (r.drawCell as (...args: unknown[]) => void)(ctx, pattern, mode, c.cellSize, x, y, index, c.canvasColor, ...onScreen);
+          (r.drawCell as (...args: unknown[]) => void)(ctx, pattern, mode, c.cellSize, x, y, index, c.canvasColor);
         }
       }
       return raw.getImageData(0, 0, w, h).data;
@@ -118,13 +118,12 @@ async function differingBytes(
       for (let i = 0; i < Math.min(a.length, b.length); i++) if (a[i] !== b[i]) differing++;
       return differing;
     };
-    const expected = drawWith(reference, "reference");
     const expectedOnScreen = drawWith(reference, "reference-rects");
     return {
-      exportDiffering: count(expected, drawWith(live, "export")),
+      fallbackDiffering: count(expectedOnScreen, drawWith(live, "fallback")),
       screenDiffering: count(expectedOnScreen, drawWith(live, "screen")),
       maskDiffering: c.kind === "highlight" ? count(expectedOnScreen, drawWith(live, "mask")) : 0,
-      bytes: expected.length,
+      bytes: expectedOnScreen.length,
       size: `${w}×${h}`,
     };
   }, c);
@@ -255,7 +254,7 @@ for (const c of CASES) {
     test.setTimeout(180_000);
     const result = await differingBytes(page, c);
     expect(result.bytes, `canvas ${result.size}`).toBeGreaterThan(0);
-    expect(result.exportDiffering, `export path, canvas ${result.size}`).toBe(0);
+    expect(result.fallbackDiffering, `fallback path, canvas ${result.size}`).toBe(0);
     expect(result.screenDiffering, `screen path, canvas ${result.size}`).toBe(0);
     expect(result.maskDiffering, `raster highlight mask, canvas ${result.size}`).toBe(0);
   });

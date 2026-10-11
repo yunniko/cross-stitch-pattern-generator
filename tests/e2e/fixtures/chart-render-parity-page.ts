@@ -1,4 +1,4 @@
-import * as live from "../../../lib/export/render";
+import * as live from "../../../lib/editor/chart-render";
 import * as reference from "../../unit/reference/render-pre-g036";
 import { rectGridContext } from "./rect-grid-context";
 

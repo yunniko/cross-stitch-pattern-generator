@@ -673,7 +673,7 @@ fn table_columns(printable_w: f64, dpi: f64) -> TableColumns {
 
 /// How the table is split over pages: the rows on the first page (which carries the title and the overlap note) and on each
 /// page after it.
-fn skein_table_plan(p: &Pattern, l: &Layout) -> (usize, usize) {
+fn skein_table_plan(l: &Layout) -> (usize, usize) {
     let mm = |v: f64| mm_to_px(v, l.dpi);
     let title_px = mm(6.0);
     let sub_px = mm(3.4);
@@ -688,13 +688,12 @@ fn skein_table_plan(p: &Pattern, l: &Layout) -> (usize, usize) {
     };
     let first = rows_for(first_top);
     let later = rows_for(l.margin + mm(4.5) * 1.8);
-    let _ = p;
     (first, later)
 }
 
 /// How many pages the skein table takes.
 pub fn skein_table_pages(p: &Pattern, l: &Layout) -> usize {
-    let (first, later) = skein_table_plan(p, l);
+    let (first, later) = skein_table_plan(l);
     let rows = p.palette.len();
     if rows <= first {
         1
@@ -715,7 +714,7 @@ pub fn draw_skein_table_page(
     let mm = |v: f64| mm_to_px(v, l.dpi);
     ctx.set_fill("#ffffff");
     ctx.fill_rect(0.0, 0.0, l.page_w, l.page_h);
-    let (first, later) = skein_table_plan(p, l);
+    let (first, later) = skein_table_plan(l);
     let (from, to) = if index == 0 {
         (0, first.min(p.palette.len()))
     } else {

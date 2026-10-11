@@ -166,7 +166,7 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D021 — The editable pattern file is plain JSON, not a PNG with embedded data — active
 - D024 — A4 export splits pure page layout from rendering and ZIP bundling — active
 - D073 — PDF charts embed DejaVu Sans with pdf-lib so every symbol is real extractable text — active
-- D074 — The PDF exporter reuses the A4 page-drawing code through a bounded canvas adapter — active
+- D074 — The PDF exporter reuses the A4 page-drawing code through a bounded canvas adapter — superseded by D410
 - D075 — The Pattern Keeper PDF export fetches its font on click and is tested against real legend symbols — active
 - D076 — Overlap bands carry no text; the legend page explains them once — active
 - D078 — One export dropdown, an "Export all" .cspzip bundle, and import that detects ZIPs by content — active
@@ -175,15 +175,15 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D097 — Pattern Keeper compatibility rests on the Owner's real import of an exported PDF — active
 - D101 — A failed auto-restore shows a banner with an on-demand report, not a page-load download — active
 - D119 — OXS is read by a dedicated XML reader and written with the cloth at index 0; losses are counted, never silently dropped — active
-- D125 — Exports run in a worker with OffscreenCanvas, falling back to the main thread — active
-- D126 — The PDF adapter omits opacity for opaque colors and caches parsed styles — active
+- D125 — Exports run in a worker with OffscreenCanvas, falling back to the main thread — superseded by D410
+- D126 — The PDF adapter omits opacity for opaque colors and caches parsed styles — superseded by D410
 - D134 — The on-screen chart fills small stitches and the highlight mask from scaled pixels — partly superseded by D135
 - D154 — Export all gets a fifteen-minute deadline — superseded by D155
 - D155 — The Pattern Keeper PDF exhausts the worker heap on large charts — superseded by D169
 - D168 — Paginated export deadlines grow with the page count — active
-- D169 — Each Pattern Keeper page is released as soon as it is drawn — active
+- D169 — Each Pattern Keeper page is released as soon as it is drawn — superseded by D410
 - D171 — The server writes its own PNGs and releases each canvas once encoded — active
-- D172 — Raster exports stamp symbols from tiles drawn once per colour — active
+- D172 — Raster exports stamp symbols from tiles drawn once per colour — superseded by D410
 - D173 — The realistic preview PNG is streamed from per-colour tiles — active
 - D174 — The PDF adapter writes its direct operators as text — active
 - D180 — The OXS export is built a row at a time — active
@@ -204,12 +204,12 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D149 — The processor runs three workers inside a 3-CPU, 2 GiB cap — active
 - D151 — Generation runs in a processor service that only the app can reach — active
 - D152 — The enhancement preview gets its own worker on the server — active
-- D153 — Server exports draw their text with DejaVu Sans — active
+- D153 — Server exports draw their text with DejaVu Sans — superseded by D410
 - D156 — Loopback spellings are one origin, and APP_URL has no default — active
 - D182 — Generation is ported to Rust, a language new to the portfolio — active
 - D183 — Rust uses V8's own maths routines, proven bit-exact — active
 - D184 — Rust also ports V8's sin, cos, atan2, log and hypot — active
-- D186 — The WASM build uses a raw ABI and runs single-threaded — active
+- D186 — The WASM build uses a raw ABI and runs single-threaded — superseded by D410
 - D187 — Rust rasters draw DejaVu text from measured canvas metrics, compared by pixel difference — active
 - D188 — Export references are made in the production processor image — active
 - D190 — Rust ships for generation and every server-side export — active
@@ -218,7 +218,7 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D195 — The pixel-art PNG is written in the page, and is not a processor export — active
 - D203 — A texture is data with ranges, and its default is frozen — active
 - D218 — A crash hands over a report, and the test breaks the browser rather than the app — active
-- D219 — The chart rasteriser stays one module; only its words move out — active
+- D219 — The chart rasteriser stays one module; only its words move out — superseded by D410
 - D220 — Latest-value refs update before paint, not after — active
 - D221 — The sidecar is the only engine; the TypeScript pipeline stops shipping — active
 - D222 — The safety net is properties and gates, not only recorded hashes — active
@@ -432,7 +432,7 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D393 — Counts and exports draw the visible layers' top stitches; Export all's editable entry is replaced in the page — active
 - D394 — A cut piece, or a copy taken to another layer, is pasted in place — active
 - D395 — A colour's thread is the person's: any system in any chart, typed numbers kept, a recolour keeps it — active
-- D396 — Every key prints System and Number columns, filled from each colour's own thread; the Pattern Keeper PDF re-pinned — active
+- D396 — Every key prints System and Number columns, filled from each colour's own thread; the Pattern Keeper PDF re-pinned — active in part (superseded by D410)
 - D397 — A palette colour carries its own colour, name and thread; a set's mode only chooses what is offered — active
 - D398 — Saved palettes live in the account, one per name, limited by count; signed out, a file only — active
 - D399 — A thread's system is any name; one not loaded here is kept as written and edited in the common picker — active
@@ -446,3 +446,4 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D407 — The processor spawns and kills every cs-job itself; photos are header-checked before decoding — active
 - D408 — The fake billing adapter and its pages exist only in builds that ask for them — active
 - D409 — The admin bootstrap is off unless set, and closes once an admin exists — active
+- D410 — Code that only tests run is removed, and CI keeps it out — active

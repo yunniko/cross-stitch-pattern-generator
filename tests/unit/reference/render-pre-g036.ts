@@ -1,12 +1,14 @@
-// Verbatim copy of lib/export/render.ts before G-036 (commit 919923b), kept only as the pixel-parity oracle for
-// tests/e2e/chart-render-parity.spec.ts. Only import paths were changed to absolute aliases. Never edit it.
-import { createCanvas, type AnyCanvas, type Canvas2D } from "@/lib/export/canvas-backend";
-import type { ChartDrawingContext } from "@/lib/export/chart-drawing-context";
+// Verbatim copy of lib/export/render.ts (now lib/editor/chart-render.ts) before G-036 (commit 919923b), kept only as the pixel-parity oracle for
+// tests/e2e/chart-render-parity.spec.ts. Only import paths were changed to absolute aliases, and the drawing-context
+// type, whose module went with the PDF exporter (G-134 M2), is declared here. Never edit it otherwise.
+import { createCanvas, type AnyCanvas, type Canvas2D } from "@/lib/editor/canvas-backend";
 import { hexToRgb, luminance, rgbToHex } from "@/lib/color/color";
 import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT, formatFinishedSize, type SizeUnit } from "@/lib/export/finished-size";
 import { formatSkeinEstimate } from "@/lib/threads/floss-estimate";
-import { buildTintedTextureSet } from "@/lib/export/stitch-texture";
+import { buildTintedTextureSet } from "@/lib/editor/stitch-texture";
 import { EMPTY_CELL, filledStitchCount, formatStitchCount, type PaletteColor, type StitchPattern, type RGB } from "@/lib/types";
+
+type ChartDrawingContext = Canvas2D;
 
 export type RenderMode = "color" | "bw";
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { deserializePattern, serializePattern } from "@/lib/editor/pattern-serialize";
-import { mulberry32 } from "@/lib/prng";
-import { drawChart, renderNavigatorPixels } from "@/lib/export/render";
+import { mulberry32 } from "./helpers/prng";
+import { drawChart, renderNavigatorPixels } from "@/lib/editor/chart-render";
 import { THREAD_CODE_MAX, findThread, threadSystem } from "@/lib/threads/thread-brands";
 import { EMPTY_CELL, MAX_COLORS, MAX_STITCHES, type StitchPattern } from "@/lib/types";
 import { makeRecordingContext } from "./helpers/recording-context";

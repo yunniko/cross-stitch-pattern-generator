@@ -47,11 +47,6 @@ export function isNeutralAdjust(adjust: PhotoAdjust): boolean {
   return adjust.brightness === 0 && adjust.contrast === 0 && adjust.saturation === 0 && adjust.temperature === 0;
 }
 
-/** Whether two sets of sliders are the same, so a change can be told from a no-op. */
-export function samePhotoAdjust(a: PhotoAdjust, b: PhotoAdjust): boolean {
-  return a.brightness === b.brightness && a.contrast === b.contrast && a.saturation === b.saturation && a.temperature === b.temperature;
-}
-
 /** Clamps a slider to its range and drops anything that is not a number, so a bad saved file cannot poison a photo. */
 export function clampAdjust(value: unknown): number {
   if (typeof value !== "number" || !Number.isFinite(value)) return 0;
@@ -125,8 +120,8 @@ export function adjustOklab(L: number, a: number, b: number, adjust: PhotoAdjust
 /**
  * Adjusted OKLab back to an sRGB pixel, written into `out` at `at`.
  *
- * The clamp is the whole of D238: a colour pushed out of sRGB is clipped per channel, not chroma-reduced by
- * `gamutMapOklabToLinear`. The map costs 8x everything else here put together, and it answers "more saturation"
+ * The clamp is the whole of D238: a colour pushed out of sRGB is clipped per channel, not chroma-reduced by the
+ * gamut mapping thread matching uses (D111, now in Rust). The map costs 8x everything else here put together, and it answers "more saturation"
  * by removing saturation -- see `docs/reviews/2026-09-26-photo-adjust-cost.md`.
  */
 function writeAdjustedPixel(L: number, a: number, b: number, out: Uint8ClampedArray, at: number): void {

@@ -109,5 +109,3 @@ export function usePhotoEdits(source: SourceImage, onError: (message: string | n
     },
   };
 }
-
-export type PhotoEdits = ReturnType<typeof usePhotoEdits>;

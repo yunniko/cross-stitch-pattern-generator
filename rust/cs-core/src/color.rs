@@ -178,3 +178,70 @@ pub fn gamut_map_oklab_to_linear(ll: f64, a: f64, b: f64) -> [f64; 3] {
     }
     [clamp01(best[0]), clamp01(best[1]), clamp01(best[2])]
 }
+
+#[cfg(test)]
+mod gamut_tests {
+    use super::*;
+
+    fn to_rgb(linear: [f64; 3]) -> Rgb {
+        [
+            linear_to_srgb(linear[0]),
+            linear_to_srgb(linear[1]),
+            linear_to_srgb(linear[2]),
+        ]
+    }
+
+    fn mapped(lab: Oklab) -> Rgb {
+        to_rgb(gamut_map_oklab_to_linear(lab[0], lab[1], lab[2]))
+    }
+
+    fn chroma(lab: &Oklab) -> f64 {
+        lab[1].hypot(lab[2])
+    }
+
+    fn hue_gap(x: &Oklab, y: &Oklab) -> f64 {
+        let d = (x[2].atan2(x[1]) - y[2].atan2(y[1])).abs() % std::f64::consts::TAU;
+        d.min(std::f64::consts::TAU - d)
+    }
+
+    #[test]
+    fn the_unclamped_conversion_agrees_in_gamut_and_overshoots_outside() {
+        let lab = rgb_to_oklab([120, 80, 200]);
+        assert_eq!(to_rgb(oklab_to_linear_rgb(lab)), oklab_to_rgb(lab));
+        let out = oklab_to_linear_rgb([0.6, 0.3, 0.1]);
+        assert!(out.iter().any(|&v| !(0.0..=1.0).contains(&v)));
+    }
+
+    #[test]
+    fn passes_an_in_gamut_colour_through() {
+        assert_eq!(mapped(rgb_to_oklab([120, 80, 200])), [120, 80, 200]);
+    }
+
+    #[test]
+    fn reduces_chroma_at_constant_lightness_and_hue_unlike_clipping() {
+        let source = [0.6, 0.3, 0.1];
+        let result = rgb_to_oklab(mapped(source));
+        // The CSS hybrid may accept a clip within JND 0.02 of the chroma-reduced candidate, plus 8-bit rounding.
+        assert!((result[0] - source[0]).abs() < 0.025);
+        assert!(hue_gap(&result, &source) < 0.06);
+        assert!(chroma(&result) < chroma(&source));
+        let clipped = rgb_to_oklab(oklab_to_rgb(source));
+        let clip_error = (clipped[0] - source[0]).abs() + hue_gap(&clipped, &source);
+        let mapped_error = (result[0] - source[0]).abs() + hue_gap(&result, &source);
+        assert!(mapped_error < clip_error);
+    }
+
+    #[test]
+    fn gives_black_and_white_at_and_beyond_the_ends() {
+        assert_eq!(mapped([0.0, 0.1, 0.1]), [0, 0, 0]);
+        assert_eq!(mapped([1.2, -0.1, 0.05]), [255, 255, 255]);
+    }
+
+    #[test]
+    fn keeps_a_very_dark_saturated_colour_finite_and_near_its_lightness() {
+        let source = [0.08, 0.2, -0.25];
+        let result = rgb_to_oklab(mapped(source));
+        assert!(result.iter().all(|v| v.is_finite()));
+        assert!((result[0] - source[0]).abs() < 0.02);
+    }
+}

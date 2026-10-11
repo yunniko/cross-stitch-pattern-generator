@@ -29,7 +29,7 @@ const LEGEND_ITEM_HEIGHT: f64 = 40.0;
 const LEGEND_SWATCH_SIZE: f64 = 20.0;
 const LEGEND_PADDING: f64 = 16.0;
 const LEGEND_COLUMN_WIDTH: f64 = 170.0;
-/// Wider when the chart has half stitches, whose rows also say the stitch type (TypeScript: `LEGEND_COLUMN_WIDTH_WITH_HALVES`).
+/// Wider when the chart has half stitches, whose rows also say the stitch type.
 const LEGEND_COLUMN_WIDTH_WITH_HALVES: f64 = 190.0;
 const BW_MIN_GRAY: f64 = 150.0;
 const BW_MAX_GRAY: f64 = 245.0;
@@ -837,4 +837,67 @@ pub fn render_pattern(
 pub fn effective_cell_size(width: usize, height: usize) -> i64 {
     let longer = width.max(height) as i64;
     MIN_CHART_CELL_SIZE_PX.max(DEFAULT_CELL_SIZE.min(MAX_CANVAS_DIMENSION / longer))
+}
+
+#[cfg(test)]
+mod header_tests {
+    use super::*;
+
+    fn pattern(width: usize, height: usize, empty: usize) -> Pattern {
+        let mut cells = vec![0u8; width * height];
+        cells[..empty].fill(EMPTY_CELL);
+        Pattern {
+            width,
+            height,
+            is_landscape: width >= height,
+            cells,
+            kinds: Vec::new(),
+            palette: Vec::new(),
+            name: None,
+            source_image: None,
+            thread_brand: None,
+            edge_mode: None,
+            enhancement_mode: None,
+            symmetry: Vec::new(),
+            backstitch: Vec::new(),
+            kept: Vec::new(),
+            fabric: None,
+            labelled_systems: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn shows_the_grid_and_counts_only_filled_stitches() {
+        // D120: an empty stitch is not one to sew; the size is the canvas's either way.
+        let full = header_text(&pattern(60, 40, 0), 14.0, SizeUnit::In, "");
+        let gaps = header_text(&pattern(60, 40, 400), 14.0, SizeUnit::In, "");
+        assert!(
+            full.starts_with("60 × 40 grid, 2,400 stitches — approx. "),
+            "{full}"
+        );
+        assert!(
+            gaps.starts_with("60 × 40 grid, 2,000 stitches — approx. "),
+            "{gaps}"
+        );
+        assert_eq!(full.split(" — ").nth(1), gaps.split(" — ").nth(1));
+    }
+
+    #[test]
+    fn gives_the_finished_size_in_the_unit_asked_for() {
+        // G-015: the Options unit, not a default.
+        let p = pattern(140, 140, 0);
+        assert!(header_text(&p, 14.0, SizeUnit::In, "").contains("10.0 in"));
+        assert!(header_text(&p, 14.0, SizeUnit::Cm, "").contains("25.4 cm"));
+    }
+
+    #[test]
+    fn credits_a_trimmed_author_and_no_blank_one() {
+        let p = pattern(10, 10, 0);
+        for blank in ["", "   "] {
+            assert!(!header_text(&p, 14.0, SizeUnit::In, blank).contains("Designed by"));
+        }
+        assert!(
+            header_text(&p, 14.0, SizeUnit::In, "  Julie N.  ").ends_with("Designed by Julie N.")
+        );
+    }
 }

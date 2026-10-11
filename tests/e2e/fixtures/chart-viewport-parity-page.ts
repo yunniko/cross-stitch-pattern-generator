@@ -1,5 +1,5 @@
 import * as scene from "../../../app/chart-scene";
-import { buildStitchTiles } from "../../../lib/export/stitch-texture";
+import { buildStitchTiles } from "../../../lib/editor/stitch-texture";
 import * as viewport from "../../../lib/editor/chart-viewport";
 import { compositeSelectionPreview } from "../../../lib/editor/floating-selection";
 import * as reference from "../../unit/reference/chart-scene-pre-g036";

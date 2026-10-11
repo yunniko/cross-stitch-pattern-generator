@@ -1,5 +1,5 @@
 import { EXPORT_KIND_GROUPS, exportChoiceFeature, exportKindFeature } from "../export/export-kinds";
-import type { ExportJobKind } from "../export/export-jobs";
+import type { ExportJobKind } from "../export/export-request";
 import { usageWindowStarts } from "../admin/usage-windows";
 
 /**

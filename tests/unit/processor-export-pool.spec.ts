@@ -3,7 +3,7 @@ import path from "node:path";
 import JSZip from "jszip";
 import { afterAll, describe, expect, it } from "vitest";
 import { createBlankPattern } from "@/lib/editor/blank-pattern";
-import type { ExportJobKind } from "@/lib/export/export-jobs";
+import type { ExportJobKind } from "@/lib/export/export-request";
 import type { ExportJobPayload } from "@/processor/job-protocol";
 import { GenerationPool } from "@/processor/pool";
 import { EMPTY_CELL, type PaletteColor, type StitchPattern } from "@/lib/types";
@@ -16,8 +16,6 @@ import { EMPTY_CELL, type PaletteColor, type StitchPattern } from "@/lib/types";
  * server produces an actual file rather than merely accepting the request.
  */
 
-// The repo's own assets stand in for the ones the image copies next to the bundle.
-process.env.EXPORT_ASSET_ROOT = path.join(__dirname, "..", "..", "public");
 // The build tree's binary stands in for `/app/bin/cs-job`. Since G-068 M2 there is nothing behind the sidecar, so
 // this spec exercises the same path production does -- and fails plainly if the binary was never built.
 process.env.CS_JOB_BINARY = path.join(

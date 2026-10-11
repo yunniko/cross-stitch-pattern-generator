@@ -31,7 +31,7 @@
   --at-accent-wash: rgba(70, 194, 174, 0.14);
   --at-accent-wash-strong: rgba(70, 194, 174, 0.16);
 
-  /* The symmetry guide, matching the colour the chart itself draws it in (lib/export/render.ts). */
+  /* The symmetry guide, matching the colour the chart itself draws it in (lib/editor/chart-render.ts). */
   --at-guide: #dc2626;
 
   /* Something went wrong, or will: the text, a bright edge for a field that cannot be read, the edge and fill of a

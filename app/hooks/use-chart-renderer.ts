@@ -13,7 +13,7 @@ import { useAdjustedPhoto } from "./use-adjusted-photo";
 import type { PhotoAdjust } from "@/lib/pipeline/photo-adjust";
 import type { StampEdge } from "@/lib/editor/brush-stamp";
 import type { SymmetryAxes } from "@/lib/editor/symmetry";
-import { renderNavigatorPixels } from "@/lib/export/render";
+import { renderNavigatorPixels } from "@/lib/editor/chart-render";
 import type { BackstitchLine, CellRect, FloatingSelection, StitchPattern } from "@/lib/types";
 import {
   brushOpsIn,
@@ -30,7 +30,7 @@ import type { Tool } from "../editor-types";
 import type { ChartView } from "@/lib/editor/view";
 import type { LayerStack } from "@/lib/document/layer-stack";
 import { cellIndexFromEvent, chartOrigin, drawPointerDot, drawStampOutline } from "../editor-geometry";
-import { buildStitchTiles, type StitchTiles } from "@/lib/export/stitch-texture";
+import { buildStitchTiles, type StitchTiles } from "@/lib/editor/stitch-texture";
 import type { StitchTextureId } from "@/lib/export/stitch-texture-catalog";
 import { tileSizeFor } from "../realistic-tiles";
 import { useLatest } from "./use-latest";

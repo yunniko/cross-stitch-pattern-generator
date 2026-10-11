@@ -61,8 +61,7 @@ COPY --from=deps /app/node_modules/@napi-rs ./node_modules/@napi-rs
 # Generation and every server export run here, and only here (D190, D221). There is no fallback behind it: a
 # missing binary means the processor cannot do its job, and says so.
 COPY --from=rust /src/rust/target/release/cs-job ./bin/cs-job
-# The export font and the stitch texture come with the bundle: `npm run build:processor` copies them into
-# `dist/processor/assets`, so the same layout works here and wherever else the bundle runs (D153).
+# The export font and textures are compiled into `cs-job` (`include_bytes!`), so the image carries no asset files.
 
 EXPOSE 8081
 CMD ["node", "processor/server.mjs"]

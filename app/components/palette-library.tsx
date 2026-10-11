@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { paletteFileName, paletteFileText, parsePaletteFile, type PaletteSet } from "@/lib/editor/palette-set";
-import { downloadBlob } from "@/lib/export/a4-export";
+import { downloadBlob } from "@/lib/export/download-blob";
 import { PALETTES_FEATURE } from "@/lib/palettes/palette";
 import { lockedControlProps } from "./feature-gate";
 import { usePaletteAccount } from "./palette-account";

@@ -3,7 +3,18 @@ import { createBlankPattern } from "@/lib/editor/blank-pattern";
 import { serializePattern } from "@/lib/editor/pattern-serialize";
 import { DEFAULT_OPTIONS } from "@/lib/editor/workspace-storage";
 import { runServerExport } from "@/lib/export/export-server";
-import { exportRequestError, parseExportRequest, toExportPayload } from "@/processor/validate-export";
+import { parseExportRequest } from "@/processor/validate-export";
+import type { ExportJobPayload } from "@/processor/job-protocol";
+
+/** The refusal reason, or null when the request is acceptable. */
+const exportRequestError = (body: unknown): string | null => parseExportRequest(body).error;
+
+/** The payload of an accepted request, with the defaults the editor would otherwise have sent. */
+function toExportPayload(body: unknown): ExportJobPayload {
+  const parsed = parseExportRequest(body);
+  if (parsed.error !== null) throw new Error(parsed.error);
+  return parsed.payload;
+}
 import { EMPTY_CELL, type PaletteColor, type StitchPattern } from "@/lib/types";
 
 /**

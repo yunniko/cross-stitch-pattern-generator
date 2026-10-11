@@ -2,7 +2,7 @@ import { dispositionFilename } from "./content-disposition";
 import { serializePattern } from "../editor/pattern-serialize";
 import { NO_SYMMETRY } from "../editor/symmetry-axes";
 import { errorFromResponse, isNetworkFailure, ProcessorUnreachableError } from "../pipeline/server-errors";
-import type { ExportJobRequest, ExportJobResult } from "./export-jobs";
+import type { ExportJobRequest, ExportJobResult } from "./export-request";
 import type { ExportProgressCallback } from "./export-progress";
 
 /**
@@ -13,14 +13,6 @@ import type { ExportProgressCallback } from "./export-progress";
  * saved file uses, so the processor parses it with the parser that opens a file. Progress arrives over the job event
  * stream the generations already use, because exports run on the same pool.
  */
-
-/** A chart too large to render as one image: the caller's to change, not a failure of the service. */
-export class ChartTooLargeForExportError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "ChartTooLargeForExportError";
-  }
-}
 
 let activeController: AbortController | null = null;
 let activeJobId: string | null = null;
@@ -117,10 +109,6 @@ export async function runServerExport(request: ExportJobRequest, onProgress?: Ex
     } catch (error) {
       if (isNetworkFailure(error)) throw new ProcessorUnreachableError();
       throw error;
-    }
-    if (started.status === 422) {
-      const { error } = (await started.json()) as { error?: string };
-      throw new ChartTooLargeForExportError(error ?? "That pattern is too large to render as a single image.");
     }
     if (!started.ok) throw await errorFromResponse(started, "Couldn't complete that export.");
 

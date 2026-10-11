@@ -1,7 +1,10 @@
-//! The cross-stitch generation pipeline in Rust (G-048). The exact tier reproduces the TypeScript pipeline byte for
-//! byte (D107 golden hashes); every module names the TypeScript file it ports. See D182.
+//! The cross-stitch generation pipeline (G-048), the only one since G-068. It was ported from a TypeScript pipeline byte
+//! for byte, and that output is pinned by the golden hashes (D107); see D182.
+//!
+//! "The TypeScript" in a comment here means that original, deleted in G-068: where a comment says an order, a tie-break
+//! or a sum follows it, that is what the golden hashes still hold this code to.
 
-// Loops, comparisons and bounds mirror the TypeScript line for line, which is what makes the port checkable against it
+// Loops, comparisons and bounds keep the shape of the original line for line, which is what kept the port checkable
 // (a clamp or range rewrite would also change NaN behaviour).
 #![allow(
     clippy::needless_range_loop,

@@ -2,7 +2,7 @@ import type { RequestSystem } from "@/lib/thread-systems/thread-system";
 import { A4_PAGE_GUTTER_MM, A4_PAGE_MARGIN_MM } from "@/lib/export/export-cell-size";
 import type { SerializedSymmetry } from "@/lib/editor/pattern-serialize";
 import { calculateA4Layout, type OverlapCells } from "@/lib/export/a4-layout";
-import type { ExportJobKind } from "@/lib/export/export-jobs";
+import type { ExportJobKind } from "@/lib/export/export-request";
 import type { ExportProgress } from "@/lib/export/export-progress";
 import type { SizeUnit } from "@/lib/export/finished-size";
 import type { DitherMode } from "@/lib/pipeline/dither";

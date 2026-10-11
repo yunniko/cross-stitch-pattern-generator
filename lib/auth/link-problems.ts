@@ -10,8 +10,6 @@ export const LINK_PROBLEMS = {
   },
 } as const;
 
-export type LinkProblem = keyof (typeof LINK_PROBLEMS)["confirm"];
-
 /** The words for a `?link=` value from the address bar; anything else is no problem to show. */
 export function linkProblem(purpose: keyof typeof LINK_PROBLEMS, reason: string | undefined): string | undefined {
   return reason === "expired" || reason === "unknown" ? LINK_PROBLEMS[purpose][reason] : undefined;

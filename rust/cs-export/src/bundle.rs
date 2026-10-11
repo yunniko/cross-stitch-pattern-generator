@@ -58,18 +58,6 @@ fn page_png(width: f64, height: f64, draw: impl FnOnce(&mut Canvas)) -> Vec<u8> 
     png::encode(&c, c.width(), c.height())
 }
 
-/// `addA4PagesToZip`: grid pages in row-major order, the simple legend, then the extended legend pages, each under
-/// `prefix` (a folder inside Export all, or nothing).
-pub fn add_a4_pages(
-    zip: &mut Zip,
-    prefix: &str,
-    p: &Pattern,
-    mode: Mode,
-    request: &Request,
-) -> usize {
-    add_a4_pages_reporting(zip, prefix, p, mode, request, &|_, _| {})
-}
-
 /// The page count the Pattern Keeper PDF reports against: grid pages, the simple legend and the extended legend pages,
 /// on the layout that PDF has always had.
 pub fn a4_page_count(p: &Pattern, request: &Request, dpi: f64) -> usize {
@@ -104,8 +92,10 @@ pub fn a4_png_page_count(p: &Pattern, request: &Request) -> usize {
     1 + l.pages.len() + a4::skein_table_pages(p, &l) + a4::continuation_slices(&plan).len() + 1
 }
 
-/// `add_a4_pages` reporting `(finished, total)` as each page is done, for the sidecar's progress (G-048 M6).
-pub fn add_a4_pages_reporting(
+/// The A4 pages: grid pages in row-major order, the simple legend, then the extended legend pages, each under
+/// `prefix` (a folder inside Export all, or nothing).
+/// `progress` gets `(finished, total)` as each page is done, for the sidecar's progress (G-048 M6).
+pub fn add_a4_pages(
     zip: &mut Zip,
     prefix: &str,
     p: &Pattern,

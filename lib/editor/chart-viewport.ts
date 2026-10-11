@@ -1,4 +1,4 @@
-import type { ChartRegion } from "@/lib/export/render";
+import type { ChartRegion } from "@/lib/editor/chart-render";
 
 /**
  * Geometry of the Image window's viewport canvas (G-036 M3): a chart-sized frame is the layout and input surface, and

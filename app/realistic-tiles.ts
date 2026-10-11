@@ -1,7 +1,7 @@
 import { halfStitchMask } from "@/lib/export/half-stitch-shape";
-import { createCanvas } from "@/lib/export/canvas-backend";
-import type { ChartRegion } from "@/lib/export/render";
-import type { StitchTiles } from "@/lib/export/stitch-texture";
+import { createCanvas } from "@/lib/editor/canvas-backend";
+import type { ChartRegion } from "@/lib/editor/chart-render";
+import type { StitchTiles } from "@/lib/editor/stitch-texture";
 import { EMPTY_CELL, type StitchPattern } from "@/lib/types";
 
 /**

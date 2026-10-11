@@ -1,8 +1,7 @@
 import { createDeflate } from "node:zlib";
-import type { PixelSource } from "@/lib/export/canvas-backend";
 
 /**
- * PNG encoding on the server: the processor's exports (G-047 M1, D171) and the app's saved-chart previews (D357).
+ * PNG encoding on the server, for the app's saved-chart previews (D357); first written for the TypeScript exports (D171).
  *
  * The canvas library's own encoder spent about 350 ms of every 400 ms A4 page. This writer reads the canvas in strips of
  * rows through `getImageData` — the standard, unpremultiplied pixels — filters each row with PNG's Up filter and streams
@@ -12,7 +11,13 @@ import type { PixelSource } from "@/lib/export/canvas-backend";
  * opaque restarts the encode as RGBA; only the realistic preview, whose texture has soft edges, ever takes that path.
  */
 
-export type { PixelSource };
+/**
+ * Pixels read in horizontal strips, the only way the encoder reads them: a canvas context is one, and so is an image
+ * produced a strip at a time without ever existing whole (G-047 M2). Strips span the full width.
+ */
+export interface PixelSource {
+  getImageData(x: number, y: number, width: number, height: number): { data: Uint8ClampedArray };
+}
 
 /** Rows read per `getImageData` call: a few MB at A4 width, so a 96 Mpx preview never needs a second full copy. */
 const STRIP_ROWS = 64;

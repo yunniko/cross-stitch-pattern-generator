@@ -1,5 +1,3 @@
-import type { ChartDrawingContext } from "@/lib/export/chart-drawing-context";
-
 export interface RecordedRect {
   x: number;
   y: number;
@@ -22,15 +20,15 @@ export interface RecordedLine {
 }
 
 /**
- * A `ChartDrawingContext` that records every fill, text and stroked line, for asserting on what a draw function
- * actually did without a canvas.
+ * A stand-in for a canvas context that records every fill, text and stroked line, for asserting on what a draw function
+ * actually did without a canvas. It implements the members the chart drawing calls, and is typed as a context for them.
  *
  * **Every recorded coordinate is in the caller's own space**, with `translate` applied and `save`/`restore`
  * honoured. It has to be: `translate` was a no-op here until 2026-09-25, so a draw placed a whole region away
  * from where it belonged recorded the same numbers as a correct one, and the backstitch bug that displaced
  * every line as soon as the chart was zoomed was invisible to this harness.
  */
-export function makeRecordingContext(): ChartDrawingContext & {
+export function makeRecordingContext(): CanvasRenderingContext2D & {
   styles: string[];
   rects: RecordedRect[];
   texts: RecordedText[];
@@ -141,5 +139,5 @@ export function makeRecordingContext(): ChartDrawingContext & {
       ty = 0;
     },
   };
-  return ctx;
+  return ctx as unknown as ReturnType<typeof makeRecordingContext>;
 }

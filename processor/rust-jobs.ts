@@ -4,7 +4,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { deserializePatternData, serializePattern } from "@/lib/editor/pattern-serialize";
 import type { SymmetryAxes } from "@/lib/editor/symmetry-axes";
-import type { ExportJobKind } from "@/lib/export/export-jobs";
+import type { ExportJobKind } from "@/lib/export/export-request";
 import type { ExportProgress } from "@/lib/export/export-progress";
 import type { ColorPrediction, PredictionRequest } from "@/lib/pipeline/prediction";
 import type { PixelBuffer, StitchPattern } from "@/lib/types";

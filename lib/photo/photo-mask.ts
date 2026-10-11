@@ -25,7 +25,7 @@ export const ABSENT_ALPHA = 128;
 
 /**
  * The OKLab distance a tolerance allows: 0.004 per step, so 100 reaches 0.4, past most of a photo's subject-to-background
- * differences, and 5 is about one just-noticeable difference (`GAMUT_JND`, 0.02). See D349.
+ * differences, and 5 is about one just-noticeable difference (0.02, the gamut mapping's, D111). See D349.
  */
 export function toleranceDistance(tolerance: number): number {
   if (!Number.isFinite(tolerance) || tolerance < 0 || tolerance > 100) {

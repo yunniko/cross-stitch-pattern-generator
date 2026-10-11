@@ -121,7 +121,7 @@ in the browser. The limits that the growth-readiness review found are in this ap
 
 | Concern for a large editor | In the browser | What this app already has |
 |---|---|---|
-| Heavy computation | WebAssembly and workers run compiled code off the main thread | The generator and exporter are Rust; a `cs-wasm` crate exists in the workspace; photo decoding and the adjustment preview already run in workers |
+| Heavy computation | WebAssembly and workers run compiled code off the main thread | The generator and exporter are Rust, which could be compiled for the browser (a `cs-wasm` crate did this until G-134 removed it unused, D186); photo decoding and the adjustment preview already run in workers |
 | Drawing many objects and layers fast | Canvas 2D for moderate scenes, WebGL or WebGPU when it is not enough | A viewport renderer that paints only what is visible (D135) and stays smooth at 1500 × 1500 |
 | Large documents in memory | A tab has a few gigabytes at most, less on phones | The largest chart is about 2 MB of cells; undo by full copy is the first thing that would hit a limit, and it is already scheduled to change |
 | Files on disk | Open and download everywhere; direct save-in-place only in Chromium browsers | Download-based saving plus autosave in the browser |

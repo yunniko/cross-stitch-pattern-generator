@@ -12,5 +12,5 @@ serde = { version = "1", features = ["derive"], optional = true }
 serde_json = { version = "1", optional = true }
 
 [features]
-# Options and pattern as JSON, for cs-bench and cs-wasm.
+# Options and pattern as JSON, for cs-bench and cs-job.
 json = ["dep:serde", "dep:serde_json"]

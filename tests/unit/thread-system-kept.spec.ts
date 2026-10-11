@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { parseOxs, serializeOxs } from "@/lib/editor/oxs";
 import { editColorRgb, setColorThread } from "@/lib/editor/pattern-edit";
 import { deserializePattern, serializePattern } from "@/lib/editor/pattern-serialize";
-import { printedThread, threadSystems } from "@/lib/threads/printed-thread";
 import type { StitchPattern } from "@/lib/types";
 
 /**
@@ -45,11 +44,5 @@ describe("a thread of a system not loaded here", () => {
     expect(rose.name).toBe("Madeira 0210 - Rose");
     // Mixed systems: the chart takes none as its own.
     expect(pattern.threadBrand).toBeUndefined();
-  });
-
-  it("prints its system as stored, after the loaded systems", () => {
-    const palette = chart().palette;
-    expect(printedThread(palette[0])).toEqual({ system: "Madeira", number: "0210", name: "Rose" });
-    expect(threadSystems(palette)).toEqual(["DMC", "Madeira"]);
   });
 });

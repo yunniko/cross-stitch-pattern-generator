@@ -1,5 +1,8 @@
-//! G-048 M4: the exports in Rust (`lib/export/`, `lib/editor/oxs.ts`, `lib/editor/pattern-serialize.ts`). The pattern
-//! arrives as the editable save; `export` returns the file `runExportJob` would.
+//! Every file a person downloads (G-048 M4, the only exporter since D221). The pattern arrives as the editable save;
+//! `export` returns the file.
+//!
+//! "The TypeScript" in a comment here means the exporter this was ported from, deleted in G-134: where a comment says a
+//! layout or an order follows it, that is what the golden hashes (D107) still hold this code to.
 
 pub mod a4;
 pub mod backstitch;
@@ -26,8 +29,8 @@ pub struct ExportFile {
     pub bytes: Vec<u8>,
 }
 
-/// What a long export reports as it goes: `(completed, total, label)`, the fields of the TypeScript's `ExportProgress`
-/// so the editor's "Page 12 of 180" reads the same from either side.
+/// What a long export reports as it goes: `(completed, total, label)`, the fields of `ExportProgress`
+/// (`lib/export/export-progress.ts`), which the editor shows as "Page 12 of 180".
 pub type Progress<'a> = &'a (dyn Fn(usize, usize, &str) + Sync);
 
 /// `runExportJob` without progress.
@@ -110,14 +113,9 @@ pub fn export_reporting(
                 render::Mode::Color
             };
             let mut zip = bundle::Zip::new();
-            bundle::add_a4_pages_reporting(
-                &mut zip,
-                "",
-                &compacted,
-                mode,
-                request,
-                &|done, total| progress(done, total, &format!("Page {done} of {total}")),
-            );
+            bundle::add_a4_pages(&mut zip, "", &compacted, mode, request, &|done, total| {
+                progress(done, total, &format!("Page {done} of {total}"))
+            });
             let label = if mode == render::Mode::Bw {
                 "bw"
             } else {
@@ -237,7 +235,7 @@ fn export_all(p: &Pattern, request: &Request, progress: Progress) -> Result<Vec<
     ] {
         zip.folder(folder);
         let base_done = completed;
-        bundle::add_a4_pages_reporting(
+        bundle::add_a4_pages(
             &mut zip,
             &format!("{folder}/"),
             p,

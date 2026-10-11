@@ -1,7 +1,7 @@
 import type { FeatureDeclaration } from "@/lib/features/features";
 import type { ActiveLayerInfo } from "@/lib/editor/tool-layer";
 import type { ChartTransform } from "@/lib/document/layer-kinds";
-import type { ComponentType, DragEvent, MouseEvent, PointerEvent, ReactNode, RefObject } from "react";
+import type { ComponentType, MouseEvent, PointerEvent, ReactNode, RefObject } from "react";
 import type { StampOffset } from "@/lib/editor/brush-stamp";
 import type { CommandDefinition, CommandState } from "@/lib/editor/commands";
 import type { ShapeFill } from "@/lib/editor/shape-raster";
@@ -246,6 +246,3 @@ export interface ToolModule {
   /** A hook: called once per render, in the registry's fixed order. */
   useRuntime(api: EditorApi): ToolRuntime;
 }
-
-/** Re-exported for modules that take a dropped item; kept here so tools import their event types from one place. */
-export type ChartDragEvent = DragEvent<HTMLDivElement>;

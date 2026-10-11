@@ -43,7 +43,7 @@ export function appWithProcessor({
   const root = path.join(__dirname, "..");
   return [
     {
-      // `build:processor` also copies the export font and texture next to the bundle (D153), so this is self-contained.
+      // The export font and textures are compiled into `cs-job`, so the bundle needs nothing beside it.
       command: "npm run build:processor && node dist/processor/server.mjs",
       cwd: root,
       // The sidecar is the only engine (D221): `CS_JOB_BINARY=<path> npm run test:e2e` names the build tree's binary,

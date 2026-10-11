@@ -12,12 +12,12 @@
 //! D400), up to thousands of threads, and an export's an author name, either more than a command line may hold (D407).
 //!
 //! stderr carries one JSON object per line, never the payload: `{"progress":0.4}` as `buildPattern`'s `onProgress`
-//! reports it, `{"exportProgress":{"completed":12,"total":180,"label":"Page 12 of 180"}}` as `runExportJob` does,
+//! reports it, `{"exportProgress":{"completed":12,"total":180,"label":"Page 12 of 180"}}` as the editor shows it,
 //! `{"filename":"chart.pdf"}` before an export's bytes, and `{"error":"…"}` before a non-zero exit.
 //! Anything else on stderr (a panic) the parent logs and does not show, reporting a generic failure (D407).
 //!
-//! `CS_JOB_THREADS` sizes the rayon pool; one by default, because the processor's pool is already one worker per core
-//! (D190).
+//! `CS_JOB_THREADS` sizes the rayon pool; one by default, because the processor already runs several of these at once
+//! (`processor/pool.ts`, D190).
 
 use cs_core::json::{parse_options, pattern_json};
 use cs_core::pattern::{build_pattern_reporting, StageTimes};

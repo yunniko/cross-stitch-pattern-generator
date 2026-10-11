@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { exportDeadlineFor, gridPagesFor, LIMITS } from "@/processor/job-protocol";
-import type { ExportJobKind } from "@/lib/export/export-jobs";
+import type { ExportJobKind } from "@/lib/export/export-request";
 
 /**
  * How long each kind of export may run (G-034 M4, G-046 M2).

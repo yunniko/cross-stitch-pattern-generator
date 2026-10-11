@@ -14,18 +14,6 @@ export interface PixelBuffer {
   height: number;
 }
 
-/** One RGB triple per stitch cell, interleaved, rather than a tuple per cell: avoids a million small allocations (D6). */
-export interface CellColorBuffer {
-  data: Uint8ClampedArray;
-  width: number;
-  height: number;
-}
-
-export function cellRgb(buffer: CellColorBuffer, cellIndex: number): RGB {
-  const o = cellIndex * 3;
-  return [buffer.data[o], buffer.data[o + 1], buffer.data[o + 2]];
-}
-
 export type SizePresetId = "small" | "medium" | "large" | "xl" | "xxl" | "custom";
 
 export const SIZE_PRESETS: Record<Exclude<SizePresetId, "custom">, number> = {

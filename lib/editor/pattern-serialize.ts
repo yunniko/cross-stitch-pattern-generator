@@ -460,9 +460,8 @@ function validatePaletteEntry(entry: unknown): { rgb: RGB; symbol: string; name:
 }
 
 /**
- * Prefers the current `threadBrand` field, falling back to the legacy
- * `dmcMode: true` written before G-029 M1 (HANDOVER.md D92). Any
- * system string is kept, loaded here or not (G-132): it is what the picker opens on, and a system this page lacks opens
+ * The stored `threadBrand`; a file with the legacy `dmcMode: true` was given one by the migration
+ * (`lib/document/migrate.ts`, D92) before it reaches here. Any system string is kept, loaded here or not (G-132): it is what the picker opens on, and a system this page lacks opens
  * the common colour picker. A value no system could be is dropped.
  */
 function resolveThreadBrand(d: Record<string, unknown>): ThreadBrand | undefined {

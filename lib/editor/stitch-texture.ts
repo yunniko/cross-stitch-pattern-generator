@@ -1,8 +1,8 @@
 import { colorAt } from "../color/palette";
 import { luminance } from "../color/color";
 import type { PaletteColor, RGB } from "../types";
-import { createCanvas, loadExportImage, onExportBackendChange, type AnyCanvas } from "./canvas-backend";
-import { DEFAULT_STITCH_TEXTURE, stitchTextureById, type StitchTextureId } from "./stitch-texture-catalog";
+import { createCanvas, loadCanvasImage, onCanvasBackendChange, type AnyCanvas } from "./canvas-backend";
+import { DEFAULT_STITCH_TEXTURE, stitchTextureById, type StitchTextureId } from "../export/stitch-texture-catalog";
 
 // The texture assets live in `stitch-texture-catalog.ts`: each a picture of one stitch with its own shading
 // (highlights/shadows) and, for the classic one, soft alpha edges. Adding a texture is a catalog entry and a file.
@@ -16,7 +16,7 @@ const TEXTURE_SAMPLE_SIZE = 64;
 const cachedImages = new Map<StitchTextureId, Promise<CanvasImageSource>>();
 
 // A decoded image belongs to the environment that decoded it, so switching backends must not reuse it (G-034 M4).
-onExportBackendChange(() => {
+onCanvasBackendChange(() => {
   cachedImages.clear();
 });
 
@@ -24,7 +24,7 @@ onExportBackendChange(() => {
 function loadTextureImage(id: StitchTextureId): Promise<CanvasImageSource> {
   let image = cachedImages.get(id);
   if (!image) {
-    image = loadExportImage(stitchTextureById(id).url).catch((err: unknown) => {
+    image = loadCanvasImage(stitchTextureById(id).url).catch((err: unknown) => {
       // Clear the cache on failure so a later call retries fresh, instead of returning the same rejection until a page
       // reload (code-review 2026-09-09, finding 6).
       cachedImages.delete(id);
@@ -96,8 +96,7 @@ export interface StitchTiles {
 
 /**
  * Each colour's tinted texture scaled to one stitch, exactly as a stitch is drawn onto a transparent canvas, and read
- * back. The Image window assembles its Realistic view from these (G-036 M4) and the preview PNG streams from them
- * (G-047 M2).
+ * back. The Image window assembles its Realistic view from these (G-036 M4).
  */
 export async function buildStitchTiles(
   palette: readonly PaletteColor[],

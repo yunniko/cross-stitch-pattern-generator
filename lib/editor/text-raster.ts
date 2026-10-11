@@ -1,4 +1,4 @@
-import type { Canvas2D } from "../export/canvas-backend";
+import type { Canvas2D } from "./canvas-backend";
 
 /**
  * Lettering to stitches (G-081): a line of text in a face, at a size in stitches, drawn at one pixel to one cell and cut to
