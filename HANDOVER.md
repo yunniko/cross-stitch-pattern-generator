@@ -101,9 +101,10 @@ export, plus a WASM build (D182–D193, and `docs/reviews/2026-09-20-rust-compar
 - Photo upload and reopening a save decode in a worker, the old decode a logged fallback (D128).
 - Persistence: the open project autosaves to IndexedDB (photo stored once by SHA-256, 500 ms debounce) and restores on reload; a corrupt record shows a banner with an on-demand error report. Options live in localStorage.
 
-**Checks run 2026-09-25**: `tsc --noEmit` clean, `npm run lint` 0 errors, `prettier --check` clean, `docs-lint` ok; Vitest 797 passed; Playwright 411 passed across all 39 specs (2 pre-existing flakes in color-editor and shape-tools, green on retry), one spec per process against the single-path build, the processor serving generation, exports and previews, run with `CS_JOB_BINARY` set. **The e2e suite needs that variable and the app server needs `PROCESSOR_URL`** — without either, generation fails and every spec that opens a chart fails with it. Last full Rust pass 2026-09-22: 330 e2e against the sidecar, `npm run compare:rust`
-81 cases identical; export parity in `docs/reviews/2026-09-17-export-parity.md`. CI runs `next typegen` before the
-type-check and `build:processor` before the unit tests: the worker bundle is git-ignored and specs run against it.
+**Running the checks**: the numbers are on the `Last verified` line. **The e2e suite needs `CS_JOB_BINARY` and the app
+server `PROCESSOR_URL`** — without either, generation fails and every spec that opens a chart fails with it. CI runs
+`next typegen` before the type-check and `build:processor` before the unit tests, because the processor bundle is
+git-ignored and specs run against it.
 
 **Performance** (G-035, medians of 5 on the Owner's machine; tables in `docs/reviews/2026-09-15-performance-results.md`):
 a 12 MP photo at 100 stitches / 16 colors takes 2.9 s Standard and 7.5 s Crisp; at 1000 / 64, 4.9 s and 6.8 s; enhancing a
