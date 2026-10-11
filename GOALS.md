@@ -332,6 +332,7 @@ Outside both: G-111's comments follow G-112; G-097 comes after G-108, whose char
 **Settled by the Owner at acceptance (2026-10-11):** M1 drops the worker-thread layer; the fake billing pages and adapter leave the production build entirely (not a runtime gate); M1 deploys on its own ahead of the rest.
 
 **Progress log** (newest first):
+- 2026-10-11 — M1 deployed as v0.28.1 (7057f27); live checks in `docs/deploy-log.md`. The broad live check failed only on tools locked for guests on the live site (passing in CI on the same commit). Reading the live switches was not permitted in this session, so that cause is inferred, not confirmed. Next: M2.
 - 2026-10-11 — M1 done (D407, D408, D409). Jobs, predictions and previews run as `cs-job` processes the processor kills on cancel, deadline or a client gone; the worker threads are gone. Photos are header-checked before decoding, and panics are logged rather than shown. Exports go on stdin, and the author name is capped at 200. The fake billing is absent from production builds, and CI scans for it. The admin bootstrap fails closed. A registration race returns its message, and the quota give-back retries once. Verified:
   - unit 1,974 / 170 files; Rust processor specs 24 (including `processor-job-kill`); cargo 100; goldens 74 with hashes unchanged;
   - e2e 701 + 1 flaky (`crash-boundary`, passed on retry) and 42 serial;
