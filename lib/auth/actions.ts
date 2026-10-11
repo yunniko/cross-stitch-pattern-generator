@@ -61,9 +61,15 @@ export async function registerAction(_prev: AuthFormState, formData: FormData): 
   if (existing) return { error: "An account with that email already exists.", values };
 
   const passwordHash = await bcrypt.hash(password, 10);
-  await prisma.user.create({
-    data: { email: values.email, name: values.name || null, passwordHash },
-  });
+  try {
+    await prisma.user.create({
+      data: { email: values.email, name: values.name || null, passwordHash },
+    });
+  } catch (error) {
+    // Registered by a request that arrived at the same moment, after the check above (G-134 M1).
+    if ((error as { code?: string }).code !== "P2002") throw error;
+    return { error: "An account with that email already exists.", values };
+  }
 
   try {
     await signIn("credentials", { email: values.email, password, redirectTo: "/account" });

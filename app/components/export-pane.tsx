@@ -1,7 +1,7 @@
 "use client";
 
 import type { calculateA4Layout } from "@/lib/export/a4-layout";
-import { VALID_OVERLAP_CELLS, type WorkspaceOptions } from "@/lib/editor/workspace-storage";
+import { AUTHOR_NAME_MAX, VALID_OVERLAP_CELLS, type WorkspaceOptions } from "@/lib/editor/workspace-storage";
 import { EXPORT_KIND_GROUPS, exportChoiceFeature, exportKindFeature, type PrintFormat, type Tone } from "@/lib/export/export-kinds";
 import { featureState, featureUsable, lockedNote } from "@/lib/features/features";
 import type { ExportChoice } from "../hooks/use-exports";
@@ -161,6 +161,7 @@ export function ExportPane({ controls, options, onChange, a4Layout, a4HasPageMap
             type="text"
             value={options.authorName}
             onChange={(e) => onChange("authorName", e.target.value)}
+            maxLength={AUTHOR_NAME_MAX}
             placeholder="(shown on exported charts)"
             className={FIELD}
           />

@@ -65,7 +65,8 @@ services:
       # address (G-117). APP_URL is the same address, so it serves when AUTH_URL is not set.
       AUTH_URL: ${AUTH_URL:-${APP_URL:-}}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
-      ADMIN_BOOTSTRAP_ENABLED: ${ADMIN_BOOTSTRAP_ENABLED:-true}
+      # Closed unless set to "true", and closed by itself once any admin exists (G-134 M1).
+      ADMIN_BOOTSTRAP_ENABLED: ${ADMIN_BOOTSTRAP_ENABLED:-false}
       # How long a browser keeps its feature states before asking again (G-102); 300 when unset.
       FEATURES_REFRESH_SECONDS: ${FEATURES_REFRESH_SECONDS:-300}
       # Email (G-113, D342): off while MAIL_TRANSPORT is empty, so switching it on is only a change to .env.

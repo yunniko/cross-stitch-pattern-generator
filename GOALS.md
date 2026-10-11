@@ -263,7 +263,7 @@ Outside both: G-111's comments follow G-112; G-097 comes after G-108, whose char
 - **Constraints:** joins G-107's declared section list as one entry (D346); no placeholder before it is built.
 - **Acceptance criteria (draft):** a note written in the admin area appears in the editor's What's new; the existing notes carry over; never exercised live.
 
-### G-134 · Code health: process safety, dead code from the Rust move, shared scaffolding, oversized modules — DRAFT (2026-10-10)
+### G-134 · Code health: process safety, dead code from the Rust move, shared scaffolding, oversized modules — ACTIVE (accepted 2026-10-11)
 - **What:** the fixes for the findings of `docs/reviews/2026-10-10-code-health-review.md` (review letters A to D below refer to it).
 - **Why:** Owner, 2026-10-10: review for duplication, questionable decisions, temporary patches and antipatterns, and plan the fixes. One finding (A1) is a live defect in production.
 - **Acceptance criteria:**
@@ -279,7 +279,7 @@ Outside both: G-111's comments follow G-112; G-097 comes after G-108, whose char
   - Deleting the TS export engine is reversible through git, and D221 already retired it.
 
 **Milestones** (proposed; the Owner accepts or changes them):
-- [ ] M1 — **Processor and server safety (A1 to A8, A11).**
+- [x] M1 — **Processor and server safety (A1 to A8, A11).**
   - The processor spawns `cs-job` from the main thread under a semaphore of 3, with a per-child deadline and `kill`. This drops the worker-thread layer and its four-fold pattern serialisation.
   - Predictions and previews go through the same `runChild`.
   - Image dimensions are read from the header before decoding.
@@ -329,12 +329,16 @@ Outside both: G-111's comments follow G-112; G-097 comes after G-108, whose char
   - Release v-next with a one-line internal note, since nothing is user-facing apart from M1's error text.
   - **Deploy:** cross-stitch to its existing target.
 
-**To settle with the Owner at acceptance:**
-1. Should M1 drop the worker-thread layer (recommended, since it fixes A1 at the root), or only add a kill handle to it?
-2. Should the fake billing pages leave the production build entirely (a dev-only route group), or stay behind their runtime gate with a CI bundle check?
-3. Should M1 deploy on its own ahead of the rest (recommended: A1 is live)?
+**Settled by the Owner at acceptance (2026-10-11):** M1 drops the worker-thread layer; the fake billing pages and adapter leave the production build entirely (not a runtime gate); M1 deploys on its own ahead of the rest.
 
 **Progress log** (newest first):
+- 2026-10-11 — M1 done (D407, D408, D409). Jobs, predictions and previews run as `cs-job` processes the processor kills on cancel, deadline or a client gone; the worker threads are gone. Photos are header-checked before decoding, and panics are logged rather than shown. Exports go on stdin, and the author name is capped at 200. The fake billing is absent from production builds, and CI scans for it. The admin bootstrap fails closed. A registration race returns its message, and the quota give-back retries once. Verified:
+  - unit 1,974 / 170 files; Rust processor specs 24 (including `processor-job-kill`); cargo 100; goldens 74 with hashes unchanged;
+  - e2e 701 + 1 flaky (`crash-boundary`, passed on retry) and 42 serial;
+  - tsc, lint and format clean; production build scanned clean of fake billing;
+  - stress run of 29 jobs with 5 cancels: at most 3 `cs-job` processes at once, 0 left.
+  Next: release and deploy M1, then M2.
+- 2026-10-11 — accepted by the Owner ("take out of production, otherwise, according to your recommendations, accept 134"): plan as drafted, with the three settled points above. M1 started.
 - 2026-10-10 — drafted from the code health review (`docs/reviews/2026-10-10-code-health-review.md`, at 244c56e). A1 was reproduced: a Node 22 worker's spawned child survives `worker.terminate()`.
 
 ### G-101 · A phone layout, and drawing by touch — DRAFT (2026-10-05, for later)

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { VALID_OVERLAP_CELLS, type WorkspaceOptions } from "@/lib/editor/workspace-storage";
+import { AUTHOR_NAME_MAX, VALID_OVERLAP_CELLS, type WorkspaceOptions } from "@/lib/editor/workspace-storage";
 import { STANDARD_AIDA_COUNTS } from "@/lib/export/finished-size";
 import { MAX_STITCHES, MIN_STITCHES, type StitchPattern } from "@/lib/types";
 import type { UpdateWorkspaceOption } from "../hooks/use-workspace-options";
@@ -163,6 +163,7 @@ export function PreferenceFields({ options, pattern, onChange }: PreferenceField
             type="text"
             value={options.authorName}
             onChange={(e) => onChange("authorName", e.target.value)}
+            maxLength={AUTHOR_NAME_MAX}
             placeholder="(shown on exported charts)"
             className={`${FIELD} w-64 text-[13px]`}
           />

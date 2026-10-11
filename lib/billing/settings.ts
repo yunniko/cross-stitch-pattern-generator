@@ -14,9 +14,6 @@ export type BillingSettings =
   | { on: true; gateway: "fake"; webhookSecret: string; siteUrl: string }
   | { on: false; reason: string };
 
-/** The signing secret the fake uses when none is set: it guards nothing, as the fake runs only on this machine. */
-export const FAKE_WEBHOOK_SECRET = "whsec_fake_local_only";
-
 const LOCAL_SITE = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
 
 /** `||` not `??` throughout: a copied `.env.example` leaves these as empty strings. */
@@ -28,7 +25,8 @@ export function billingSettings(env: Record<string, string | undefined>): Billin
 
   if (gateway === "fake") {
     if (!LOCAL_SITE.test(siteUrl)) return { on: false, reason: "the fake billing adapter runs only on a local address" };
-    return { on: true, gateway, webhookSecret: env.STRIPE_WEBHOOK_SECRET || FAKE_WEBHOOK_SECRET, siteUrl };
+    // Empty when unset: the fake supplies its own (`fake.ts`), so its default is never in a build without it.
+    return { on: true, gateway, webhookSecret: env.STRIPE_WEBHOOK_SECRET || "", siteUrl };
   }
   if (gateway !== "stripe") return { on: false, reason: `BILLING_GATEWAY "${gateway}" is not an adapter` };
 

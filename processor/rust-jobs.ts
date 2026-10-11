@@ -40,22 +40,50 @@ interface Run {
   stdout: Buffer | null;
   /** The last `filename` the job reported. */
   filename?: string;
+  /** What the sidecar said went wrong, in the words of its own `{"error"}` note: safe to show (see `failed`). */
   error?: string;
+  /** The process that ran, gone by the time the run settles; for the specs that check it is. */
+  pid?: number;
 }
 
-interface Notes {
+export interface RunOptions {
   progress?: (fraction: number) => void;
   exportProgress?: (progress: ExportProgress) => void;
+  /** Aborting kills the child; the run resolves once it has exited, so a slot freed on that is really free. */
+  signal?: AbortSignal;
+  /** Past this the child is killed and the run fails with a time-limit message. */
+  timeoutMs?: number;
 }
 
-/** Runs `cs-job` once, feeding it `input` and passing on each note it writes to stderr as the note arrives. */
-function run(args: string[], input: Buffer | string, notes: Notes = {}): Promise<Run> {
+/** A message a person may see when the sidecar stopped without saying why, a crash or a kill. */
+const STOPPED = "The pattern engine stopped unexpectedly.";
+
+/**
+ * Runs `cs-job` once, feeding it `input` and passing on each note it writes to stderr as the note arrives.
+ *
+ * The child is the job: nothing else holds its work, so killing it is how a job is cancelled or held to its deadline,
+ * and the promise settles only on `close`, after the process has gone (D407). Anything on stderr that is not one of the
+ * sidecar's notes (a Rust panic, say) is logged here and never handed on, since it names source paths.
+ */
+export function runCsJob(args: string[], input: Buffer | string, options: RunOptions = {}): Promise<Run> {
   return new Promise((resolve) => {
     const child = spawn(binary(), args, { stdio: ["pipe", "pipe", "pipe"] });
     const out: Buffer[] = [];
     let filename: string | undefined;
     let error: string | undefined;
+    let killedFor: string | undefined;
     let pending = "";
+    const kill = (reason: string) => {
+      killedFor ??= reason;
+      child.kill("SIGKILL");
+    };
+    const onAbort = () => kill("Cancelled.");
+    if (options.signal?.aborted) onAbort();
+    else options.signal?.addEventListener("abort", onAbort, { once: true });
+    const timer =
+      options.timeoutMs === undefined ? undefined : setTimeout(() => kill("The job ran past its time limit."), options.timeoutMs);
+    timer?.unref();
+
     child.stdout.on("data", (chunk: Buffer) => out.push(chunk));
     child.stderr.setEncoding("utf8");
     child.stderr.on("data", (chunk: string) => {
@@ -64,40 +92,64 @@ function run(args: string[], input: Buffer | string, notes: Notes = {}): Promise
       pending = lines.pop() ?? "";
       for (const line of lines) {
         if (!line.trim()) continue;
+        let note: { progress?: number; exportProgress?: ExportProgress; filename?: string; error?: string };
         try {
-          const note = JSON.parse(line) as { progress?: number; exportProgress?: ExportProgress; filename?: string; error?: string };
-          if (typeof note.progress === "number") notes.progress?.(note.progress);
-          if (note.exportProgress) notes.exportProgress?.(note.exportProgress);
-          if (typeof note.filename === "string") filename = note.filename;
-          if (typeof note.error === "string") error = note.error;
+          note = JSON.parse(line) as typeof note;
         } catch {
-          // A line that is not one of the sidecar's notes is a sign something else is writing to stderr; the exit
-          // code decides the job's fate either way.
-          error ??= line.slice(0, 200);
+          console.error(`cs-job ${args[0]} stderr: ${line.slice(0, 500)}`);
+          continue;
         }
+        if (typeof note.progress === "number") options.progress?.(note.progress);
+        if (note.exportProgress) options.exportProgress?.(note.exportProgress);
+        if (typeof note.filename === "string") filename = note.filename;
+        if (typeof note.error === "string") error = note.error;
       }
     });
-    child.on("error", (err: Error) => resolve({ stdout: null, error: err.message }));
-    child.on("close", (code) => {
-      if (code === 0) resolve({ stdout: Buffer.concat(out), filename });
-      else resolve({ stdout: null, filename, error: error ?? `cs-job exited with ${code ?? "a signal"}` });
+    const settle = (run: Run) => {
+      if (timer) clearTimeout(timer);
+      options.signal?.removeEventListener("abort", onAbort);
+      resolve(run);
+    };
+    child.on("error", (err: Error) => {
+      console.error(`cs-job ${args[0]} could not run: ${err.message}`);
+      settle({ stdout: null, error: STOPPED, pid: child.pid });
+    });
+    child.on("close", (code, signal) => {
+      if (killedFor) settle({ stdout: null, filename, error: killedFor, pid: child.pid });
+      else if (code === 0) settle({ stdout: Buffer.concat(out), filename, pid: child.pid });
+      else {
+        if (!error) console.error(`cs-job ${args[0]} exited with ${code ?? signal} and no note`);
+        settle({ stdout: null, filename, error: error ?? STOPPED, pid: child.pid });
+      }
     });
     child.stdin.on("error", () => {
-      // The job may exit before the whole photo is written (a bad request, say); `close` carries the failure.
+      // The job may exit before the whole input is written (a bad request, say); `close` carries the failure.
     });
     child.stdin.end(input);
   });
 }
 
-/** A job the sidecar could not finish. There is nowhere else for it to go, so it is reported as what it is. */
-function failed(what: string, error: string | undefined): never {
-  throw new Error(`rust ${what} failed: ${error ?? "unknown error"}`);
+/** A job the sidecar could not finish. Its message is the sidecar's own note or a generic one, never raw stderr, so a
+ * person may be shown it. */
+export class JobFailedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "JobFailedError";
+  }
 }
 
-/** `buildPattern` in Rust, or null to fall back. The options are `parse_options`'s, matching `BuildPatternOptions`. */
+function failed(what: string, error: string | undefined): never {
+  throw new JobFailedError(error ?? `The ${what} could not be completed.`);
+}
+
+/** The parts of `RunOptions` a caller holds a job to: a cancel and a deadline. */
+export type JobLimits = Pick<RunOptions, "signal" | "timeoutMs">;
+
+/** `buildPattern` in Rust. The options are `parse_options`'s, matching `BuildPatternOptions`. */
 export async function generateWithRust(
   job: Extract<WorkerJob, { kind: "generate" }>,
-  onProgress: (fraction: number) => void
+  onProgress: (fraction: number) => void,
+  limits: JobLimits = {}
 ): Promise<StitchPattern> {
   requireRustJobs();
   const { imageData, settings } = job;
@@ -106,18 +158,26 @@ export async function generateWithRust(
   const pixels = Buffer.from(imageData.data.buffer, imageData.data.byteOffset, imageData.data.byteLength);
   // The options on stdin before the pixels (G-132): with the thread systems' lists in them they outgrow an argument.
   const input = Buffer.concat([Buffer.from(options + "\n", "utf8"), pixels]);
-  const result = await run(["generate", String(imageData.width), String(imageData.height)], input, { progress: onProgress });
+  const result = await runCsJob(["generate", String(imageData.width), String(imageData.height)], input, {
+    ...limits,
+    progress: onProgress,
+  });
   if (!result.stdout) failed("generation", result.error);
   try {
     // Through the same parser a saved file goes through, so a malformed pattern is caught here rather than downstream.
     return deserializePatternData({ ...(JSON.parse(result.stdout.toString("utf8")) as object), formatVersion: 7 });
   } catch (err) {
-    failed("generation", err instanceof Error ? err.message : "unreadable pattern");
+    console.error(`cs-job generate wrote an unreadable pattern: ${err instanceof Error ? err.message : String(err)}`);
+    failed("generation", undefined);
   }
 }
 
 /** The predicted colour count and colours of a picture, and the coverage of a set, by `cs-job predict` (G-087). */
-export async function predictWithRust(pixels: PixelBuffer, request: Omit<PredictionRequest, "photoHash">): Promise<ColorPrediction> {
+export async function predictWithRust(
+  pixels: PixelBuffer,
+  request: Omit<PredictionRequest, "photoHash">,
+  limits: JobLimits = {}
+): Promise<ColorPrediction> {
   requireRustJobs();
   const options = JSON.stringify({
     longerSideStitches: request.longerSideStitches,
@@ -127,22 +187,24 @@ export async function predictWithRust(pixels: PixelBuffer, request: Omit<Predict
     threadSystems: request.threadSystems ?? undefined,
   });
   const data = Buffer.from(pixels.data.buffer, pixels.data.byteOffset, pixels.data.byteLength);
-  const result = await run(
+  const result = await runCsJob(
     ["predict", String(pixels.width), String(pixels.height)],
-    Buffer.concat([Buffer.from(options + "\n", "utf8"), data])
+    Buffer.concat([Buffer.from(options + "\n", "utf8"), data]),
+    limits
   );
   if (!result.stdout) failed("prediction", result.error);
   try {
     return JSON.parse(result.stdout.toString("utf8")) as ColorPrediction;
   } catch (err) {
-    failed("prediction", err instanceof Error ? err.message : "unreadable prediction");
+    console.error(`cs-job predict wrote an unreadable prediction: ${err instanceof Error ? err.message : String(err)}`);
+    failed("prediction", undefined);
   }
 }
 
 /** A dither pattern's preview, a two-tone PNG, by `cs-job dither-preview` (G-100). The request is checked already. */
-export async function ditherPreviewWithRust(request: object): Promise<Uint8Array> {
+export async function ditherPreviewWithRust(request: object, limits: JobLimits = {}): Promise<Uint8Array> {
   requireRustJobs();
-  const result = await run(["dither-preview", JSON.stringify(request)], "");
+  const result = await runCsJob(["dither-preview"], JSON.stringify(request), limits);
   if (!result.stdout) failed("dither preview", result.error);
   return new Uint8Array(result.stdout);
 }
@@ -167,11 +229,12 @@ const CONTENT_TYPES: Record<ExportJobKind, string> = {
   all: "application/zip",
 };
 
-/** `runExportJob` in Rust, or null to fall back. The chart crosses as the editable save Rust already reads. */
+/** An export by `cs-job export`. The chart crosses as the editable save Rust already reads. */
 export async function exportWithRust(
   payload: ExportJobPayload,
   symmetry: SymmetryAxes,
-  onProgress: (progress: ExportProgress) => void
+  onProgress: (progress: ExportProgress) => void,
+  limits: JobLimits = {}
 ): Promise<RustExportResult> {
   requireRustJobs();
   const request = JSON.stringify({
@@ -186,7 +249,9 @@ export async function exportWithRust(
     canvas: payload.canvas,
     systemLabels: payload.systemLabels,
   });
-  const result = await run(["export", request], serializePattern(payload.pattern, symmetry), { exportProgress: onProgress });
-  if (!result.stdout || !result.filename) failed(`export ${payload.kind}`, result.error ?? "no filename");
+  // The request as stdin's first line, then the save: like generation's options, it is no argument's to carry (D407).
+  const input = Buffer.from(`${request}\n${serializePattern(payload.pattern, symmetry)}`, "utf8");
+  const result = await runCsJob(["export"], input, { ...limits, exportProgress: onProgress });
+  if (!result.stdout || !result.filename) failed("export", result.error);
   return { bytes: new Uint8Array(result.stdout), filename: result.filename, contentType: CONTENT_TYPES[payload.kind] };
 }

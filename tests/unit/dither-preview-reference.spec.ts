@@ -40,7 +40,7 @@ function picture(png: Uint8Array): ReferencePicture {
 
 function drawnByServer(c: PreviewCase): ReferencePicture {
   if (!existsSync(CS_JOB)) throw new Error(`no cs-job at ${CS_JOB} - run \`cargo build --release --manifest-path rust/Cargo.toml\` first`);
-  return picture(execFileSync(CS_JOB, ["dither-preview", rustRequest(c)]));
+  return picture(execFileSync(CS_JOB, ["dither-preview"], { input: rustRequest(c) }));
 }
 
 /** The built file a case stands for, if any: every tile, and the window-sized preview of a pattern without settings. */

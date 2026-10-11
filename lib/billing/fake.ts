@@ -12,6 +12,9 @@ import {
 import { readEventObject } from "./event-reference";
 import { signPayload, verifySignature } from "./signature";
 
+/** The signing secret the fake uses when none is set: it guards nothing, as the fake runs only on this machine. */
+export const FAKE_WEBHOOK_SECRET = "whsec_fake_local_only";
+
 /**
  * The fake billing provider (G-106 M1): the contract kept in memory, with a clock the caller sets. Tests drive a
  * subscription's life through it — Checkout completed, renewals paid or failed, cancellation — and every change emits

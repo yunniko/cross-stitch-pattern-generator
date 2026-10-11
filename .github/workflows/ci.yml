@@ -39,6 +39,9 @@ jobs:
       # `any` and the type-check fails, as it did on every push from G-102 until G-105 added this step.
       - run: npx prisma generate
       - run: npx tsc --noEmit
+      # G-134 M1, D408: the production build, then proof it carries no fake billing (STANDARDS "Nothing test-only ships").
+      - run: npm run build
+      - run: node scripts/check-no-fake-billing.mjs
       # The unit suite runs in the `rust` job, not here: some of its specs drive cs-job and cs-bench, which only that
       # job builds. Hidden until G-105 because this job had stopped at the type-check since G-102.
 
@@ -116,7 +119,7 @@ jobs:
       # binaries built above (G-105).
       - run: npm run test:unit
 
-      # The processor's own job path. It needs the sidecar binary and the worker bundle built just above, and
+      # The processor's own job path. It needs the sidecar binary and the processor bundle built just above, and
       # belongs to this job rather than `check`, which has neither.
       - run: npm run test:processor:rust
 

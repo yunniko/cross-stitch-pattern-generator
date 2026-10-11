@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { historyText } from "../../lib/billing/admin-view";
-import { FakeBilling, type SignedEvent } from "../../lib/billing/fake";
+import { FakeBilling, type SignedEvent, FAKE_WEBHOOK_SECRET } from "../../lib/billing/fake";
 import {
   CANCEL_REFUSED,
   CHANGE_REFUSED,
@@ -10,7 +10,6 @@ import {
   targetRefusal,
   type PlanSubject,
 } from "../../lib/billing/plan-change";
-import { FAKE_WEBHOOK_SECRET } from "../../lib/billing/settings";
 import { scheduledPrice, snapshotFromStripe } from "../../lib/billing/stripe-mapping";
 import { handleWebhook, syncSubscription } from "../../lib/billing/sync";
 import { MemoryBillingStore } from "./helpers/memory-billing-store";

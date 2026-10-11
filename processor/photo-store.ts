@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { createCanvas, loadImage } from "@napi-rs/canvas";
 import { decodedSize } from "@/lib/editor/decode-bitmap";
 import { LIMITS } from "./job-protocol";
+import { READABLE_FORMATS, readImageHeader } from "./image-header";
 import type { PixelBuffer } from "@/lib/types";
 
 /**
@@ -36,6 +37,13 @@ export class PhotoTooLargeError extends Error {
   }
 }
 
+export class UnsupportedPhotoError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "UnsupportedPhotoError";
+  }
+}
+
 export class PhotoStore {
   private readonly entries = new Map<string, Entry>();
   private totalBytes = 0;
@@ -56,8 +64,15 @@ export class PhotoStore {
       return { hash, pixelBuffer: existing.pixelBuffer, naturalWidth: existing.naturalWidth, naturalHeight: existing.naturalHeight };
     }
 
+    // Read from the header and refused before the decoder sees it: on a size it cannot allocate, the decoder aborts the
+    // whole process instead of throwing (D407).
+    const header = readImageHeader(bytes);
+    if (!header) throw new UnsupportedPhotoError(`That file is not a picture this service reads (${READABLE_FORMATS}).`);
+    if (header.width * header.height > LIMITS.maxPhotoPixels) {
+      throw new PhotoTooLargeError(`That image is ${header.width} × ${header.height}, larger than this service decodes.`);
+    }
     const image = await loadImage(bytes);
-    // Refuse a decompression bomb by its pixel count, before allocating a canvas for it.
+    // Again on what was decoded, in case a header understated it.
     if (image.width * image.height > LIMITS.maxPhotoPixels) {
       throw new PhotoTooLargeError(`That image is ${image.width} × ${image.height}, larger than this service decodes.`);
     }

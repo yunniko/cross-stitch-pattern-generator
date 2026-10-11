@@ -1,7 +1,7 @@
 import { storedSystem } from "@/lib/threads/thread-brands";
 import { DEFAULT_EXPORT_CELL_MM, MAX_EXPORT_CELL_MM, MIN_EXPORT_CELL_MM, normalCellMm } from "@/lib/export/export-cell-size";
 import { deserializePatternData } from "@/lib/editor/pattern-serialize";
-import { VALID_OVERLAP_CELLS } from "@/lib/editor/workspace-storage";
+import { AUTHOR_NAME_MAX, VALID_OVERLAP_CELLS } from "@/lib/editor/workspace-storage";
 import type { OverlapCells } from "@/lib/export/a4-layout";
 import { DEFAULT_AIDA_COUNT, DEFAULT_SIZE_UNIT } from "@/lib/export/finished-size";
 import { CANVAS_COLOR_PATTERN, isCanvasTextureChoice, type ExportCanvas } from "@/lib/export/canvas-texture-catalog";
@@ -72,7 +72,9 @@ export function parseExportRequest(body: unknown): ParsedExportRequest {
     return { error: "aidaCount must be a positive number." };
   }
   if (b.sizeUnit !== undefined && b.sizeUnit !== "cm" && b.sizeUnit !== "in") return { error: "sizeUnit must be cm or in." };
-  if (b.authorName !== undefined && typeof b.authorName !== "string") return { error: "authorName must be a string." };
+  if (b.authorName !== undefined && (typeof b.authorName !== "string" || b.authorName.length > AUTHOR_NAME_MAX)) {
+    return { error: `authorName must be a name of at most ${AUTHOR_NAME_MAX} characters.` };
+  }
   // The union the layout actually supports, not any integer: a value outside it has no page geometry to compute from.
   if (b.overlapCells !== undefined && !(OVERLAP_CELLS as readonly number[]).includes(b.overlapCells as number)) {
     return { error: `overlapCells must be one of: ${OVERLAP_CELLS.join(", ")}.` };

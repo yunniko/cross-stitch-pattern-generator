@@ -14,6 +14,7 @@ export default defineConfig({
       "scripts/rust-canvas.ts",
       "scripts/rust-photo-adjust-pipeline.ts",
       "tests/unit/processor-export-pool.spec.ts",
+      "tests/unit/processor-job-kill.spec.ts",
       "tests/unit/processor-pool-limits.spec.ts",
       "tests/unit/processor-pool-parity.spec.ts",
     ],

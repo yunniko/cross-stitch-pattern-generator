@@ -1,18 +1,16 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { serializePattern } from "@/lib/editor/pattern-serialize";
 import { attachmentDisposition } from "@/lib/export/content-disposition";
 import { ditherPreviewError, predictionError, settingsError } from "./validate-settings";
-import { ditherPreviewWithRust, predictWithRust } from "./rust-jobs";
+import { ditherPreviewWithRust, JobFailedError, predictWithRust } from "./rust-jobs";
 import type { PredictionRequest } from "@/lib/pipeline/prediction";
 import { parseExportRequest } from "./validate-export";
 import { GenerationPool, QueueFullError } from "./pool";
-import { PhotoStore, PhotoTooLargeError } from "./photo-store";
+import { PhotoStore, PhotoTooLargeError, UnsupportedPhotoError } from "./photo-store";
 import { estimatedWaitMs, LIMITS, type JobSettings } from "./job-protocol";
 
 /**
- * The processor (G-034 M2, M3): decoded photos, a bounded worker pool, and a small HTTP surface over both.
+ * The processor (G-034 M2, M3): decoded photos, a bounded pool of `cs-job` processes, and a small HTTP surface over both.
  *
  * It had a third job until G-074 M4: rendering the enhanced photo preview, which the four photo sliders
  * replaced by drawing in the browser (D240).
@@ -25,10 +23,18 @@ import { estimatedWaitMs, LIMITS, type JobSettings } from "./job-protocol";
  */
 
 const PORT = Number(process.env.PROCESSOR_PORT ?? 8081);
-const here = path.dirname(fileURLToPath(import.meta.url));
 
 const photos = new PhotoStore();
-const pool = new GenerationPool(path.join(here, "pool-worker.mjs"));
+const pool = new GenerationPool();
+
+/** Aborts when the client goes before its answer is written, so a short job it no longer wants is killed (D407). */
+function abortOnHangUp(req: IncomingMessage, res: ServerResponse): AbortSignal {
+  const controller = new AbortController();
+  req.on("close", () => {
+    if (!res.writableFinished) controller.abort();
+  });
+  return controller.signal;
+}
 
 function send(res: ServerResponse, status: number, body: unknown, headers: Record<string, string> = {}): void {
   const payload = JSON.stringify(body);
@@ -100,7 +106,11 @@ async function handleJobCreate(req: IncomingMessage, res: ServerResponse): Promi
   send(res, 202, pool.status(jobId), { location: `/jobs/${jobId}` });
 }
 
-/** At most this many predictions run at once (4 since 2026-10-04: at 2, four pages asking together were refused, which the browser logs as an error): each is a short process (a few milliseconds to a second), and the pool's workers are not borrowed for it. */
+/**
+ * At most this many predictions run at once (4 since 2026-10-04: at 2, four pages asking together were refused, which
+ * the browser logs as an error). Each is a short process of its own, a few milliseconds to a second, held to
+ * `LIMITS.predictionDeadlineMs`; the pool's slots are not borrowed for it.
+ */
 const MAX_PREDICTIONS_AT_ONCE = 4;
 let predicting = 0;
 
@@ -131,14 +141,16 @@ async function handlePrediction(req: IncomingMessage, res: ServerResponse): Prom
   predicting++;
   try {
     const started = Date.now();
-    send(res, 200, await predictWithRust(photo.pixelBuffer, request));
+    const signal = abortOnHangUp(req, res);
+    send(res, 200, await predictWithRust(photo.pixelBuffer, request, { signal, timeoutMs: LIMITS.predictionDeadlineMs }));
     console.log(`prediction ${photoHash.slice(0, 8)} ${request.longerSideStitches} st in ${Date.now() - started} ms`);
   } finally {
     predicting--;
   }
 }
 
-/** At most this many dither previews are drawn at once (G-100): like a prediction, a short process of its own. */
+/** At most this many dither previews are drawn at once (G-100): like a prediction, a short process of its own, held to
+ * `LIMITS.previewDeadlineMs`. */
 const MAX_PREVIEWS_AT_ONCE = 4;
 let previewing = 0;
 
@@ -163,7 +175,8 @@ async function handleDitherPreview(req: IncomingMessage, res: ServerResponse): P
   previewing++;
   try {
     const started = Date.now();
-    const png = await ditherPreviewWithRust(body as object);
+    const signal = abortOnHangUp(req, res);
+    const png = await ditherPreviewWithRust(body as object, { signal, timeoutMs: LIMITS.previewDeadlineMs });
     res.writeHead(200, { "content-type": "image/png", "content-length": png.byteLength, "cache-control": "no-store" });
     res.end(Buffer.from(png));
     const { chartWidth, chartHeight } = body as { chartWidth: number; chartHeight: number };
@@ -303,6 +316,12 @@ const server = createServer((req, res) => {
         send(res, 503, { error: err.message }, { "retry-after": String(err.retryAfterSeconds) });
       } else if (err instanceof PhotoTooLargeError) {
         send(res, 413, { error: err.message });
+      } else if (err instanceof UnsupportedPhotoError) {
+        send(res, 415, { error: err.message });
+      } else if (err instanceof JobFailedError) {
+        // The sidecar's own note, or a generic line: never its raw stderr (D407).
+        if (!res.headersSent) send(res, 500, { error: err.message });
+        else res.end();
       } else if (err instanceof Error && err.name === "ChartTooLargeError") {
         // The caller's chart exceeds what a single image can hold — their request to change, not a server fault.
         send(res, 422, { error: err.message });

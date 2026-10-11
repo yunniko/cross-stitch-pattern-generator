@@ -5,4 +5,4 @@ Decision: the processor runs `cs-job` and nothing else. A missing or failing bin
 Force: requirement — the Owner's decision of 2026-09-24. The TypeScript was the specification the port was written against during the transfer, not a second engine, and new features do not owe it a mirror.
 Rejected: keeping the fallback for bad builds — a build that cannot generate is a deploy to roll back, not a slower path to take silently.
 Consequence: the golden hashes are the regression floor, checked against the binary by `npm run test:goldens:rust`. The e2e suite runs only in the CI job holding it. Reverses the fallback clause of D190 and D193.
-Evidence: processor/pool-worker.ts; processor/rust-jobs.ts; scripts/rust-goldens.ts
+Evidence: processor/pool.ts; processor/rust-jobs.ts; scripts/rust-goldens.ts

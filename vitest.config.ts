@@ -11,6 +11,7 @@ export default defineConfig({
       "**/node_modules/**",
       "**/dist/**",
       "**/processor-export-pool.spec.ts",
+      "**/processor-job-kill.spec.ts",
       "**/processor-pool-limits.spec.ts",
       "**/processor-pool-parity.spec.ts",
     ],

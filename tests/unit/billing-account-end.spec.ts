@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DELETION_REFUSED, endSubscriptionsBeforeDeletion } from "../../lib/billing/account-end";
-import { FakeBilling } from "../../lib/billing/fake";
-import { FAKE_WEBHOOK_SECRET } from "../../lib/billing/settings";
+import { FakeBilling, FAKE_WEBHOOK_SECRET } from "../../lib/billing/fake";
 import { MIN_TOKEN_LENGTH, reconcileRefusal } from "../../lib/billing/reconcile-access";
 
 /** G-106 M2: account deletion ends the subscriptions at the provider first (Acceptance 7); who may start a reconciliation. */

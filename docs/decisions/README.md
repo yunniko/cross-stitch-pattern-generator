@@ -443,3 +443,6 @@ A decision that touches two areas is filed under the one its text is mostly abou
 - D404 — A locked layer keeps its stitches, name and merges; chart-wide edits still apply — active
 - D405 — The account area opens on Charts at `/account`; Profile & sign-in moves to `/account/profile` — active
 - D406 — A deleted account's usage stays in the totals, untied from it; Active accounts counts existing accounts — active
+- D407 — The processor spawns and kills every cs-job itself; photos are header-checked before decoding — active
+- D408 — The fake billing adapter and its pages exist only in builds that ask for them — active
+- D409 — The admin bootstrap is off unless set, and closes once an admin exists — active

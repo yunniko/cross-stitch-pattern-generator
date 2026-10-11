@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ProviderPayment } from "../../lib/billing/contract";
-import { FakeBilling } from "../../lib/billing/fake";
-import { FAKE_WEBHOOK_SECRET } from "../../lib/billing/settings";
+import { FakeBilling, FAKE_WEBHOOK_SECRET } from "../../lib/billing/fake";
 import {
   deadlineLine,
   formatMoment,

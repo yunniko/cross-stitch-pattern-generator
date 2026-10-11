@@ -1,10 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { MAX_PRICE, TIER_DELETE_REFUSED, parseAmount, pricesRetiredBy, tierDeleteRefusal } from "../../lib/billing/catalog";
 import { entitlement } from "../../lib/billing/entitlement";
-import { FakeBilling } from "../../lib/billing/fake";
+import { FakeBilling, FAKE_WEBHOOK_SECRET } from "../../lib/billing/fake";
 import { GRANT_REFUSED, endedGrantRow, grantRefusal, grantRow, parseGrantEnd } from "../../lib/billing/grants";
 import { planStatusLine } from "../../lib/billing/purchase";
-import { FAKE_WEBHOOK_SECRET } from "../../lib/billing/settings";
 import type { StoredSubscription } from "../../lib/billing/sync";
 
 /**

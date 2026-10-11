@@ -68,13 +68,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (mustConfirmAddress(user, mailOn())) throw new AddressNotConfirmed();
 
         // Admin bootstrap: the account whose email matches ADMIN_EMAIL is promoted at sign-in, solving the
-        // first-admin chicken-and-egg problem. Gated behind ADMIN_BOOTSTRAP_ENABLED, which the Owner sets to
-        // "false" once that account exists -- otherwise anyone could register ADMIN_EMAIL and sign in as it
-        // (while sending is off there is no email confirmation to stop them; with it on, the check above does).
+        // first-admin chicken-and-egg problem. Closed unless ADMIN_BOOTSTRAP_ENABLED is exactly "true", and closed by
+        // itself once any admin exists -- otherwise anyone could register ADMIN_EMAIL and sign in as it (while sending
+        // is off there is no email confirmation to stop them; with it on, the check above does). D409.
         let role = user.role;
         const adminEmail = normalizeEmail(process.env.ADMIN_EMAIL);
-        const bootstrapEnabled = process.env.ADMIN_BOOTSTRAP_ENABLED !== "false";
-        if (bootstrapEnabled && adminEmail && email === adminEmail && role !== "ADMIN") {
+        const bootstrapEnabled = process.env.ADMIN_BOOTSTRAP_ENABLED === "true";
+        if (
+          bootstrapEnabled &&
+          adminEmail &&
+          email === adminEmail &&
+          role !== "ADMIN" &&
+          (await prisma.user.count({ where: { role: "ADMIN" } })) === 0
+        ) {
           await prisma.user.update({ where: { id: user.id }, data: { role: "ADMIN" } });
           role = "ADMIN";
         }

@@ -65,20 +65,12 @@ export interface ExportJobPayload {
 }
 
 /**
- * What the pool sends a worker. Generations and exports share the same three workers, so that the container never runs
- * more concurrent work than D149 sized it for.
+ * A job the pool runs. Generations and exports share the same three slots, so that the container never runs more
+ * concurrent work than D149 sized it for.
  */
 export type WorkerJob =
   | { kind: "generate"; jobId: string; settings: Omit<JobSettings, "photoHash">; imageData: PixelBuffer }
   | { kind: "export"; jobId: string; payload: ExportJobPayload };
-
-export type WorkerMessage =
-  | { type: "progress"; jobId: string; fraction: number }
-  /** Exports report pages rather than a fraction, so the editor can say "Page 12 of 180" as it does in the browser. */
-  | { type: "export-progress"; jobId: string; progress: ExportProgress }
-  | { type: "done"; jobId: string; pattern: StitchPattern }
-  | { type: "export-done"; jobId: string; bytes: Uint8Array; filename: string; contentType: string }
-  | { type: "error"; jobId: string; message: string };
 
 /** A job's life, as the client sees it over the event stream. */
 export type JobState = "queued" | "running" | "done" | "error" | "cancelled";
@@ -100,7 +92,7 @@ export interface JobStatus {
 
 /** Limits the processor enforces, measured in M1 (D149). */
 export const LIMITS = {
-  /** One job per worker, three workers inside the 3-CPU cap. */
+  /** One `cs-job` process per slot, three slots inside the 3-CPU cap. */
   poolSize: 3,
   /** Beyond this many waiting jobs the processor answers 503 with Retry-After. */
   queueLength: 12,
@@ -132,12 +124,10 @@ export const LIMITS = {
   uploadBytes: 25 * 1024 * 1024,
   /** Refused before decoding: a decompression-bomb guard. */
   maxPhotoPixels: 50_000_000,
-  /** Previews run on their own worker, so one never waits behind a generation (D152, mirroring D116). */
-  previewQueueLength: 8,
-  /** A preview is small work; past this it is abandoned rather than left holding the worker. */
+  /** A colour prediction takes a few milliseconds to a second; past this its process is killed (D407). */
+  predictionDeadlineMs: 15_000,
+  /** A dither preview is smaller work still; past this its process is killed (D407). */
   previewDeadlineMs: 15_000,
-  /** Encoded previews held per photo and mode, evicted least-recently-used. */
-  previewCacheBytes: 64 * 1024 * 1024,
 } as const;
 
 /**

@@ -9,14 +9,13 @@ import { GenerationPool } from "@/processor/pool";
 import { EMPTY_CELL, type PaletteColor, type StitchPattern } from "@/lib/types";
 
 /**
- * Exports run on the generation pool's own workers (G-034 M4).
+ * Exports run in the generation pool's own slots (G-034 M4).
  *
- * They share those three workers deliberately: the container is sized for three concurrent jobs (D149), and a separate
- * export pool would have quietly doubled that. These cases run the real exporters through the real worker, so the
+ * They share those three slots deliberately: the container is sized for three concurrent jobs (D149), and a separate
+ * export pool would have quietly doubled that. These cases run the real exporter through the real pool, so the
  * server produces an actual file rather than merely accepting the request.
  */
 
-const WORKER = path.join(__dirname, "..", "..", "dist", "processor", "pool-worker.mjs");
 // The repo's own assets stand in for the ones the image copies next to the bundle.
 process.env.EXPORT_ASSET_ROOT = path.join(__dirname, "..", "..", "public");
 // The build tree's binary stands in for `/app/bin/cs-job`. Since G-068 M2 there is nothing behind the sidecar, so
@@ -54,7 +53,7 @@ function payloadFor(kind: Kind): ExportJobPayload {
   return { kind, pattern: chart(), baseName: "sample", aidaCount: 14, sizeUnit: "cm", authorName: "", overlapCells: 5, cellMm: 5.5 };
 }
 
-const pool = new GenerationPool(WORKER, 1);
+const pool = new GenerationPool(1);
 
 afterAll(async () => {
   await pool.close();
@@ -73,8 +72,9 @@ async function runExport(kind: Kind) {
 }
 
 describe("exports on the generation pool", () => {
-  it("the processor bundle has been built", () => {
-    expect(existsSync(WORKER), `${WORKER} is missing -- run "npm run build:processor" first`).toBe(true);
+  it("the cs-job binary has been built", () => {
+    const binary = process.env.CS_JOB_BINARY!;
+    expect(existsSync(binary), `${binary} is missing -- run "cargo build --release --manifest-path rust/Cargo.toml" first`).toBe(true);
   });
 
   it("returns the editable JSON, which is the same text the browser writes", async () => {

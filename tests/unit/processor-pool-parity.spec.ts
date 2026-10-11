@@ -14,18 +14,16 @@ import { requestSystems } from "./helpers/thread-systems";
  *
  * The cases below are a subset of `golden-hashes.spec.ts`, run through the real worker pool instead of by calling
  * `buildPattern` directly, and compared against the same recorded hashes. That covers the two things a direct call
- * cannot: the pool worker passing the right arguments (notably the quantizer that `generationMode` selects), and the
- * structured clone of the pixels across a thread boundary.
+ * cannot: the pool passing the right arguments (notably the quantizer that `generationMode` selects), and the pixels
+ * crossing to the `cs-job` process intact.
  *
  * Each result is then put through `serializePattern`/`deserializePattern` and hashed again, so the JSON the processor
  * actually returns is proven not to change the pattern either.
  *
- * It exercises the built bundle, so `npm run build:processor` must have run first.
+ * It runs the real `cs-job` binary, so `cargo build --release` must have run first.
  */
 
-const ROOT = path.join(__dirname, "..", "..");
-const WORKER = path.join(ROOT, "dist", "processor", "pool-worker.mjs");
-// The build tree's binary stands in for `/app/bin/cs-job`: the pool worker runs jobs in the sidecar and
+// The build tree's binary stands in for `/app/bin/cs-job`: the pool runs jobs in the sidecar and
 // nothing else since G-068 M2 (D221), so this spec needs it the same way production does.
 process.env.CS_JOB_BINARY = path.join(
   __dirname,
@@ -60,7 +58,7 @@ const CASES: Array<{ name: string; source: PixelBuffer; settings: Omit<JobSettin
   },
 ];
 
-const pool = new GenerationPool(WORKER, 2);
+const pool = new GenerationPool(2);
 
 afterAll(async () => {
   await pool.close();
@@ -85,8 +83,9 @@ async function runToCompletion(settings: Omit<JobSettings, "photoHash">, source:
 describe("processor pool parity: the server generates the same bytes as the browser", () => {
   const recorded: Record<string, string> = existsSync(HASH_FILE) ? JSON.parse(readFileSync(HASH_FILE, "utf8")) : {};
 
-  it("the processor bundle has been built", () => {
-    expect(existsSync(WORKER), `${WORKER} is missing -- run "npm run build:processor" first`).toBe(true);
+  it("the cs-job binary has been built", () => {
+    const binary = process.env.CS_JOB_BINARY!;
+    expect(existsSync(binary), `${binary} is missing -- run "cargo build --release --manifest-path rust/Cargo.toml" first`).toBe(true);
   });
 
   it.each(CASES.map((c) => [c.name, c] as const))(

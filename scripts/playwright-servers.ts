@@ -46,8 +46,8 @@ export function appWithProcessor({
       // `build:processor` also copies the export font and texture next to the bundle (D153), so this is self-contained.
       command: "npm run build:processor && node dist/processor/server.mjs",
       cwd: root,
-      // The Rust sidecar is off unless the environment names a binary (G-048 M6): a checkout without a Rust build
-      // runs the TypeScript, and `CS_JOB_BINARY=<path> npm run test:e2e` runs the same suite against Rust.
+      // The sidecar is the only engine (D221): `CS_JOB_BINARY=<path> npm run test:e2e` names the build tree's binary,
+      // and without it every generation fails naming the binary it could not find.
       env: {
         PROCESSOR_PORT: String(processorPort),
         ...(process.env.CS_JOB_BINARY ? { CS_JOB_BINARY: process.env.CS_JOB_BINARY } : {}),
@@ -95,6 +95,8 @@ export function appWithProcessor({
         // Billing through the fake provider (G-106 M3, D373): its Checkout and Portal are this server's own pages, and
         // its events reach this server's webhook. It runs only on a local address (`lib/billing/settings.ts`).
         BILLING_GATEWAY: "fake",
+        // The build has to carry the fake for it to run: a production build does not (D408).
+        BILLING_FAKE_BUILD: "1",
         BILLING_RECONCILE_TOKEN: E2E_RECONCILE_TOKEN,
       },
       url: `http://localhost:${port}`,

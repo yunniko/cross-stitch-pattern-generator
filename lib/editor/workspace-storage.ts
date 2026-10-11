@@ -103,6 +103,9 @@ export interface WorkspaceOptions {
   defaultPaletteMode: PaletteMode;
 }
 
+/** The longest author name an export prints; the processor refuses a longer one (G-134 M1). */
+export const AUTHOR_NAME_MAX = 200;
+
 export const DEFAULT_OPTIONS: WorkspaceOptions = {
   aidaCount: DEFAULT_AIDA_COUNT,
   sizeUnit: DEFAULT_SIZE_UNIT,
@@ -178,7 +181,7 @@ export function loadWorkspaceOptions(): WorkspaceOptions {
     return {
       aidaCount: typeof parsed.aidaCount === "number" && parsed.aidaCount > 0 ? parsed.aidaCount : DEFAULT_OPTIONS.aidaCount,
       sizeUnit: parsed.sizeUnit === "in" || parsed.sizeUnit === "cm" ? parsed.sizeUnit : DEFAULT_OPTIONS.sizeUnit,
-      authorName: typeof parsed.authorName === "string" ? parsed.authorName : DEFAULT_OPTIONS.authorName,
+      authorName: typeof parsed.authorName === "string" ? parsed.authorName.slice(0, AUTHOR_NAME_MAX) : DEFAULT_OPTIONS.authorName,
       edgeMode,
       exportCellMm: normalCellMm(parsed.exportCellMm) ?? DEFAULT_OPTIONS.exportCellMm,
       overlapCells: VALID_OVERLAP_CELLS.includes(parsed.overlapCells as OverlapCells)

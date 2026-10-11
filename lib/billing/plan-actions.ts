@@ -11,8 +11,7 @@ import { prisma } from "@/lib/prisma";
 import { billingPolicy } from "@/lib/settings/server";
 import { consentRefusal, documentsInForce, postedConsent, upgradeConfirmation } from "./consent";
 import { BillingUnavailableError, type BillingGateway } from "./contract";
-import { deliverFakeEvents } from "./fake-delivery";
-import { billingGateway, currentBillingSettings, fakeBillingGateway } from "./gateway";
+import { billingGateway, currentBillingSettings, deliverFakeEvents } from "./gateway";
 import { deliverQueuedNotices } from "./notice-delivery";
 import { CANCEL_REFUSED, CHANGE_REFUSED, cancelRefusal, changeKind, changeRefusal, targetRefusal } from "./plan-change";
 import { prismaBillingStore, readConsent } from "./prisma-store";
@@ -89,8 +88,7 @@ async function underLock(
     if (error instanceof BillingUnavailableError) return { error: unavailable };
     throw error;
   }
-  const fake = await fakeBillingGateway();
-  if (fake) await deliverFakeEvents(fake, settings.siteUrl);
+  await deliverFakeEvents();
   await deliverQueuedNotices(new Date());
   revalidatePath(PLAN_PATH);
   return { done: true };

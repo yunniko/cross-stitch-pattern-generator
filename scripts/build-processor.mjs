@@ -21,11 +21,8 @@ const OUT = path.join(ROOT, "dist", "processor");
 await rm(OUT, { recursive: true, force: true });
 
 await build({
-  input: {
-    server: path.join(ROOT, "processor", "server.ts"),
-    // Separate entries, not imports: each is spawned by path as a worker thread.
-    "pool-worker": path.join(ROOT, "processor", "pool-worker.ts"),
-  },
+  // One entry: jobs run in `cs-job` processes the server spawns itself, not in worker threads (D407).
+  input: { server: path.join(ROOT, "processor", "server.ts") },
   platform: "node",
   external: ["@napi-rs/canvas"],
   resolve: { alias: { "@": ROOT } },

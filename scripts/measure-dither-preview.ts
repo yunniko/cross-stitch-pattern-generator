@@ -43,6 +43,6 @@ for (const [w, h] of [
 ] as const) {
   const request = JSON.stringify({ ditherMode: "hand-drawn", chartWidth: w, chartHeight: h, ditherTexture: DEFAULT_DITHER_TEXTURE });
   console.log(
-    `| Server preview, hand-drawn (default texture), ${w} × ${h} chart | ${time(() => execFileSync(CS_JOB, ["dither-preview", request])).toFixed(1)} |`
+    `| Server preview, hand-drawn (default texture), ${w} × ${h} chart | ${time(() => execFileSync(CS_JOB, ["dither-preview"], { input: request })).toFixed(1)} |`
   );
 }

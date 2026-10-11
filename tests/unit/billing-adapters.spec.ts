@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { BillingSignatureError, BillingUnavailableError } from "../../lib/billing/contract";
 import { readEventObject } from "../../lib/billing/event-reference";
-import { FakeBilling } from "../../lib/billing/fake";
-import { FAKE_WEBHOOK_SECRET, billingSettings } from "../../lib/billing/settings";
+import { FakeBilling, FAKE_WEBHOOK_SECRET } from "../../lib/billing/fake";
+import { billingSettings } from "../../lib/billing/settings";
 import { signPayload, verifySignature } from "../../lib/billing/signature";
 import { failingInvoice, invoicePaymentIntentId, priceFromStripe, snapshotFromStripe } from "../../lib/billing/stripe-mapping";
 
@@ -58,7 +58,7 @@ describe("billing settings", () => {
     expect(billingSettings({ BILLING_GATEWAY: "fake", AUTH_URL: "http://localhost:3000" })).toEqual({
       on: true,
       gateway: "fake",
-      webhookSecret: FAKE_WEBHOOK_SECRET,
+      webhookSecret: "",
       siteUrl: "http://localhost:3000",
     });
     expect(billingSettings({ BILLING_GATEWAY: "fake", APP_URL: "http://127.0.0.1:30200/" }).on).toBe(true);

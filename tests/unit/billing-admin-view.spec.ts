@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { MOVE_REFUSED, formatMoney, historyText, monthRange, moveRefusal, type StoredForMove } from "../../lib/billing/admin-view";
 import { BillingUnavailableError } from "../../lib/billing/contract";
-import { FakeBilling } from "../../lib/billing/fake";
-import { FAKE_WEBHOOK_SECRET } from "../../lib/billing/settings";
+import { FakeBilling, FAKE_WEBHOOK_SECRET } from "../../lib/billing/fake";
 import { handleWebhook, syncSubscription } from "../../lib/billing/sync";
 import { MemoryBillingStore } from "./helpers/memory-billing-store";
 

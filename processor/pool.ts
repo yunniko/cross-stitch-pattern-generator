@@ -1,5 +1,5 @@
-import { Worker } from "node:worker_threads";
 import { randomUUID } from "node:crypto";
+import { readSymmetry } from "@/lib/editor/pattern-serialize";
 import {
   exportDeadlineFor,
   gridPagesFor,
@@ -8,18 +8,18 @@ import {
   type JobSettings,
   type JobStatus,
   type WorkerJob,
-  type WorkerMessage,
 } from "./job-protocol";
+import { exportWithRust, generateWithRust, JobFailedError, type JobLimits } from "./rust-jobs";
 import type { ExportProgress } from "@/lib/export/export-progress";
 import type { PixelBuffer, StitchPattern } from "@/lib/types";
 
 /**
- * A bounded pool of generation workers (G-034 M2, sized by D149).
+ * A bounded pool of generation and export jobs (G-034 M2, sized by D149).
  *
- * Three workers, one job each, inside the processor's 3-CPU cap; a queue of twelve, beyond which the caller is told to
- * retry rather than made to wait indefinitely. Every job carries a deadline: past it the worker is terminated and
- * replaced, which also releases its memory. Cancellation works the same way, matching the browser's blunt terminate —
- * `buildPattern` has no interruption points.
+ * Three slots, one `cs-job` process each, inside the processor's 3-CPU cap; a queue of twelve, beyond which the caller
+ * is told to retry rather than made to wait indefinitely. Every job carries a deadline. Past it, or on a cancel, the
+ * job's process is killed, and its slot is free only once that process has exited, so the cap holds against the
+ * processes actually running rather than the jobs the pool still counts (D407).
  */
 
 export class QueueFullError extends Error {
@@ -40,7 +40,7 @@ export interface ExportResult {
 
 interface Job {
   id: string;
-  /** What the worker is asked to do; exports and generations share the pool so the CPU cap holds (D149). */
+  /** What the job runs; exports and generations share the pool so the CPU cap holds (D149). */
   work: WorkerJob;
   state: JobStatus["state"];
   progress: number;
@@ -52,48 +52,32 @@ interface Job {
   deadlineMs: number;
   /** Resolved whenever the job's state or progress changes, so the event stream can await the next update. */
   changed: Array<() => void>;
-  deadlineTimer?: NodeJS.Timeout;
-  workerIndex?: number;
+  /** Aborting kills the job's process; set while it runs. */
+  abort?: AbortController;
   finishedAt?: number;
 }
+
+/** What a person is told when a job fails for a reason the sidecar did not put into words. */
+const GENERIC_FAILURE: Record<WorkerJob["kind"], string> = {
+  generate: "That pattern could not be generated.",
+  export: "Couldn't complete that export.",
+};
 
 /** A finished job stays fetchable this long, so a client that reconnects can still collect its result. */
 const RESULT_TTL_MS = 5 * 60_000;
 
 export class GenerationPool {
-  private readonly workers: Array<{ worker: Worker; jobId: string | null }> = [];
   private readonly jobs = new Map<string, Job>();
   private readonly queue: string[] = [];
+  /** Each running job's settling, which happens only once its process has exited. */
+  private readonly running = new Set<Promise<void>>();
 
   constructor(
-    private readonly workerPath: string,
     private readonly size: number = LIMITS.poolSize,
     /** Injectable so the deadline behaviour can be tested without waiting the production 45 seconds. */
     private readonly deadlineMs: number = LIMITS.jobDeadlineMs
   ) {
-    for (let i = 0; i < this.size; i++) this.workers.push({ worker: this.spawn(i), jobId: null });
     setInterval(() => this.sweep(), 30_000).unref();
-  }
-
-  private spawn(index: number): Worker {
-    // V8 sizes a worker heap from the host unless told otherwise, so a bundle that fits on a developer machine can
-    // exhaust the heap inside the container cap. An explicit ceiling makes the limit the same everywhere.
-    const heapMb = Number(process.env.PROCESSOR_WORKER_HEAP_MB ?? 0);
-    const worker = new Worker(this.workerPath, heapMb > 0 ? { resourceLimits: { maxOldGenerationSizeMb: heapMb } } : undefined);
-    // A worker we have already replaced still emits `exit` (terminating one exits with code 1). Without this guard
-    // that late event would fail whichever job took over its slot, not the one that was killed.
-    const isCurrent = () => this.workers[index]?.worker === worker;
-    worker.on("message", (message: WorkerMessage) => {
-      if (isCurrent()) this.onMessage(index, message);
-    });
-    worker.on("error", (err) => {
-      if (isCurrent()) this.onWorkerGone(index, err.message);
-    });
-    worker.on("exit", (code) => {
-      if (code !== 0 && isCurrent()) this.onWorkerGone(index, `worker exited with code ${code}`);
-    });
-    worker.unref();
-    return worker;
   }
 
   /** Accepts a generation, or refuses it when the queue is full. */
@@ -102,8 +86,8 @@ export class GenerationPool {
   }
 
   /**
-   * Accepts an export onto the same workers (G-034 M4). Its deadline follows what it will render: a paginated
-   * export's grows with the chart's A4 page count, counted here before the job starts (D168).
+   * Accepts an export into the same slots (G-034 M4). Its deadline follows what it will render: a paginated export's
+   * grows with the chart's A4 page count, counted here before the job starts (D168).
    */
   submitExport(payload: ExportJobPayload): string {
     // The A4 pages follow the Owner's cell size; the Pattern Keeper PDF keeps its own layout (G-083).
@@ -163,86 +147,92 @@ export class GenerationPool {
       this.finish(job, "cancelled", "Cancelled before it started.");
       return true;
     }
-    this.killJobWorker(job, "cancelled", "Cancelled.");
+    // The client hears at once; the slot stays taken until the process has gone.
+    const abort = job.abort;
+    this.finish(job, "cancelled", "Cancelled.");
+    abort?.abort();
     return true;
   }
 
-  /** Frees every worker; used by tests and shutdown. */
+  /** Kills every running job and resolves once their processes have exited; used by tests and shutdown. */
   async close(): Promise<void> {
-    await Promise.all(this.workers.map((w) => w.worker.terminate()));
+    this.queue.length = 0;
+    for (const job of this.jobs.values()) job.abort?.abort();
+    await Promise.all(this.running);
   }
 
   private pump(): void {
-    while (this.queue.length > 0) {
-      const free = this.workers.findIndex((w) => w.jobId === null);
-      if (free === -1) return;
+    while (this.queue.length > 0 && this.running.size < this.size) {
       const id = this.queue.shift()!;
       const job = this.jobs.get(id);
       if (!job || job.state !== "queued") continue;
-      this.workers[free].jobId = id;
-      job.workerIndex = free;
       job.state = "running";
       job.progress = 0;
-      job.deadlineTimer = setTimeout(() => this.killJobWorker(job, "error", "The job ran past its time limit."), job.deadlineMs);
-      job.deadlineTimer.unref();
-      this.workers[free].worker.postMessage(job.work);
+      job.abort = new AbortController();
       this.notify(job);
+      const settled = this.run(job, { signal: job.abort.signal, timeoutMs: job.deadlineMs }).finally(() => {
+        this.running.delete(settled);
+        this.pump();
+      });
+      this.running.add(settled);
     }
   }
 
-  private onMessage(index: number, message: WorkerMessage): void {
-    const job = this.jobs.get(message.jobId);
-    if (!job || this.workers[index].jobId !== message.jobId) return; // a message from a job we already gave up on
-    if (message.type === "progress") {
-      job.progress = message.fraction;
-      this.notify(job);
-      return;
+  /** Runs a job's process to its end and records the outcome, unless a cancel already has. Never rejects. */
+  private async run(job: Job, limits: JobLimits): Promise<void> {
+    const work = job.work;
+    try {
+      if (work.kind === "export") {
+        const { payload } = work;
+        // The wire carries only the axes that are on (`SerializedSymmetry`); this is the same reader a saved file goes
+        // through, so the editable JSON inside an export records exactly what the editor had set.
+        const symmetry = readSymmetry(payload.symmetry, payload.pattern.width, payload.pattern.height);
+        const file = await exportWithRust(
+          payload,
+          symmetry,
+          (progress) => {
+            if (job.state !== "running") return;
+            job.exportProgress = progress;
+            job.progress = progress.total > 0 ? progress.completed / progress.total : 0;
+            this.notify(job);
+          },
+          limits
+        );
+        if (job.state === "running") {
+          job.exportResult = file;
+          this.finish(job, "done");
+        }
+      } else {
+        const pattern = await generateWithRust(
+          work,
+          (fraction) => {
+            if (job.state !== "running") return;
+            job.progress = fraction;
+            this.notify(job);
+          },
+          limits
+        );
+        if (job.state === "running") {
+          job.pattern = pattern;
+          this.finish(job, "done");
+        }
+      }
+    } catch (err) {
+      if (job.state !== "running") return;
+      // Only the sidecar's own words, or the pool's, reach a person; anything else is logged and stated generically.
+      if (err instanceof JobFailedError) this.finish(job, "error", err.message);
+      else {
+        console.error(`job ${job.id.slice(0, 8)} failed: ${err instanceof Error ? err.message : String(err)}`);
+        this.finish(job, "error", GENERIC_FAILURE[work.kind]);
+      }
     }
-    if (message.type === "export-progress") {
-      job.exportProgress = message.progress;
-      job.progress = message.progress.total > 0 ? message.progress.completed / message.progress.total : 0;
-      this.notify(job);
-      return;
-    }
-    this.workers[index].jobId = null;
-    if (message.type === "done") {
-      job.pattern = message.pattern;
-      this.finish(job, "done");
-    } else if (message.type === "export-done") {
-      job.exportResult = { bytes: message.bytes, filename: message.filename, contentType: message.contentType };
-      this.finish(job, "done");
-    } else {
-      this.finish(job, "error", message.message);
-    }
-    this.pump();
-  }
-
-  private onWorkerGone(index: number, reason: string): void {
-    const jobId = this.workers[index].jobId;
-    this.workers[index] = { worker: this.spawn(index), jobId: null };
-    if (jobId) {
-      const job = this.jobs.get(jobId);
-      if (job) this.finish(job, "error", reason);
-    }
-    this.pump();
-  }
-
-  /** Terminates the worker running `job` and replaces it, which also releases the job's memory. */
-  private killJobWorker(job: Job, state: JobStatus["state"], message: string): void {
-    const index = job.workerIndex;
-    if (index === undefined) return;
-    void this.workers[index].worker.terminate();
-    this.workers[index] = { worker: this.spawn(index), jobId: null };
-    this.finish(job, state, message);
-    this.pump();
   }
 
   private finish(job: Job, state: JobStatus["state"], message?: string): void {
-    if (job.deadlineTimer) clearTimeout(job.deadlineTimer);
     job.state = state;
     job.message = message;
     job.finishedAt = Date.now();
-    job.workerIndex = undefined;
+    job.abort = undefined;
     // The inputs are the biggest thing a finished job holds — a generation's pixels, an export's whole chart and photo.
     // The photo store still owns its own copy, and the finished file is kept separately.
     job.work = {

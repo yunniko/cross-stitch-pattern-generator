@@ -8,13 +8,12 @@ import { makeBuffer, makePhotoLikeBuffer, pseudoNoise } from "./helpers/fixtures
 /**
  * The processor refuses work rather than taking on more than its caps allow (G-034 M2, acceptance criterion 4).
  *
- * These run against the built worker bundle, so `npm run build:processor` must have run first. They cover what the
+ * These run the real `cs-job` binary, so `cargo build --release` must have run first. They cover what the
  * container caps alone cannot show: that a full queue is answered immediately instead of growing, that a waiting job
  * knows its place in line, and that a job which overruns its deadline is killed without taking the pool down with it.
  */
 
-const WORKER = path.join(__dirname, "..", "..", "dist", "processor", "pool-worker.mjs");
-// The build tree's binary stands in for `/app/bin/cs-job`: the pool worker runs jobs in the sidecar and
+// The build tree's binary stands in for `/app/bin/cs-job`: the pool runs jobs in the sidecar and
 // nothing else since G-068 M2 (D221), so this spec needs it the same way production does.
 process.env.CS_JOB_BINARY = path.join(
   __dirname,
@@ -46,13 +45,14 @@ function waitForSettled(pool: GenerationPool, jobId: string): Promise<string> {
 }
 
 describe("processor pool limits", () => {
-  it("the processor bundle has been built", () => {
-    expect(existsSync(WORKER), `${WORKER} is missing -- run "npm run build:processor" first`).toBe(true);
+  it("the cs-job binary has been built", () => {
+    const binary = process.env.CS_JOB_BINARY!;
+    expect(existsSync(binary), `${binary} is missing -- run "cargo build --release --manifest-path rust/Cargo.toml" first`).toBe(true);
   });
 
   it("accepts exactly one full queue, then refuses with a retry delay", async () => {
     // One worker, so the second submission onwards queues: the queue fills after LIMITS.queueLength of them.
-    const pool = new GenerationPool(WORKER, 1);
+    const pool = new GenerationPool(1);
     try {
       const accepted: string[] = [];
       // Submitting is synchronous, so nothing completes in between and the queue fills deterministically.
@@ -78,7 +78,7 @@ describe("processor pool limits", () => {
   }, 60_000);
 
   it("frees a queue slot when a waiting job is cancelled", async () => {
-    const pool = new GenerationPool(WORKER, 1);
+    const pool = new GenerationPool(1);
     try {
       const ids = Array.from({ length: 4 }, () => pool.submit({ longerSideStitches: 60, colorCount: 8 }, small));
       const last = ids[ids.length - 1];
@@ -94,7 +94,7 @@ describe("processor pool limits", () => {
   }, 60_000);
 
   it("kills a job that runs past its deadline and keeps serving afterwards", async () => {
-    const pool = new GenerationPool(WORKER, 1, 40);
+    const pool = new GenerationPool(1, 40);
     try {
       const overrunning = pool.submit({ longerSideStitches: 300, colorCount: 64 }, slow);
       expect(await waitForSettled(pool, overrunning)).toBe("error");
@@ -106,9 +106,9 @@ describe("processor pool limits", () => {
   }, 120_000);
 
   it("keeps serving on the same pool after a job is killed mid-run", async () => {
-    // Deliberately the same pool: killing a job terminates its worker, and that worker's late `exit` event must not
-    // be charged to the job that takes over its slot. Testing this with a fresh pool would prove nothing.
-    const pool = new GenerationPool(WORKER, 1);
+    // Deliberately the same pool: killing a job kills its process, and that process's late `close` must not be charged
+    // to the job that takes over its slot. Testing this with a fresh pool would prove nothing.
+    const pool = new GenerationPool(1);
     try {
       const doomed = pool.submit({ longerSideStitches: 300, colorCount: 64 }, slow);
       expect(pool.cancel(doomed)).toBe(true);

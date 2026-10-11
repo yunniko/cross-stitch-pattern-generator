@@ -64,12 +64,31 @@ export async function takeQuota(
 
   return {
     ticket: once((accepted) => {
-      if (accepted) return;
-      prisma.usageEvent.delete({ where: { id: outcome.eventId } }).catch((error: unknown) => {
-        console.error("quota give-back failed:", error);
-      });
+      if (!accepted) void giveBack(outcome.eventId);
     }),
   };
+}
+
+/** How long a failed give-back waits before its one retry: long enough for a dropped connection to be replaced. */
+const GIVE_BACK_RETRY_MS = 2_000;
+
+/**
+ * Returns a use the caller never got. Tried twice, since a use left behind counts against the person until it ages out
+ * (G-134 M1); `deleteMany`, so a retry after a delete that did land is not an error.
+ */
+export async function giveBack(eventId: string): Promise<void> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await prisma.usageEvent.deleteMany({ where: { id: eventId } });
+      return;
+    } catch (error) {
+      if (attempt === 2) {
+        console.error(`quota give-back of ${eventId} failed twice:`, error);
+        return;
+      }
+      await new Promise((resolve) => setTimeout(resolve, GIVE_BACK_RETRY_MS));
+    }
+  }
 }
 
 /**

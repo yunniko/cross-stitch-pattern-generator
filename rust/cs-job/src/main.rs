@@ -1,18 +1,20 @@
 //! The processor's Rust sidecar (G-048 M6): one generation or one export per process, spoken to over pipes.
 //!
 //!   cs-job generate <width> <height>    # options JSON, a newline, then RGBA pixels on stdin; pattern JSON on stdout
-//!   cs-job export '<request json>'      # an editable save on stdin, the file's bytes on stdout
+//!   cs-job export                       # the request JSON, a newline, then an editable save on stdin; the file's bytes
+//!                                       # on stdout
 //!   cs-job predict <width> <height>     # options JSON, a newline, then RGBA pixels on stdin; the predicted colours
 //!                                       # (and the coverage of a set) on stdout
 //!
-//! The options of a generation or a prediction come on stdin, not the command line: they carry the thread systems the
-//! request may use (G-132, D400), up to thousands of threads, more than a command line may hold.
-//!   cs-job dither-preview '<request json>'              # a dither pattern's preview as a PNG on stdout (G-100)
+//!   cs-job dither-preview               # the request JSON on stdin; a dither pattern's preview as a PNG on stdout (G-100)
+//!
+//! Every request comes on stdin, never the command line: a generation's carries the thread systems it may use (G-132,
+//! D400), up to thousands of threads, and an export's an author name, either more than a command line may hold (D407).
 //!
 //! stderr carries one JSON object per line, never the payload: `{"progress":0.4}` as `buildPattern`'s `onProgress`
 //! reports it, `{"exportProgress":{"completed":12,"total":180,"label":"Page 12 of 180"}}` as `runExportJob` does,
 //! `{"filename":"chart.pdf"}` before an export's bytes, and `{"error":"…"}` before a non-zero exit.
-//! Anything the parent cannot parse is a failure it falls back to TypeScript from (D193).
+//! Anything else on stderr (a panic) the parent logs and does not show, reporting a generic failure (D407).
 //!
 //! `CS_JOB_THREADS` sizes the rayon pool; one by default, because the processor's pool is already one worker per core
 //! (D190).
@@ -136,11 +138,14 @@ fn predict(args: &[String]) {
     write_stdout(out.to_string().as_bytes());
 }
 
-fn export(args: &[String]) {
-    let request = cs_export::model::Request::from_json(&args[2]).unwrap_or_else(|e| fail(&e));
-    let text = String::from_utf8(read_stdin())
-        .unwrap_or_else(|e| fail(&format!("the save is not UTF-8: {e}")));
-    let pattern = cs_export::model::Pattern::from_editable_json(&text).unwrap_or_else(|e| fail(&e));
+fn export() {
+    let input = String::from_utf8(read_stdin())
+        .unwrap_or_else(|e| fail(&format!("stdin is not UTF-8: {e}")));
+    let Some((request, text)) = input.split_once('\n') else {
+        fail("stdin must start with the request and a newline");
+    };
+    let request = cs_export::model::Request::from_json(request).unwrap_or_else(|e| fail(&e));
+    let pattern = cs_export::model::Pattern::from_editable_json(text).unwrap_or_else(|e| fail(&e));
     let pool = rayon::ThreadPoolBuilder::new()
         .num_threads(threads())
         .build()
@@ -158,10 +163,12 @@ fn export(args: &[String]) {
 
 /// A dither pattern's preview for the photo pane (G-100, D327): `ditherMode`, the pattern's own settings and the
 /// chart's size, as `parse_dither_preview` reads them; the 56 × 56 corner as a two-tone PNG.
-fn dither_preview(args: &[String]) {
+fn dither_preview() {
     use cs_core::dither::preview::{ramp_window, DARK, LIGHT, WINDOW};
+    let request = String::from_utf8(read_stdin())
+        .unwrap_or_else(|e| fail(&format!("the request is not UTF-8: {e}")));
     let (pattern, width, height) =
-        cs_core::json::parse_dither_preview(&args[2]).unwrap_or_else(|e| fail(&e));
+        cs_core::json::parse_dither_preview(&request).unwrap_or_else(|e| fail(&e));
     let picture = ramp_window(pattern.as_deref(), width, height, WINDOW, WINDOW);
     write_stdout(&cs_export::png::encode_labels(
         &picture.labels,
@@ -176,10 +183,10 @@ fn main() {
     match args.get(1).map(String::as_str) {
         Some("generate") if args.len() == 4 => generate(&args),
         Some("predict") if args.len() == 4 => predict(&args),
-        Some("export") if args.len() == 3 => export(&args),
-        Some("dither-preview") if args.len() == 3 => dither_preview(&args),
+        Some("export") if args.len() == 2 => export(),
+        Some("dither-preview") if args.len() == 2 => dither_preview(),
         _ => {
-            eprintln!("usage: cs-job generate|predict <width> <height> | cs-job export '<request json>' | cs-job dither-preview '<request json>'");
+            eprintln!("usage: cs-job generate|predict <width> <height> | cs-job export | cs-job dither-preview (requests on stdin)");
             std::process::exit(2);
         }
     }

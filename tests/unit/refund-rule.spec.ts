@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { FakeBilling } from "../../lib/billing/fake";
+import { FakeBilling, FAKE_WEBHOOK_SECRET } from "../../lib/billing/fake";
 import { REFUND_REFUSED, parseMoney, refundAmount, unusedRefund, unusedShare } from "../../lib/billing/refund-rule";
-import { FAKE_WEBHOOK_SECRET } from "../../lib/billing/settings";
 import { chargePeriod, invoicePeriod, periodsByPayment } from "../../lib/billing/stripe-mapping";
 
 type StripeInvoice = Parameters<typeof invoicePeriod>[0];

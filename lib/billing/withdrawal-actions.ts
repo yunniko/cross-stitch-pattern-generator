@@ -7,8 +7,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { billingPolicy } from "@/lib/settings/server";
 import { BillingUnavailableError, type BillingGateway } from "./contract";
-import { deliverFakeEvents } from "./fake-delivery";
-import { billingGateway, currentBillingSettings, fakeBillingGateway } from "./gateway";
+import { billingGateway, currentBillingSettings, deliverFakeEvents } from "./gateway";
 import { deliverQueuedNotices } from "./notice-delivery";
 import { prismaBillingStore } from "./prisma-store";
 import { isFinal, syncSubscription } from "./sync";
@@ -139,8 +138,7 @@ export async function withdrawAction(): Promise<WithdrawalActionState> {
     return { error: WITHDRAWAL_REFUSED.unfinished };
   }
   // On a local run, the fake's events reach this server's webhook now; the acknowledgment goes either way.
-  const fake = await fakeBillingGateway();
-  if (fake) await deliverFakeEvents(fake, settings.siteUrl);
+  await deliverFakeEvents();
   await deliverQueuedNotices(new Date());
   revalidatePath(PLAN_PATH);
   return { done: true };

@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { BillingUnavailableError } from "../../lib/billing/contract";
 import { entitlement, hasTier } from "../../lib/billing/entitlement";
-import { FakeBilling, type SignedEvent } from "../../lib/billing/fake";
+import { FakeBilling, type SignedEvent, FAKE_WEBHOOK_SECRET } from "../../lib/billing/fake";
 import { grantRow } from "../../lib/billing/grants";
-import { FAKE_WEBHOOK_SECRET } from "../../lib/billing/settings";
 import { UnknownPriceError, handleWebhook, planSync, reconcile } from "../../lib/billing/sync";
 import { MemoryBillingStore } from "./helpers/memory-billing-store";
 

@@ -8,9 +8,8 @@ import {
   upgradeConfirmation,
   type ConsentRecord,
 } from "../../lib/billing/consent";
-import { FakeBilling } from "../../lib/billing/fake";
+import { FakeBilling, FAKE_WEBHOOK_SECRET } from "../../lib/billing/fake";
 import { messageValues, type PlannedNotice } from "../../lib/billing/notices";
-import { FAKE_WEBHOOK_SECRET } from "../../lib/billing/settings";
 import { handleWebhook, reconcile } from "../../lib/billing/sync";
 import { withdrawalReceipt } from "../../lib/billing/withdrawal";
 import { MESSAGES, renderMessage, type MessageId } from "../../lib/mail/messages";

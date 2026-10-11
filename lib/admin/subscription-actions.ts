@@ -6,8 +6,7 @@ import { logChange } from "@/lib/admin/change-log-data";
 import { BILLING_SCOPE } from "@/lib/admin/change-log";
 import { formatMoney, moveRefusal } from "@/lib/billing/admin-view";
 import { BillingUnavailableError, type BillingGateway } from "@/lib/billing/contract";
-import { deliverFakeEvents } from "@/lib/billing/fake-delivery";
-import { billingGateway, currentBillingSettings, fakeBillingGateway } from "@/lib/billing/gateway";
+import { billingGateway, deliverFakeEvents } from "@/lib/billing/gateway";
 import { formatDay, formatPrice } from "@/lib/billing/notices";
 import { refundAmount, type RefundAsk } from "@/lib/billing/refund-rule";
 import { prismaBillingStore } from "@/lib/billing/prisma-store";
@@ -42,13 +41,6 @@ async function gatewayOrRefuse(): Promise<BillingGateway> {
   const gateway = await billingGateway();
   if (!gateway) throw new Error(OFF);
   return gateway;
-}
-
-/** On a local run, the fake's events go to this server's webhook now, as Stripe would send its own. */
-async function deliverIfFake() {
-  const fake = await fakeBillingGateway();
-  const settings = currentBillingSettings();
-  if (fake && settings.on) await deliverFakeEvents(fake, settings.siteUrl);
 }
 
 function revalidateSubscriptions(userId?: string) {
@@ -93,7 +85,7 @@ export async function refundPaymentAction(
       data: { subscriptionId: user.subscription.id, kind: "refund-asked", before: null, after: said, source: "admin", eventId: null },
     });
     await logChange(admin, BILLING_SCOPE, userId, `${user.email}: refund of ${said}`);
-    await deliverIfFake();
+    await deliverFakeEvents();
     revalidateSubscriptions(userId);
     return `Refund of ${given}${part} asked.`;
   });
@@ -154,7 +146,7 @@ export async function movePersonPriceAction(userId: string): Promise<Subscriptio
   return attempt(async () => {
     const admin = await requireAdmin();
     await moveOne(await gatewayOrRefuse(), admin, userId);
-    await deliverIfFake();
+    await deliverFakeEvents();
     revalidateSubscriptions(userId);
     return "Moved to the price offered now, from the next renewal.";
   });
@@ -188,7 +180,7 @@ export async function movePriceHoldersAction(priceId: string): Promise<Subscript
         left.push(error instanceof Error ? error.message : String(error));
       }
     }
-    await deliverIfFake();
+    await deliverFakeEvents();
     revalidateSubscriptions();
     const kept = left.length > 0 ? `; ${left.length} left on their price (${[...new Set(left)].join(" ")})` : "";
     const stopped = untried > 0 ? `; the payment provider stopped answering, so ${untried} were not tried` : "";

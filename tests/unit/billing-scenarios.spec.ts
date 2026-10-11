@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { entitlement, type BillingPolicy } from "../../lib/billing/entitlement";
-import { FakeBilling, type SignedEvent } from "../../lib/billing/fake";
+import { FakeBilling, type SignedEvent, FAKE_WEBHOOK_SECRET } from "../../lib/billing/fake";
 import { deliverNotices, type NoticeMessage } from "../../lib/billing/notices";
-import { FAKE_WEBHOOK_SECRET } from "../../lib/billing/settings";
 import { handleWebhook, reconcile, type HistoryKind } from "../../lib/billing/sync";
 import { MemoryBillingStore } from "./helpers/memory-billing-store";
 
